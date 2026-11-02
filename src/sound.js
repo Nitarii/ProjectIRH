@@ -1,15 +1,23 @@
 export function createSound(){
-  let ctx=null, master=null, ambient=null, wind=null, windGain=null, nextMusic=0, nextBird=0, notes=0, enabled=true;
+  let ctx=null, master=null, ambient=null, wind=null, windGain=null, nextMusic=0, nextBird=0, nextWind=0, notes=0, enabled=true;
   const AC=window.AudioContext||window.webkitAudioContext;
   const gain=(v)=>{const g=ctx.createGain();g.gain.value=v;g.connect(master);return g};
   function note(freq,start,len,volume=.06,wave='sine',out=master){
-    if(!ctx||!enabled)return;
-    const o=ctx.createOscillator(),g=ctx.createGain();
-    o.type=wave;o.frequency.setValueAtTime(freq,start);
-    g.gain.setValueAtTime(.0001,start);
-    g.gain.exponentialRampToValueAtTime(Math.max(.0002,volume),start+.04);
-    g.gain.exponentialRampToValueAtTime(.0001,start+len);
-    o.connect(g);g.connect(out);o.start(start);o.stop(start+len+.02);
+    if(!ctx||!enabled||!out)return;
+    if(!Number.isFinite(freq)||freq<=0||!Number.isFinite(start)||!Number.isFinite(len)||len<=.045)return;
+    let o=null;
+    try{
+      o=ctx.createOscillator();
+      const g=ctx.createGain();
+      o.type=wave;o.frequency.setValueAtTime(freq,start);
+      g.gain.setValueAtTime(.0001,start);
+      g.gain.exponentialRampToValueAtTime(Math.max(.0002,volume),start+.04);
+      g.gain.exponentialRampToValueAtTime(.0001,start+len);
+      o.connect(g);g.connect(out);o.start(start);o.stop(start+len+.02);
+      o.addEventListener('ended',()=>{try{o.disconnect();g.disconnect()}catch{}},{once:true});
+    }catch{
+      try{o?.disconnect()}catch{}
+    }
   }
   function boot(){
     if(!enabled||!AC)return;
@@ -25,7 +33,7 @@ export function createSound(){
       const filter=ctx.createBiquadFilter();filter.type='lowpass';filter.frequency.value=650;
       windGain=ctx.createGain();windGain.gain.value=.2;
       wind.connect(filter);filter.connect(windGain);windGain.connect(ambient);wind.start();
-      nextMusic=ctx.currentTime+.4;nextBird=ctx.currentTime+5;
+      nextMusic=ctx.currentTime+.4;nextBird=ctx.currentTime+5;nextWind=ctx.currentTime;
     }catch(e){ctx=null}
   }
   function effect(type=0){
@@ -41,23 +49,28 @@ export function createSound(){
     note(f*(.92+Math.random()*.16),t,.09,.12,Number(type)===2?'sawtooth':'triangle');
     note(f*.55,t+.02,.13,.045,'sine');
   }
-  const progression=[0,2,4,7,9,7,4,2],scale=[174.61,196,220,261.63,293.66,329.63,392,440,523.25];
+  const progression=[0,2,4,7,8,7,4,2],scale=[174.61,196,220,261.63,293.66,329.63,392,440,523.25];
   function update(biome,dt){
-    if(!ctx||!enabled)return;
-    if(windGain)windGain.gain.setTargetAtTime(biome===3?.32:biome===1?.24:.16,ctx.currentTime,.4);
-    let now=ctx.currentTime;
+    if(!ctx||!enabled||ctx.state!=='running')return;
+    const now=ctx.currentTime;
+    if(!Number.isFinite(now))return;
+    if(windGain&&now>=nextWind){
+      nextWind=now+.3;
+      try{windGain.gain.setTargetAtTime(biome===3?.32:biome===1?.24:.16,now,.35)}catch{}
+    }
     if(now>=nextMusic){
+      nextMusic=now+2.1;
       const n=progression[notes%progression.length],freq=scale[n];
-      note(freq,now,1.9,.021,'sine');
+      if(Number.isFinite(freq))note(freq,now,1.9,.021,'sine');
       if(notes%4===0){note(130.81,now,3.1,.013,'triangle');note(196,now,2.8,.011,'sine')}
-      notes++;nextMusic=now+2.1;
+      notes++;
     }
     if(now>=nextBird){
+      nextBird=now+7+Math.random()*12;
       if(biome===0||biome===4||biome===-1){
         const f=740+Math.random()*500;
         note(f,now,.13,.065,'sine');note(f*1.19,now+.18,.12,.05,'sine');
-      }else if(biome===3){note(450,now,.18,.027,'sine')}
-      nextBird=now+7+Math.random()*12;
+      }else if(biome===3)note(450,now,.18,.027,'sine');
     }
   }
   function toggle(){
