@@ -159,4 +159,74 @@ function renderPanel(){let e=$('panel');e.classList.toggle('hidden',!panel);if(!
 $('panel').onclick=e=>{let b=e.target.closest('button');if(!b)return;if(b.dataset.tab)return panel=b.dataset.tab,renderPanel();let a=b.dataset.action;if(!a)return;if(a==='sell')return sell();if(a==='bag')return buy(450,()=>st.bag=16);if(a==='cart')return buy(1200,()=>st.cart=true);if(a==='truck')return buy(4500,()=>st.truck=true);let [kind,id]=a.split(':'),i=+id;if(kind==='tool'){let tier=st.tools[i]+1;return buy(tier===0?prices[i]:tier===1?650:2900,()=>st.tools[i]=tier)}if(kind==='hire')return buy(300,()=>st.buildings[i].workers++);if(kind==='talent')return buy(500,()=>st.talents[i]++);if(['factory','worker','transport','seller'].includes(kind))return buy(kind==='factory'?480+i*150:kind==='worker'?550+i*160:kind==='transport'?1400:1800,()=>{placing={kind,type:i};panel=null;renderPanel();pop('Allez à l’emplacement, F pour construire')})};const close=()=>{stopHarvest();panel=null;renderPanel()};$('close').onclick=close;$('resume').onclick=close;
 addEventListener('keydown',e=>{keys[e.code]=true;if(['KeyW','KeyZ','KeyA','KeyQ','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))stopHarvest();if(e.repeat)return;if(e.code==='KeyF')interact();if(e.code==='KeyE'){if(Math.hypot(player.position.x,player.position.z)<7)openPanel('market');else if(Math.hypot(player.position.x-7,player.position.z)<5)sell()}if(e.code==='KeyG'&&carried)drop();if(e.code==='KeyB')openPanel('build');if(e.code==='KeyU')openPanel('talents');if(e.code==='KeyI')openPanel('inventory');if(e.code==='KeyR')pop(st.truck?'Camion possédé':'Achetez un camion au comptoir');if(e.code==='Escape'){if(placing){placing=null;pop('Placement annulé')}close()}});addEventListener('keyup',e=>keys[e.code]=false);addEventListener('mousemove',e=>{if(document.pointerLockElement===renderer.domElement){heading-=e.movementX*.0025;pitch=T.MathUtils.clamp(pitch+e.movementY*.002,-.1,1.15)}});addEventListener('wheel',e=>dist=T.MathUtils.clamp(dist+Math.sign(e.deltaY),5,18),{passive:true});addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});renderer.domElement.onclick=()=>{if(!panel)renderer.domElement.requestPointerLock?.()};$('play').onclick=()=>{$('welcome').classList.add('hidden');$('hud').classList.remove('hidden');renderer.domElement.requestPointerLock?.()};
 const minimap=$('map').getContext('2d');function map(){minimap.clearRect(0,0,168,168);minimap.save();minimap.beginPath();minimap.arc(84,84,82,0,7);minimap.clip();for(let x=0;x<24;x++)for(let z=0;z<24;z++){let b=biome(player.position.x+(x-12)*9,player.position.z+(z-12)*9);minimap.fillStyle=b<0?'#598654':colors[b];minimap.fillRect(x*7,z*7,8,8)}minimap.fillStyle='white';minimap.beginPath();minimap.arc(84,84,4,0,7);minimap.fill();minimap.restore()}
-let clock=new T.Clock(),ticks=0;function frame(){requestAnimationFrame(frame);let dt=Math.min(clock.getDelta(),.05);elapsed+=dt;actionTime=Math.max(0,actionTime-dt);let x=(keys.KeyD?1:0)-(keys.KeyA||keys.KeyQ?1:0),z=(keys.KeyS?1:0)-(keys.KeyW||keys.KeyZ?1:0);if(!panel&&(x||z)){let len=Math.hypot(x,z),vx=(x*Math.cos(heading)+z*Math.sin(heading))/len,vz=(-x*Math.sin(heading)+z*Math.cos(heading))/len;player.position.x+=vx*dt*7;player.position.z+=vz*dt*7;player.rotation.y=Math.atan2(vx,vz)}if(carried){carried.position.set(player.position.x,2.2,player.position.z);carried.rotation.z=Math.PI/2}let target=new T.Vector3(player.position.x,1.5,player.position.z),offset=new T.Vector3(Math.sin(heading)*Math.cos(pitch),Math.sin(pitch),Math.cos(heading)*Math.cos(pitch));cam.position.lerp(target.clone().addScaledVector(offset,dist),Math.min(1,dt*8));cam.lookAt(target);sun.position.set(player.position.x+70,95,player.position.z+40);workerClock+=dt;if(workerClock>3){workerClock=0;for(let b of st.buildings){if(!b.workers)continue;if(b.kind==='worker')b.stock+=b.workers;if(b.kind==='factory'){let n=Math.min(b.workers,st.inv[b.type]);st.inv[b.type]-=n;st.products[b.type]+=n}if(b.kind==='seller'){let n=st.products.reduce((v,n,i)=>v+n*values[i]*3,0);st.products.fill(0);st.gold+=n}if(b.kind==='transport'){let n=st.stock.length;st.stock=[];st.gold+=n*65}}save()}if(ticks++%20===0){stream();backpack.scale.setScalar(st.bag===16?1.16:1);let visibleLoad=Math.ceil(count()/st.bag*packContents.length);packContents.forEach((item,i)=>item.visible=i<visibleLoad);$('coins').textContent=st.gold;$('bag').textContent=count()+'/'+st.bag;$('coordinates').textContent=Math.round(player.position.x)+' / '+Math.round(player.position.z);let b=biome(player.position.x,player.position.z);$('biomeName').textContent=b<0?'CAMP CENTRAL':types[b];$('clock').textContent='JOUR '+String(1+Math.floor(elapsed/600)).padStart(2,'0')+' · '+String(8+Math.floor(elapsed/60)%16).padStart(2,'0')+':00';$('objective').textContent=st.tools.every(t=>t<0)?'ACHETEZ VOTRE PREMIER OUTIL':'DÉVELOPPEZ VOTRE EMPIRE';$('detail').textContent=st.tools.every(t=>t<0)?'Approchez du comptoir et appuyez sur E':'Récoltez, transformez et automatisez';$('invchips').textContent=st.inv.map((n,i)=>n?raw[i]+' ×'+n:'').filter(Boolean).join(' · ')||'SAC VIDE';let o=closest();$('prompt').textContent=placing?'F · CONSTRUIRE':o?'F · '+(o.kind?'INTERAGIR':raw[o.type].toUpperCase()):Math.hypot(player.position.x,player.position.z)<7?'E · OUVRIR LE MARCHÉ':'';$('prompt').classList.toggle('hidden',!$('prompt').textContent);if(o&&!o.kind){$('targetTitle').textContent=raw[o.type];$('targetLife').textContent=o.hp+' / '+o.max;$('targetHint').textContent=st.tools[o.type]<0?'OUTIL REQUIS':'F POUR RÉCOLTER';$('target').classList.remove('hidden')}else $('target').classList.add('hidden');map()}renderer.render(scene,cam)}stream();frame();setInterval(save,15000);
+
+let clock=new T.Clock(),ticks=0;
+function frame(){
+requestAnimationFrame(frame);
+const dt=Math.min(clock.getDelta(),.05);elapsed+=dt;
+const side=Number(!!(keys.KeyD||keys.ArrowRight))-Number(!!(keys.KeyA||keys.KeyQ||keys.ArrowLeft));
+const front=Number(!!(keys.KeyW||keys.KeyZ||keys.ArrowUp))-Number(!!(keys.KeyS||keys.ArrowDown));
+const moving=!panel&&(side!==0||front!==0);
+if(moving){
+stopHarvest();
+const len=Math.hypot(side,front);
+// The horizontal movement axes match the view direction in every camera orientation.
+const cameraBackX=Math.sin(heading),cameraBackZ=Math.cos(heading);
+const rightX=cameraBackZ,rightZ=-cameraBackX;
+const forwardX=-cameraBackX,forwardZ=-cameraBackZ;
+const vx=(rightX*side+forwardX*front)/len;
+const vz=(rightZ*side+forwardZ*front)/len;
+movePlayer(vx*dt*6.3,vz*dt*6.3);
+const targetAngle=Math.atan2(vx,vz);
+const difference=Math.atan2(Math.sin(targetAngle-player.rotation.y),Math.cos(targetAngle-player.rotation.y));
+player.rotation.y+=difference*Math.min(1,dt*16);
+}
+if(harvesting){
+if(harvesting.dead||Math.hypot(player.position.x-harvesting.x,player.position.z-harvesting.z)>3.5)stopHarvest();
+else{
+harvestProgress+=dt;
+const interval=harvestInterval(harvesting.type);
+if(harvestProgress>=interval){harvestProgress-=interval;strikeHarvest()}
+}
+}
+animatePlayer(dt,moving);
+if(carried){carried.position.set(player.position.x,2.2,player.position.z);carried.rotation.z=Math.PI/2}
+const target=new T.Vector3(player.position.x,1.5,player.position.z);
+const offset=new T.Vector3(Math.sin(heading)*Math.cos(pitch),Math.sin(pitch),Math.cos(heading)*Math.cos(pitch));
+cam.position.copy(target.clone().addScaledVector(offset,dist));
+cam.lookAt(target);
+sun.position.set(player.position.x+70,95,player.position.z+40);
+workerClock+=dt;
+if(workerClock>3){
+workerClock=0;
+for(const b of st.buildings){
+if(!b.workers)continue;
+if(b.kind==='worker')b.stock+=b.workers;
+if(b.kind==='factory'){const n=Math.min(b.workers,st.inv[b.type]);st.inv[b.type]-=n;st.products[b.type]+=n}
+if(b.kind==='seller'){const n=st.products.reduce((v,n,i)=>v+n*values[i]*3,0);st.products.fill(0);st.gold+=n}
+if(b.kind==='transport'){const n=st.stock.length;st.stock=[];st.gold+=n*65}
+}
+updateInventory();save()
+}
+if(ticks++%12===0){
+stream();updateInventory();
+$('coins').textContent=st.gold;$('bag').textContent=count()+'/'+st.bag;
+$('coordinates').textContent=Math.round(player.position.x)+' / '+Math.round(player.position.z);
+const biomeId=biome(player.position.x,player.position.z);
+$('biomeName').textContent=biomeId<0?'CAMP CENTRAL':types[biomeId];
+$('clock').textContent='JOUR '+String(1+Math.floor(elapsed/600)).padStart(2,'0')+' · '+String(8+Math.floor(elapsed/60)%16).padStart(2,'0')+':00';
+$('objective').textContent=st.tools.every(t=>t<0)?'ACHETEZ VOTRE PREMIER OUTIL':'DÉVELOPPEZ VOTRE EMPIRE';
+$('detail').textContent=st.tools.every(t=>t<0)?'Approchez du comptoir et appuyez sur E':'Récoltez, transformez et automatisez';
+const o=closest();
+$('prompt').textContent=placing?'F · CONSTRUIRE':harvesting?'RÉCOLTE EN COURS · BOUGEZ POUR ARRÊTER':o?'F · '+(o.kind?'INTERAGIR':raw[o.type].toUpperCase()):Math.hypot(player.position.x,player.position.z)<7?'E · OUVRIR LE MARCHÉ':'';
+$('prompt').classList.toggle('hidden',!$('prompt').textContent);
+if(o&&!o.kind){
+$('targetTitle').textContent=raw[o.type];$('targetLife').textContent=o.hp+' / '+o.max;
+$('targetHint').textContent=st.tools[o.type]<0?'OUTIL REQUIS':harvesting?'RÉCOLTE AUTOMATIQUE':'F POUR RÉCOLTER';
+$('target').classList.remove('hidden')
+}else $('target').classList.add('hidden');
+map()
+}
+renderer.render(scene,cam)
+}
+stream();updateInventory();frame();setInterval(save,15000);
