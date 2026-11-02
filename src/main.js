@@ -1,11 +1,13 @@
 import * as T from 'three';
+import {createSound} from './sound.js';
+import {createAtmosphere} from './atmosphere.js';
 const $=id=>document.getElementById(id), scene=new T.Scene();scene.background=new T.Color('#a6cbd1');scene.fog=new T.FogExp2('#a6cbd1',.007);
 const cam=new T.PerspectiveCamera(65,innerWidth/innerHeight,.1,450),renderer=new T.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));renderer.shadowMap.enabled=true;$('game').append(renderer.domElement);
-scene.add(new T.HemisphereLight(0xffffff,0x657449,2.4));const sun=new T.DirectionalLight(0xffe7bc,2.3);sun.position.set(70,95,40);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-60;sun.shadow.camera.right=60;sun.shadow.camera.top=60;sun.shadow.camera.bottom=-60;scene.add(sun);
+scene.add(new T.HemisphereLight(0xffffff,0x657449,2.4));const sun=new T.DirectionalLight(0xffe7bc,2.3);sun.position.set(70,95,40);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);sun.shadow.bias=-.0004;sun.shadow.normalBias=.024;sun.shadow.radius=2;sun.shadow.camera.left=-60;sun.shadow.camera.right=60;sun.shadow.camera.top=60;sun.shadow.camera.bottom=-60;scene.add(sun);
 const M=c=>new T.MeshLambertMaterial({color:c}),m={grass:M(0x658b55),forest:M(0x3a784e),mountain:M(0x858b83),mine:M(0x94775c),desert:M(0xd7bd7d),field:M(0xb2b75e),tree:M(0x845b35),leaf:M(0x388653),rock:M(0x888e90),ore:M(0x709fad),wheat:M(0xebbb53),skin:M(0xe8b997),shirt:M(0x275c70),wood:M(0xac7852),roof:M(0x965e46),gold:M(0xffd068)};
 function cube(w,h,d,mat,x=0,y=0,z=0){let q=new T.Mesh(new T.BoxGeometry(w,h,d),mat);q.position.set(x,y,z);q.castShadow=true;q.receiveShadow=true;return q}function orb(r,mat,x=0,y=0,z=0){let q=new T.Mesh(new T.IcosahedronGeometry(r,1),mat);q.position.set(x,y,z);q.castShadow=true;return q}function cy(r,h,mat,x=0,y=0,z=0){let q=new T.Mesh(new T.CylinderGeometry(r,r,h,8),mat);q.position.set(x,y,z);q.castShadow=true;return q}
 const types=['FORÊT','MONTAGNE','EXCAVATION','DÉSERT','CHAMPS'],raw=['Bois','Pierre','Minerai','Sable','Blé'],processed=['Planches','Pierre taillée','Lingots','Verre','Farine'],tools=[['Hache','Hache renforcée','Tronçonneuse'],['Pioche','Pioche acier','Brise-roche'],['Pic de mine','Foreuse','Foreuse industrielle'],['Pelle','Pelle renforcée','Excavatrice'],['Faucille','Faux','Moissonneuse']],worksites=['Cabane de bûcheron','Carrière','Mine','Camp de terrassiers','Ferme'],factories=['Scierie','Atelier de taille','Fonderie','Verrerie','Moulin'],prices=[100,120,150,100,100],values=[12,15,22,10,14],colors=['#488756','#87938b','#b88f6b','#e3c67c','#c8b64e'];
-let defaultState={gold:100,bag:8,inv:[0,0,0,0,0],products:[0,0,0,0,0],tools:[-1,-1,-1,-1,-1],talents:[0,0,0,0,0],buildings:[],stock:[],truck:false,cart:false,x:0,z:9,seed:7331};let st={...defaultState};try{let a=JSON.parse(localStorage.getItem('irh-state')||'{}');for(let k in defaultState)if(a[k]!==undefined)st[k]=a[k]}catch{}const save=()=>{st.x=player.position.x;st.z=player.position.z;
+let defaultState={gold:100,bag:8,inv:[0,0,0,0,0],products:[0,0,0,0,0],tools:[-1,-1,-1,-1,-1],talents:[0,0,0,0,0],buildings:[],stock:[],truck:false,cart:false,staminaLevel:0,x:0,z:9,seed:7331};let st={...defaultState};try{let a=JSON.parse(localStorage.getItem('irh-state')||'{}');for(let k in defaultState)if(a[k]!==undefined)st[k]=a[k]}catch{}const save=()=>{st.x=player.position.x;st.z=player.position.z;
 const cleanBuildings=st.buildings.map(b=>({kind:b.kind,type:b.type,x:b.x,z:b.z,workers:b.workers,stock:b.stock}));
 try{localStorage.setItem('irh-state',JSON.stringify({...st,buildings:cleanBuildings}))}catch(e){console.warn('Storage unavailable',e)}
 };
@@ -49,12 +51,103 @@ scene.add(player);player.position.set(st.x,0,st.z);player.rotation.y=Math.PI;upd
 
 
 const market=new T.Group();market.add(cube(5,2.5,4,m.wood,0,1.25,0),cube(5.6,.7,4.7,m.roof,0,2.8,0),cube(1.1,1.6,.1,m.shirt,0,.85,2.05));market.position.set(0,0,0);scene.add(market);
-const sellPad=new T.Group();sellPad.add(cube(5,.13,5,M(0x6ebb8b),0,.1,0));sellPad.position.set(7,0,0);scene.add(sellPad);
+
+const SALE={x:10,z:1,w:10,d:9};
+const isSelling=(x,z)=>Math.abs(x-SALE.x)<=SALE.w/2&&Math.abs(z-SALE.z)<=SALE.d/2;
+const sellPad=new T.Group();
+sellPad.add(cube(SALE.w,.1,SALE.d,M(0x497e5e),0,.035,0));
+const trim=M(0xf3be60);
+for(const edge of [-1,1]){
+sellPad.add(cube(SALE.w,.12,.14,trim,0,.10,edge*SALE.d/2));
+sellPad.add(cube(.14,.12,SALE.d,trim,edge*SALE.w/2,.10,0));
+}
+sellPad.position.set(SALE.x,0,SALE.z);scene.add(sellPad);
+const signCanvas=document.createElement('canvas');signCanvas.width=640;signCanvas.height=196;
+const signCtx=signCanvas.getContext('2d');
+signCtx.fillStyle='rgba(13,40,32,.88)';signCtx.beginPath();signCtx.roundRect(8,8,624,178,30);signCtx.fill();
+signCtx.strokeStyle='#f0cb83';signCtx.lineWidth=6;signCtx.stroke();
+signCtx.fillStyle='#f7e8c8';signCtx.font='800 100px system-ui';signCtx.textAlign='center';signCtx.textBaseline='middle';
+signCtx.fillText('VENDRE',320,97);
+const saleLabel=new T.Sprite(new T.SpriteMaterial({map:new T.CanvasTexture(signCanvas),transparent:true,depthWrite:false}));
+saleLabel.scale.set(6.3,1.93,1);saleLabel.position.set(SALE.x,3,SALE.z);scene.add(saleLabel);
+
+
 const world=new Map(),resources=[],CH=32,R=2;const hash=(x,z,s=0)=>{let n=Math.sin(x*127.1+z*311.7+s*51.6)*43758.5453;return n-Math.floor(n)},blend=t=>t*t*(3-2*t);function noise(x,z,k,s){let a=Math.floor(x/k),b=Math.floor(z/k),u=blend(x/k-a),v=blend(z/k-b);return T.MathUtils.lerp(T.MathUtils.lerp(hash(a,b,s),hash(a+1,b,s),u),T.MathUtils.lerp(hash(a,b+1,s),hash(a+1,b+1,s),u),v)}
-function biome(x,z){if(Math.hypot(x-30,z)<29)return 0;if(Math.hypot(x,z)<19)return -1;let n=noise(x,z,145,4)*.7+noise(x,z,61,9)*.3;return Math.max(0,Math.min(4,Math.floor(n*5)))}
+function biome(x,z){
+if(Math.hypot(x,z)<22)return -1;
+if(Math.hypot(x-34,z)<76)return 0;
+const size=290,cx=Math.floor(x/size),cz=Math.floor(z/size);
+let nearest=Infinity,selected=0;
+for(let ix=-1;ix<=1;ix++)for(let iz=-1;iz<=1;iz++){
+const gx=cx+ix,gz=cz+iz;
+const centerX=(gx+.5+(hash(gx,gz,27)-.5)*.6)*size;
+const centerZ=(gz+.5+(hash(gx,gz,28)-.5)*.6)*size;
+const d=(x-centerX)**2+(z-centerZ)**2;
+if(d<nearest){nearest=d;selected=Math.floor(hash(gx,gz,35)*5)}
+}
+return selected;
+}
 function node(type,x,z,key){const g=new T.Group();g.position.set(x,0,z);let hp=[40,50,60,30,30][type];if(type===0){g.add(cy(.31,3,m.tree,0,1.5,0));for(let i=0;i<3;i++)g.add(orb(1.2,m.leaf,(i-1)*.3,3+i*.34,(i-1)*.13))}if(type===1)g.add(orb(1.1,m.rock,0,.9,0));if(type===2){g.add(orb(1,m.rock,0,.8,0));for(let i=0;i<3;i++)g.add(orb(.3,m.ore,(i-1)*.5,1.3,(i%2)*.3))}if(type===3)g.add(orb(1,m.desert,0,.6,0));if(type===4)for(let i=0;i<9;i++){let a=i*2.3;g.add(cy(.045,1.1,m.wheat,Math.sin(a)*.43,.55,Math.cos(a)*.43),orb(.16,m.wheat,Math.sin(a)*.43,1.1,Math.cos(a)*.43))}scene.add(g);let o={type,x,z,mesh:g,hp,max:hp,key,dead:false};resources.push(o);return o}
-function chunk(cx,cz){let key=cx+','+cz;if(world.has(key))return;let root=new T.Group(),nodes=[];let x0=cx*CH,z0=cz*CH;for(let i=0;i<8;i++)for(let j=0;j<8;j++){let x=x0+(i+.5)*4,z=z0+(j+.5)*4,b=biome(x,z);root.add(cube(4.08,.16,4.08,b<0?m.grass:m[['forest','mountain','mine','desert','field'][b]],x,-.12,z))}scene.add(root);for(let i=0;i<15;i++){let x=x0+2+hash(cx*17+i,cz,2)*28,z=z0+2+hash(cx,cz*17+i,3)*28;if(Math.hypot(x,z)<20||Math.hypot(x-7,z)<8)continue;let b=biome(x,z);if(b<0)continue;nodes.push(node(b,x,z,key))}world.set(key,{root,nodes})}
-function stream(){let cx=Math.floor(player.position.x/CH),cz=Math.floor(player.position.z/CH);for(let x=cx-R;x<=cx+R;x++)for(let z=cz-R;z<=cz+R;z++)chunk(x,z);for(let [key,c] of world){let [x,z]=key.split(',').map(Number);if(Math.abs(x-cx)>R+1||Math.abs(z-cz)>R+1){scene.remove(c.root);c.root.traverse(o=>o.geometry?.dispose());for(let n of c.nodes){scene.remove(n.mesh);n.mesh.traverse(o=>o.geometry?.dispose());resources.splice(resources.indexOf(n),1)}world.delete(key)}}}
+
+const floorGeometry=new T.BoxGeometry(4.08,.16,4.08);
+const accentGeometry=new T.IcosahedronGeometry(.19,0);
+const weedGeometry=new T.ConeGeometry(.16,.62,3);
+const stalkGeometry=new T.CylinderGeometry(.04,.055,.75,4);
+const decorMaterials=[M(0x87916f),M(0x54754a),M(0xaf9675),M(0xb5aa7f),M(0xd2ae63),M(0x5d8661)];
+const dummy=new T.Object3D();
+function decorations(cx,cz,root){
+const items=[[],[],[],[],[],[]],x0=cx*CH,z0=cz*CH;
+for(let n=0;n<38;n++){
+const x=x0+.7+hash(cx*71+n,cz,44)*30.6,z=z0+.7+hash(cx,cz*73+n,45)*30.6;
+if(Math.hypot(x,z)<23||isSelling(x,z))continue;
+const b=biome(x,z),h=hash(cx+n,cz-n,46);
+let kind=0;
+if(b===0)kind=h<.58?1:h<.83?5:0;
+if(b===1)kind=h<.75?0:2;
+if(b===2)kind=h<.65?2:0;
+if(b===3)kind=h<.6?3:2;
+if(b===4)kind=h<.72?4:5;
+if(b===-1)kind=h<.55?1:0;
+items[kind].push({x,z,scale:.55+hash(cx+n,cz+n,49)*1.5,turn:hash(cx+n,cz,48)*6.28})
+}
+items.forEach((batch,i)=>{
+if(!batch.length)return;
+const geo=i===0||i===2||i===3?accentGeometry:i===4?stalkGeometry:weedGeometry;
+const mesh=new T.InstancedMesh(geo,decorMaterials[i],batch.length);
+mesh.receiveShadow=true;mesh.castShadow=false;
+batch.forEach((obj,j)=>{dummy.position.set(obj.x,i===4?.4:obj.scale*.14,obj.z);
+dummy.rotation.set(0,obj.turn,0);dummy.scale.set(obj.scale,obj.scale*(i===4?1.3:1),obj.scale);
+dummy.updateMatrix();mesh.setMatrixAt(j,dummy.matrix)});
+mesh.instanceMatrix.needsUpdate=true;root.add(mesh)
+})
+}
+function chunk(cx,cz){
+const key=cx+','+cz;if(world.has(key))return;
+const root=new T.Group(),nodes=[],groups=Array.from({length:6},()=>[]);
+const x0=cx*CH,z0=cz*CH;
+for(let i=0;i<8;i++)for(let j=0;j<8;j++){
+const x=x0+(i+.5)*4,z=z0+(j+.5)*4,b=biome(x,z);
+groups[b<0?0:b+1].push([x,z]);
+}
+const mats=[m.grass,m.forest,m.mountain,m.mine,m.desert,m.field];
+groups.forEach((group,i)=>{
+if(!group.length)return;
+const mesh=new T.InstancedMesh(floorGeometry,mats[i],group.length);
+mesh.receiveShadow=true;mesh.castShadow=false;
+group.forEach(([x,z],j)=>{dummy.position.set(x,-.12,z);dummy.rotation.set(0,0,0);dummy.scale.set(1,1,1);dummy.updateMatrix();mesh.setMatrixAt(j,dummy.matrix)});
+mesh.instanceMatrix.needsUpdate=true;root.add(mesh);
+});
+decorations(cx,cz,root);scene.add(root);
+for(let i=0;i<20;i++){
+const x=x0+2+hash(cx*17+i,cz,2)*28,z=z0+2+hash(cx,cz*17+i,3)*28;
+if(Math.hypot(x,z)<23||isSelling(x,z)||Math.hypot(x-10,z-1)<8)continue;
+const b=biome(x,z);if(b<0)continue;nodes.push(node(b,x,z,key));
+}
+world.set(key,{root,nodes})
+}
+
+
+function stream(){let cx=Math.floor(player.position.x/CH),cz=Math.floor(player.position.z/CH);for(let x=cx-R;x<=cx+R;x++)for(let z=cz-R;z<=cz+R;z++)chunk(x,z);for(let [key,c] of world){let [x,z]=key.split(',').map(Number);if(Math.abs(x-cx)>R+1||Math.abs(z-cz)>R+1){scene.remove(c.root);c.root.traverse(o=>{if(o.isInstancedMesh)o.dispose()});for(let n of c.nodes){scene.remove(n.mesh);n.mesh.traverse(o=>o.geometry?.dispose());resources.splice(resources.indexOf(n),1)}world.delete(key)}}}
 const count=()=>st.inv.reduce((a,b)=>a+b,0)+st.products.reduce((a,b)=>a+b,0);
 let heading=0,pitch=.38,dist=10,active=0,keys={},current=null,placing=null,carried=null,elapsed=0,workerClock=0;
 let harvesting=null,harvestProgress=0,stepPhase=0;
