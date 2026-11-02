@@ -151,6 +151,10 @@ function stream(){let cx=Math.floor(player.position.x/CH),cz=Math.floor(player.p
 const count=()=>st.inv.reduce((a,b)=>a+b,0)+st.products.reduce((a,b)=>a+b,0);
 let heading=0,pitch=.38,dist=10,active=0,keys={},current=null,placing=null,carried=null,elapsed=0,workerClock=0;
 let harvesting=null,harvestProgress=0,stepPhase=0;
+const sound=createSound();const atmosphere=createAtmosphere(T,scene,player,biome);
+const maxStamina=()=>100+Math.max(0,st.staminaLevel||0)*32;
+const staminaRegen=()=>16+Math.max(0,st.staminaLevel||0)*4;
+let stamina=maxStamina(),sprintLocked=false,footstepTimer=0;
 const PLAYER_RADIUS=.43;
 function blocked(x,z){
 const box=(bx,bz,w,d)=>Math.abs(x-bx)<w/2+PLAYER_RADIUS&&Math.abs(z-bz)<d/2+PLAYER_RADIUS;
@@ -196,7 +200,7 @@ return '<div class="inventory-slot'+(type===undefined?' empty':'')+'"'+(type===u
 $('inventoryCapacity').textContent=count()+' / '+st.bag;updateCargo()
 }function pop(s){let e=$('notice');e.textContent=s;e.classList.add('show');clearTimeout(pop.t);pop.t=setTimeout(()=>e.classList.remove('show'),2200)}
 function closest(){let best=null,d=3.5;for(let o of resources)if(!o.dead){let q=Math.hypot(player.position.x-o.x,player.position.z-o.z);if(q<d){best=o;d=q}}for(let b of st.buildings){let q=Math.hypot(player.position.x-b.x,player.position.z-b.z);if(q<d){best=b;d=q}}return best}
-function sell(){stopHarvest();let amount=st.inv.reduce((a,n,i)=>a+n*values[i],0)+st.products.reduce((a,n,i)=>a+n*values[i]*3,0)+st.stock.reduce((a,i)=>a+(i===0?65:values[i]*4),0);if(!amount)return pop('Rien à vendre');st.inv.fill(0);st.products.fill(0);st.stock=[];st.gold+=amount;pop('Vente : +'+amount+' or');updateInventory();save();renderPanel()}
+function sell(){stopHarvest();let amount=st.inv.reduce((a,n,i)=>a+n*values[i],0)+st.products.reduce((a,n,i)=>a+n*values[i]*3,0)+st.stock.reduce((a,i)=>a+(i===0?65:values[i]*4),0);if(!amount)return pop('Rien à vendre');st.inv.fill(0);st.products.fill(0);st.stock=[];st.gold+=amount;sound.effect('sale');pop('Vente : +'+amount+' or');updateInventory();save();renderPanel()}
 
 function strikeHarvest(){
 const o=harvesting;
@@ -204,7 +208,7 @@ if(!o||o.dead||!resources.includes(o)||Math.hypot(player.position.x-o.x,player.p
 if(count()>=st.bag){stopHarvest();pop('Inventaire plein');return}
 if(st.tools[o.type]<0){stopHarvest();return}
 const power=[1,2,3][st.tools[o.type]];
-o.hp=Math.max(0,o.hp-power);
+o.hp=Math.max(0,o.hp-power);sound.effect(o.type);
 const gained=Math.min(power,st.bag-count());st.inv[o.type]+=gained;
 if(o.hp<=0){
 o.dead=true;scene.remove(o.mesh);stopHarvest();
@@ -222,11 +226,12 @@ if(o.log&&!carried)scene.remove(o.log)
 updateInventory();save()
 }
 function harvest(){
+if(panel)return;
 if(placing){
 const x=Math.round(player.position.x+Math.sin(player.rotation.y)*6),z=Math.round(player.position.z+Math.cos(player.rotation.y)*6);
 if(Math.hypot(x,z)<12||st.buildings.some(b=>Math.hypot(b.x-x,b.z-z)<6)||resources.some(o=>!o.dead&&Math.hypot(o.x-x,o.z-z)<4))return pop('Terrain indisponible');
 st.buildings.push({...placing,x,z,workers:0,stock:0});addBuilding(st.buildings.at(-1));
-placing=null;pop('Bâtiment construit');save();return
+placing=null;sound.effect('build');pop('Bâtiment construit');save();return
 }
 if(carried){drop();return}
 const o=closest();if(!o)return;
@@ -240,21 +245,22 @@ updateInventory();save();return
 if(st.tools[o.type]<0)return pop('Achetez un outil au marché (E)');
 if(count()>=st.bag)return pop('Inventaire plein');
 if(harvesting===o){stopHarvest();return}
-harvesting=o;harvestProgress=0;pop('Récolte en cours · Déplacez-vous pour arrêter')
+harvesting=o;harvestProgress=0;player.rotation.y=Math.atan2(o.x-player.position.x,o.z-player.position.z);pop('Récolte en cours · Déplacez-vous pour arrêter')
 }
 
-function drop(){let inPad=Math.hypot(player.position.x-7,player.position.z)<4;if(inPad){st.stock.push(0);scene.remove(carried);pop('Tronc déposé dans la zone de vente')}else{scene.remove(carried);pop('Tronc déposé')}carried=null;save()}
-function interact(){if(Math.hypot(player.position.x-7,player.position.z)<4&&carried)return drop();
+function drop(){let inPad=isSelling(player.position.x,player.position.z);if(inPad){st.stock.push(0);scene.remove(carried);pop('Tronc déposé dans la zone de vente')}else{scene.remove(carried);pop('Tronc déposé')}carried=null;save()}
+function interact(){if(panel)return;if(isSelling(player.position.x,player.position.z)){if(carried)return drop();return sell()}
 const fallen=resources.find(n=>n.log&&n.dead&&Math.hypot(n.x-player.position.x,n.z-player.position.z)<3);
 if(fallen&&!carried){stopHarvest();carried=fallen.log;fallen.log=null;return pop('Transportez le tronc vers la zone verte')}
 harvest()}
-function buy(cost,fn){if(st.gold<cost)return pop('Or insuffisant');st.gold-=cost;fn();updateInventory();save();renderPanel()}
+function buy(cost,fn){if(st.gold<cost){sound.effect('exhausted');return pop('Or insuffisant')}st.gold-=cost;sound.effect('buy');fn();updateInventory();save();renderPanel()}
 function addBuilding(b){let g=new T.Group();g.add(cube(3.5,2.2,3.3,m.wood,0,1.1,0),cube(4.1,.65,3.9,b.kind==='factory'?m.roof:m.leaf,0,2.52,0),cube(.85,1.4,.12,m.shirt,0,.7,1.7));g.position.set(b.x,0,b.z);scene.add(g);b.mesh=g}
 st.buildings.forEach(addBuilding);
 const panels={market:'COMPTOIR',build:'CONSTRUCTION',talents:'PROGRESSION',inventory:'INVENTAIRE'};let panel=null;const add=(title,sub,cost,action,off=false)=>'<div class="offer" style="display:flex;align-items:center;justify-content:space-between;padding:10px;border-bottom:1px solid #ffffff22;gap:10px"><div><strong>'+title+'</strong><div style="opacity:.65;font-size:12px">'+sub+'</div></div><button data-action="'+action+'" '+(off?'disabled':'')+'>'+cost+'</button></div>';function openPanel(k){stopHarvest();panel=panel===k?null:k;renderPanel();if(panel)document.exitPointerLock?.()}
 function renderPanel(){let e=$('panel');e.classList.toggle('hidden',!panel);if(!panel)return;$('panelTitle').textContent=panels[panel];$('panelTag').textContent='IRH';$('tabs').innerHTML=['market','build','talents','inventory'].map(k=>'<button data-tab="'+k+'">'+panels[k]+'</button>').join(' ');let s='';if(panel==='market'){s+='<h3>OUTILS — 3 PALIERS PAR BIOME</h3>';for(let i=0;i<5;i++){let tier=st.tools[i]+1;if(tier<3)s+=add(tools[i][tier],types[i]+' · Palier '+(tier+1),(tier===0?prices[i]:tier===1?650:2900)+' OR','tool:'+i)}if(st.bag===8)s+=add('Sac renforcé','8 → 16 emplacements','450 OR','bag');if(!st.cart)s+=add('Chariot','Transport léger','1200 OR','cart');if(!st.truck)s+=add('Camion de ressources','Capacité de transport importante','4500 OR','truck');s+=add('Tout vendre','Sac et zone de vente','VENDRE','sell')}if(panel==='build'){s+='<h3>INDUSTRIES</h3>';for(let i=0;i<5;i++)s+=add(factories[i],raw[i]+' → '+processed[i],(480+i*150)+' OR','factory:'+i);s+='<h3>COLLECTE AUTOMATISÉE</h3>';for(let i=0;i<5;i++)s+=add(worksites[i],'Collecte et stockage', (550+i*160)+' OR','worker:'+i);s+='<h3>LOGISTIQUE</h3>'+add('Dépôt transporteur','Automatise les livraisons','1400 OR','transport:0')+add('Comptoir vendeur','Vente automatique','1800 OR','seller:0')+'<h3>EMPLOYÉS</h3>';st.buildings.forEach((b,i)=>s+=add((b.kind==='worker'?worksites[b.type]:b.kind==='factory'?factories[b.type]:'Bâtiment')+' #'+(i+1),'Employés : '+b.workers+' · stock : '+b.stock,'300 OR','hire:'+i))}if(panel==='talents'){for(let i=0;i<5;i++)s+=add(types[i]+' · expertise '+st.talents[i],'+10 % valeur des marchandises (à venir)','500 OR','talent:'+i)}if(panel==='inventory'){for(let i=0;i<5;i++)s+=add(raw[i],st.inv[i]+' unités','—','noop',true);for(let i=0;i<5;i++)if(st.products[i])s+=add(processed[i],st.products[i]+' unités','—','noop',true);s+='<p>Sac : '+count()+'/'+st.bag+' · Aire de vente : '+st.stock.length+'</p>'}$('shopbody').innerHTML=s;$('panelhint').textContent=st.gold+' pièces d’or'}
-$('panel').onclick=e=>{let b=e.target.closest('button');if(!b)return;if(b.dataset.tab)return panel=b.dataset.tab,renderPanel();let a=b.dataset.action;if(!a)return;if(a==='sell')return sell();if(a==='bag')return buy(450,()=>st.bag=16);if(a==='cart')return buy(1200,()=>st.cart=true);if(a==='truck')return buy(4500,()=>st.truck=true);let [kind,id]=a.split(':'),i=+id;if(kind==='tool'){let tier=st.tools[i]+1;return buy(tier===0?prices[i]:tier===1?650:2900,()=>st.tools[i]=tier)}if(kind==='hire')return buy(300,()=>st.buildings[i].workers++);if(kind==='talent')return buy(500,()=>st.talents[i]++);if(['factory','worker','transport','seller'].includes(kind))return buy(kind==='factory'?480+i*150:kind==='worker'?550+i*160:kind==='transport'?1400:1800,()=>{placing={kind,type:i};panel=null;renderPanel();pop('Allez à l’emplacement, F pour construire')})};const close=()=>{stopHarvest();panel=null;renderPanel()};$('close').onclick=close;$('resume').onclick=close;
-addEventListener('keydown',e=>{keys[e.code]=true;if(['KeyW','KeyZ','KeyA','KeyQ','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))stopHarvest();if(e.repeat)return;if(e.code==='KeyF')interact();if(e.code==='KeyE'){if(Math.hypot(player.position.x,player.position.z)<7)openPanel('market');else if(Math.hypot(player.position.x-7,player.position.z)<5)sell()}if(e.code==='KeyG'&&carried)drop();if(e.code==='KeyB')openPanel('build');if(e.code==='KeyU')openPanel('talents');if(e.code==='KeyI')openPanel('inventory');if(e.code==='KeyR')pop(st.truck?'Camion possédé':'Achetez un camion au comptoir');if(e.code==='Escape'){if(placing){placing=null;pop('Placement annulé')}close()}});addEventListener('keyup',e=>keys[e.code]=false);addEventListener('mousemove',e=>{if(document.pointerLockElement===renderer.domElement){heading-=e.movementX*.0025;pitch=T.MathUtils.clamp(pitch+e.movementY*.002,-.1,1.15)}});addEventListener('wheel',e=>dist=T.MathUtils.clamp(dist+Math.sign(e.deltaY),5,18),{passive:true});addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});renderer.domElement.onclick=()=>{if(!panel)renderer.domElement.requestPointerLock?.()};$('play').onclick=()=>{$('welcome').classList.add('hidden');$('hud').classList.remove('hidden');renderer.domElement.requestPointerLock?.()};
+$('panel').onclick=e=>{let b=e.target.closest('button');if(!b)return;if(b.dataset.tab)return panel=b.dataset.tab,renderPanel();let a=b.dataset.action;if(!a)return;if(a==='sell')return sell();if(a==='bag')return buy(450,()=>st.bag=16);if(a==='stamina')return buy([500,1250,2600,5500][st.staminaLevel||0]||99999,()=>{st.staminaLevel=(st.staminaLevel||0)+1;stamina=maxStamina()});if(a==='cart')return buy(1200,()=>st.cart=true);if(a==='truck')return buy(4500,()=>st.truck=true);let [kind,id]=a.split(':'),i=+id;if(kind==='tool'){let tier=st.tools[i]+1;return buy(tier===0?prices[i]:tier===1?650:2900,()=>st.tools[i]=tier)}if(kind==='hire')return buy(300,()=>st.buildings[i].workers++);if(kind==='talent')return buy(500,()=>st.talents[i]++);if(['factory','worker','transport','seller'].includes(kind))return buy(kind==='factory'?480+i*150:kind==='worker'?550+i*160:kind==='transport'?1400:1800,()=>{placing={kind,type:i};panel=null;renderPanel();pop('Allez à l’emplacement, F pour construire')})};const close=()=>{stopHarvest();panel=null;renderPanel()};$('close').onclick=close;$('resume').onclick=close;
+addEventListener('keydown',e=>{keys[e.code]=true;if(['KeyW','KeyZ','KeyA','KeyQ','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))stopHarvest();if(e.repeat)return;if(e.code==='KeyF')interact();if(e.code==='KeyE'&&Math.hypot(player.position.x,player.position.z)<7)openPanel('market');if(e.code==='KeyG'&&carried)drop();if(e.code==='KeyB')openPanel('build');if(e.code==='KeyU')openPanel('talents');if(e.code==='KeyI')openPanel('inventory');if(e.code==='KeyR')pop(st.truck?'Camion possédé':'Achetez un camion au comptoir');if(e.code==='Escape'){if(placing){placing=null;pop('Placement annulé')}close()}});addEventListener('keyup',e=>keys[e.code]=false);addEventListener('mousemove',e=>{if(document.pointerLockElement===renderer.domElement){heading-=e.movementX*.0025;pitch=T.MathUtils.clamp(pitch+e.movementY*.002,-.1,1.15)}});addEventListener('wheel',e=>dist=T.MathUtils.clamp(dist+Math.sign(e.deltaY),5,18),{passive:true});addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});renderer.domElement.onclick=()=>{if(!panel)renderer.domElement.requestPointerLock?.()};$('play').onclick=()=>{sound.boot();$('welcome').classList.add('hidden');$('hud').classList.remove('hidden');renderer.domElement.requestPointerLock?.()};
+$('soundToggle').onclick=()=>{sound.boot();const enabled=sound.toggle();$('soundToggle').classList.toggle('muted',!enabled);$('soundToggle').innerHTML=enabled?'♪ <span>SON</span>':'♪ <span>MUET</span>'};
 const minimap=$('map').getContext('2d');function map(){minimap.clearRect(0,0,168,168);minimap.save();minimap.beginPath();minimap.arc(84,84,82,0,7);minimap.clip();for(let x=0;x<24;x++)for(let z=0;z<24;z++){let b=biome(player.position.x+(x-12)*9,player.position.z+(z-12)*9);minimap.fillStyle=b<0?'#598654':colors[b];minimap.fillRect(x*7,z*7,8,8)}minimap.fillStyle='white';minimap.beginPath();minimap.arc(84,84,4,0,7);minimap.fill();minimap.restore()}
 
 let clock=new T.Clock(),ticks=0;
@@ -264,8 +270,20 @@ const dt=Math.min(clock.getDelta(),.05);elapsed+=dt;
 const side=Number(!!(keys.KeyD||keys.ArrowRight))-Number(!!(keys.KeyA||keys.KeyQ||keys.ArrowLeft));
 const front=Number(!!(keys.KeyW||keys.KeyZ||keys.ArrowUp))-Number(!!(keys.KeyS||keys.ArrowDown));
 const moving=!panel&&(side!==0||front!==0);
+const wantsSprint=keys.ShiftLeft||keys.ShiftRight;
+if(stamina<.01)sprintLocked=true;
+if(stamina>=maxStamina()*.27)sprintLocked=false;
+const sprinting=moving&&wantsSprint&&!sprintLocked&&stamina>.01;
+if(sprinting)stamina=Math.max(0,stamina-dt*22);
+else stamina=Math.min(maxStamina(),stamina+dt*staminaRegen());
+$('staminaFill').style.width=(stamina/maxStamina()*100).toFixed(1)+'%';
+$('staminaCount').textContent=Math.round(stamina)+' / '+maxStamina();
+$('staminaRank').textContent='NIV. '+((st.staminaLevel||0)+1);
+$('staminaFill').classList.toggle('fatigued',stamina/maxStamina()<.22);
 if(moving){
 stopHarvest();
+footstepTimer+=dt;
+if(footstepTimer>(sprinting?.26:.44)){footstepTimer=0;sound.effect('step')}
 const len=Math.hypot(side,front);
 // The horizontal movement axes match the view direction in every camera orientation.
 const cameraBackX=Math.sin(heading),cameraBackZ=Math.cos(heading);
@@ -273,7 +291,7 @@ const rightX=cameraBackZ,rightZ=-cameraBackX;
 const forwardX=-cameraBackX,forwardZ=-cameraBackZ;
 const vx=(rightX*side+forwardX*front)/len;
 const vz=(rightZ*side+forwardZ*front)/len;
-movePlayer(vx*dt*6.3,vz*dt*6.3);
+movePlayer(vx*dt*(sprinting?10.3:6.3),vz*dt*(sprinting?10.3:6.3));
 const targetAngle=Math.atan2(vx,vz);
 const difference=Math.atan2(Math.sin(targetAngle-player.rotation.y),Math.cos(targetAngle-player.rotation.y));
 player.rotation.y+=difference*Math.min(1,dt*16);
@@ -281,18 +299,24 @@ player.rotation.y+=difference*Math.min(1,dt*16);
 if(harvesting){
 if(harvesting.dead||Math.hypot(player.position.x-harvesting.x,player.position.z-harvesting.z)>3.5)stopHarvest();
 else{
+const desired=Math.atan2(harvesting.x-player.position.x,harvesting.z-player.position.z);
+const delta=Math.atan2(Math.sin(desired-player.rotation.y),Math.cos(desired-player.rotation.y));
+player.rotation.y+=delta*Math.min(1,dt*18);
 harvestProgress+=dt;
 const interval=harvestInterval(harvesting.type);
 if(harvestProgress>=interval){harvestProgress-=interval;strikeHarvest()}
 }
 }
 animatePlayer(dt,moving);
+sound.update(biome(player.position.x,player.position.z),dt);
+atmosphere.update(dt,elapsed,resources);
 if(carried){carried.position.set(player.position.x,2.2,player.position.z);carried.rotation.z=Math.PI/2}
 const target=new T.Vector3(player.position.x,1.5,player.position.z);
 const offset=new T.Vector3(Math.sin(heading)*Math.cos(pitch),Math.sin(pitch),Math.cos(heading)*Math.cos(pitch));
 cam.position.copy(target.clone().addScaledVector(offset,dist));
 cam.lookAt(target);
 sun.position.set(player.position.x+70,95,player.position.z+40);
+sun.target.position.set(player.position.x,0,player.position.z);sun.target.updateMatrixWorld();
 workerClock+=dt;
 if(workerClock>3){
 workerClock=0;
