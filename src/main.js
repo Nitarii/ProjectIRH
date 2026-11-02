@@ -413,6 +413,15 @@ addEventListener('keydown',e=>{keys[e.code]=true;if(['KeyW','KeyZ','KeyA','KeyQ'
 $('soundToggle').onclick=()=>{sound.boot();audioActive=true;const enabled=sound.toggle();$('soundToggle').classList.toggle('muted',!enabled);$('soundToggle').innerHTML=enabled?'♪ <span>SON</span>':'♪ <span>MUET</span>'};
 const minimap=$('map').getContext('2d');function map(){minimap.clearRect(0,0,168,168);minimap.save();minimap.beginPath();minimap.arc(84,84,82,0,7);minimap.clip();for(let x=0;x<24;x++)for(let z=0;z<24;z++){let b=biome(player.position.x+(x-12)*9,player.position.z+(z-12)*9);minimap.fillStyle=b<0?'#598654':colors[b];minimap.fillRect(x*7,z*7,8,8)}minimap.fillStyle='white';minimap.beginPath();minimap.arc(84,84,4,0,7);minimap.fill();minimap.restore()}
 
+const monitor={frames:0,drawCalls:0,chunks:0,resources:0,lastError:'',contextLost:false};
+Object.defineProperty(window,'__irhMonitor',{value:monitor,configurable:false});
+renderer.domElement.addEventListener('webglcontextlost',event=>{
+  event.preventDefault();monitor.contextLost=true;monitor.lastError='WebGL context lost';
+  console.error('Graphics context lost');
+});
+renderer.domElement.addEventListener('webglcontextrestored',()=>{monitor.contextLost=false});
+window.addEventListener('error',event=>{monitor.lastError=String(event.message||'Runtime error').slice(0,250)});
+window.addEventListener('unhandledrejection',event=>{monitor.lastError=String(event.reason||'Unhandled rejection').slice(0,250)});
 let clock=new T.Clock(),ticks=0;
 function frame(){
 requestAnimationFrame(frame);
@@ -514,6 +523,8 @@ $('target').classList.remove('hidden')
 document.body.dataset.biome=String(biomeId);
 map()
 }
-renderer.render(scene,cam)
+renderer.render(scene,cam);
+monitor.frames++;monitor.drawCalls=renderer.info.render.calls;
+monitor.chunks=world.size;monitor.resources=resources.length;
 }
 stream();pumpWorld();updateInventory();frame();setInterval(save,15000);
