@@ -199,7 +199,23 @@ grid.innerHTML=Array.from({length:st.bag},(_,i)=>{const type=items[i];
 return '<div class="inventory-slot'+(type===undefined?' empty':'')+'"'+(type===undefined?'':' title="'+(type<5?raw[type]:processed[type-5])+'"')+'>'+(type===undefined?'':'<span class="inventory-symbol resource-'+type%5+'">'+labels[type%5]+'</span>')+'</div>'}).join('');
 $('inventoryCapacity').textContent=count()+' / '+st.bag;updateCargo()
 }function pop(s){let e=$('notice');e.textContent=s;e.classList.add('show');clearTimeout(pop.t);pop.t=setTimeout(()=>e.classList.remove('show'),2200)}
-function closest(){let best=null,d=3.5;for(let o of resources)if(!o.dead){let q=Math.hypot(player.position.x-o.x,player.position.z-o.z);if(q<d){best=o;d=q}}for(let b of st.buildings){let q=Math.hypot(player.position.x-b.x,player.position.z-b.z);if(q<d){best=b;d=q}}return best}
+function closest(){
+let best=null,score=Infinity,px=player.position.x,pz=player.position.z;
+const fx=Math.sin(player.rotation.y),fz=Math.cos(player.rotation.y);
+for(const o of resources){
+if(o.dead)continue;
+const dx=o.x-px,dz=o.z-pz,d=Math.hypot(dx,dz);
+if(d>3.8)continue;
+const dot=(dx*fx+dz*fz)/Math.max(.01,d);
+const quality=d+(dot<.1?1.2:dot<.5?.4:0);
+if(quality<score){score=quality;best=o}
+}
+for(const b of st.buildings){
+const d=Math.hypot(px-b.x,pz-b.z);
+if(d<3.9&&d<score){score=d;best=b}
+}
+return best
+}
 function sell(){stopHarvest();let amount=st.inv.reduce((a,n,i)=>a+n*values[i],0)+st.products.reduce((a,n,i)=>a+n*values[i]*3,0)+st.stock.reduce((a,i)=>a+(i===0?65:values[i]*4),0);if(!amount)return pop('Rien à vendre');st.inv.fill(0);st.products.fill(0);st.stock=[];st.gold+=amount;sound.effect('sale');pop('Vente : +'+amount+' or');updateInventory();save();renderPanel()}
 
 function strikeHarvest(){
@@ -385,14 +401,23 @@ $('biomeName').textContent=biomeId<0?'CAMP CENTRAL':types[biomeId];
 $('clock').textContent='JOUR '+String(1+Math.floor(elapsed/600)).padStart(2,'0')+' · '+String(8+Math.floor(elapsed/60)%16).padStart(2,'0')+':00';
 $('objective').textContent=st.tools.every(t=>t<0)?'ACHETEZ VOTRE PREMIER OUTIL':'DÉVELOPPEZ VOTRE EMPIRE';
 $('detail').textContent=st.tools.every(t=>t<0)?'Approchez du comptoir et appuyez sur E':'Récoltez, transformez et automatisez';
-const o=closest();
-$('prompt').textContent=placing?'F · CONSTRUIRE':harvesting?'RÉCOLTE EN COURS · BOUGEZ POUR ARRÊTER':o?'F · '+(o.kind?'INTERAGIR':raw[o.type].toUpperCase()):Math.hypot(player.position.x,player.position.z)<7?'E · OUVRIR LE MARCHÉ':'';
-$('prompt').classList.toggle('hidden',!$('prompt').textContent);
-if(o&&!o.kind){
-$('targetTitle').textContent=raw[o.type];$('targetLife').textContent=o.hp+' / '+o.max;
-$('targetHint').textContent=st.tools[o.type]<0?'OUTIL REQUIS':harvesting?'RÉCOLTE AUTOMATIQUE':'F POUR RÉCOLTER';
+const o=closest(),saleNearby=isSelling(player.position.x,player.position.z);
+const hasLog=resources.some(n=>n.log&&n.dead&&Math.hypot(n.x-player.position.x,n.z-player.position.z)<3);
+const nearMarket=Math.hypot(player.position.x,player.position.z)<7;
+const k=saleNearby||placing||hasLog||carried||o?'F':nearMarket?'E':'';
+const text=saleNearby?(carried?'DÉPOSER':'VENDRE'):'';
+$('prompt').innerHTML=k?'<kbd>'+k+'</kbd>'+(text?'<span>'+text+'</span>':''):'';
+$('prompt').classList.toggle('hidden',!k||!!panel);
+$('prompt').classList.toggle('sale',saleNearby);
+const highlighted=harvesting;
+if(highlighted){
+$('targetTitle').textContent=raw[highlighted.type];
+$('targetLife').textContent=highlighted.hp+' / '+highlighted.max+' PV';
+$('targetLife').style.setProperty('--hp',(highlighted.hp/highlighted.max*100)+'%');
+$('targetHint').textContent='RÉCOLTE EN COURS';
 $('target').classList.remove('hidden')
 }else $('target').classList.add('hidden');
+document.body.dataset.biome=String(biomeId);
 map()
 }
 renderer.render(scene,cam)
