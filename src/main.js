@@ -6,24 +6,98 @@ const M=c=>new T.MeshLambertMaterial({color:c}),m={grass:M(0x658b55),forest:M(0x
 function cube(w,h,d,mat,x=0,y=0,z=0){let q=new T.Mesh(new T.BoxGeometry(w,h,d),mat);q.position.set(x,y,z);q.castShadow=true;q.receiveShadow=true;return q}function orb(r,mat,x=0,y=0,z=0){let q=new T.Mesh(new T.IcosahedronGeometry(r,1),mat);q.position.set(x,y,z);q.castShadow=true;return q}function cy(r,h,mat,x=0,y=0,z=0){let q=new T.Mesh(new T.CylinderGeometry(r,r,h,8),mat);q.position.set(x,y,z);q.castShadow=true;return q}
 const types=['FORÊT','MONTAGNE','EXCAVATION','DÉSERT','CHAMPS'],raw=['Bois','Pierre','Minerai','Sable','Blé'],processed=['Planches','Pierre taillée','Lingots','Verre','Farine'],tools=[['Hache','Hache renforcée','Tronçonneuse'],['Pioche','Pioche acier','Brise-roche'],['Pic de mine','Foreuse','Foreuse industrielle'],['Pelle','Pelle renforcée','Excavatrice'],['Faucille','Faux','Moissonneuse']],worksites=['Cabane de bûcheron','Carrière','Mine','Camp de terrassiers','Ferme'],factories=['Scierie','Atelier de taille','Fonderie','Verrerie','Moulin'],prices=[100,120,150,100,100],values=[12,15,22,10,14],colors=['#488756','#87938b','#b88f6b','#e3c67c','#c8b64e'];
 let defaultState={gold:100,bag:8,inv:[0,0,0,0,0],products:[0,0,0,0,0],tools:[-1,-1,-1,-1,-1],talents:[0,0,0,0,0],buildings:[],stock:[],truck:false,cart:false,x:0,z:9,seed:7331};let st={...defaultState};try{let a=JSON.parse(localStorage.getItem('irh-state')||'{}');for(let k in defaultState)if(a[k]!==undefined)st[k]=a[k]}catch{}const save=()=>{st.x=player.position.x;st.z=player.position.z;localStorage.setItem('irh-state',JSON.stringify(st))};
-const player=new T.Group();
-player.add(cy(.42,1.1,m.shirt,0,1.4,0),orb(.35,m.skin,0,2.12,0),cube(.25,.8,.3,m.shirt,-.23,.45,0),cube(.25,.8,.3,m.shirt,.23,.45,0));
-// Player forward is local +Z. Keep the backpack on local -Z, behind the torso.
-const packStrap=M(0x483526),packPocket=M(0x765037);
-const backpack=new T.Group();backpack.position.set(0,1.42,-.56);
-backpack.add(cube(.76,.83,.39,m.wood),cube(.81,.15,.43,packStrap,0,.37,-.015),cube(.48,.34,.09,packPocket,0,-.16,-.23));
-player.add(backpack);
-player.add(cube(.12,.85,.13,packStrap,-.3,1.42,.25),cube(.12,.85,.13,packStrap,.3,1.42,.25));
-const packContents=[];for(let i=0;i<8;i++){let item=orb(.14,i%3?m.tree:m.rock,-.24+(i%4)*.16,.50+Math.floor(i/4)*.16,-.02);backpack.add(item);packContents.push(item)}
-scene.add(player);player.position.set(st.x,0,st.z);player.rotation.y=Math.PI;
+
+const player=new T.Group(),avatar=new T.Group();player.add(avatar);
+avatar.add(cy(.42,1.12,m.shirt,0,1.4,0),orb(.35,m.skin,0,2.15,.04));
+avatar.add(cube(.1,.055,.08,M(0x312b27),-.14,2.18,.35),cube(.1,.055,.08,M(0x312b27),.14,2.18,.35));
+function limb(x,y,len,thick){const g=new T.Group();g.position.set(x,y,0);g.add(cube(thick,len,thick,m.shirt,0,-len/2,0));avatar.add(g);return g}
+const leftLeg=limb(-.23,.88,.86,.26),rightLeg=limb(.23,.88,.86,.26);
+const leftArm=limb(-.53,1.82,.78,.22),rightArm=limb(.53,1.82,.78,.22);
+leftArm.add(orb(.12,m.skin,0,-.78,0));rightArm.add(orb(.12,m.skin,0,-.78,0));
+const toolHolder=new T.Group();toolHolder.position.set(0,-.76,.08);rightArm.add(toolHolder);
+const toolModels=[];
+for(let type=0;type<5;type++){let g=new T.Group();g.add(cy(.05,.95,m.wood,0,-.32,0));
+if(type===0)g.add(cube(.46,.26,.1,m.rock,.17,.07,0));
+if(type===1)g.add(cube(.9,.16,.17,m.rock,0,.08,0));
+if(type===2){g.add(cy(.19,.5,m.ore,0,-.17,0));g.add(cy(.06,.35,m.rock,0,-.53,0))}
+if(type===3)g.add(cube(.34,.37,.09,m.rock,0,-.78,0));
+if(type===4){g.add(cube(.6,.1,.1,m.rock,.16,.08,0));g.add(cube(.09,.31,.1,m.rock,.42,-.12,0))}
+g.visible=false;toolHolder.add(g);toolModels.push(g)}
+const cargo=new T.Group();avatar.add(cargo);const cargoPieces=[];let cargoSignature='';
+function cargoObject(type){const g=new T.Group(),kind=type%5;
+if(kind===0){for(let k=-1;k<=1;k++){const log=cy(.13,.55,m.tree,k*.18,0,0);log.rotation.z=Math.PI/2;g.add(log)}}
+if(kind===1)g.add(orb(.3,m.rock),orb(.17,m.rock,.17,.13,-.08));
+if(kind===2)g.add(orb(.3,m.ore),cube(.2,.4,.2,type>=5?m.gold:m.ore,.1,.12,-.12));
+if(kind===3)g.add(orb(.28,m.desert),orb(.17,m.desert,-.2,-.05,0));
+if(kind===4)for(let i=-1;i<=1;i++)g.add(cy(.035,.53,m.wheat,i*.14,0,0),orb(.12,m.wheat,i*.14,.28,0));
+return g}
+function updateCargo(){
+let items=[];for(let t=0;t<5;t++)for(let i=0;i<st.inv[t];i++)items.push(t);
+for(let t=0;t<5;t++)for(let i=0;i<st.products[t];i++)items.push(t+5);
+items=items.slice(0,st.bag);const signature=st.bag+':'+items.join(',');if(signature===cargoSignature)return;cargoSignature=signature;
+for(let i=0;i<Math.max(items.length,cargoPieces.length);i++){
+const type=items[i],old=cargoPieces[i];
+if(type===undefined){if(old){cargo.remove(old.mesh);old.mesh.traverse(o=>o.geometry?.dispose());cargoPieces[i]=null}continue}
+if(!old||old.type!==type){if(old){cargo.remove(old.mesh);old.mesh.traverse(o=>o.geometry?.dispose())}
+const mesh=cargoObject(type);cargo.add(mesh);cargoPieces[i]={type,mesh}}
+const g=cargoPieces[i].mesh;g.position.set((i%4-1.5)*.28,1.07+Math.floor(i/4)*.31,-.51);g.rotation.z=i%2?.1:-.1
+}}
+scene.add(player);player.position.set(st.x,0,st.z);player.rotation.y=Math.PI;updateCargo();
+
+
 const market=new T.Group();market.add(cube(5,2.5,4,m.wood,0,1.25,0),cube(5.6,.7,4.7,m.roof,0,2.8,0),cube(1.1,1.6,.1,m.shirt,0,.85,2.05));market.position.set(0,0,0);scene.add(market);
 const sellPad=new T.Group();sellPad.add(cube(5,.13,5,M(0x6ebb8b),0,.1,0));sellPad.position.set(7,0,0);scene.add(sellPad);
 const world=new Map(),resources=[],CH=32,R=2;const hash=(x,z,s=0)=>{let n=Math.sin(x*127.1+z*311.7+s*51.6)*43758.5453;return n-Math.floor(n)},blend=t=>t*t*(3-2*t);function noise(x,z,k,s){let a=Math.floor(x/k),b=Math.floor(z/k),u=blend(x/k-a),v=blend(z/k-b);return T.MathUtils.lerp(T.MathUtils.lerp(hash(a,b,s),hash(a+1,b,s),u),T.MathUtils.lerp(hash(a,b+1,s),hash(a+1,b+1,s),u),v)}
 function biome(x,z){if(Math.hypot(x-30,z)<29)return 0;if(Math.hypot(x,z)<19)return -1;let n=noise(x,z,145,4)*.7+noise(x,z,61,9)*.3;return Math.max(0,Math.min(4,Math.floor(n*5)))}
-function node(type,x,z,key){const g=new T.Group();g.position.set(x,0,z);let hp=[4,5,6,3,3][type];if(type===0){g.add(cy(.31,3,m.tree,0,1.5,0));for(let i=0;i<3;i++)g.add(orb(1.2,m.leaf,(i-1)*.3,3+i*.34,(i-1)*.13))}if(type===1)g.add(orb(1.1,m.rock,0,.9,0));if(type===2){g.add(orb(1,m.rock,0,.8,0));for(let i=0;i<3;i++)g.add(orb(.3,m.ore,(i-1)*.5,1.3,(i%2)*.3))}if(type===3)g.add(orb(1,m.desert,0,.6,0));if(type===4)for(let i=0;i<9;i++){let a=i*2.3;g.add(cy(.045,1.1,m.wheat,Math.sin(a)*.43,.55,Math.cos(a)*.43),orb(.16,m.wheat,Math.sin(a)*.43,1.1,Math.cos(a)*.43))}scene.add(g);let o={type,x,z,mesh:g,hp,max:hp,key,dead:false};resources.push(o);return o}
+function node(type,x,z,key){const g=new T.Group();g.position.set(x,0,z);let hp=[40,50,60,30,30][type];if(type===0){g.add(cy(.31,3,m.tree,0,1.5,0));for(let i=0;i<3;i++)g.add(orb(1.2,m.leaf,(i-1)*.3,3+i*.34,(i-1)*.13))}if(type===1)g.add(orb(1.1,m.rock,0,.9,0));if(type===2){g.add(orb(1,m.rock,0,.8,0));for(let i=0;i<3;i++)g.add(orb(.3,m.ore,(i-1)*.5,1.3,(i%2)*.3))}if(type===3)g.add(orb(1,m.desert,0,.6,0));if(type===4)for(let i=0;i<9;i++){let a=i*2.3;g.add(cy(.045,1.1,m.wheat,Math.sin(a)*.43,.55,Math.cos(a)*.43),orb(.16,m.wheat,Math.sin(a)*.43,1.1,Math.cos(a)*.43))}scene.add(g);let o={type,x,z,mesh:g,hp,max:hp,key,dead:false};resources.push(o);return o}
 function chunk(cx,cz){let key=cx+','+cz;if(world.has(key))return;let root=new T.Group(),nodes=[];let x0=cx*CH,z0=cz*CH;for(let i=0;i<8;i++)for(let j=0;j<8;j++){let x=x0+(i+.5)*4,z=z0+(j+.5)*4,b=biome(x,z);root.add(cube(4.08,.16,4.08,b<0?m.grass:m[['forest','mountain','mine','desert','field'][b]],x,-.12,z))}scene.add(root);for(let i=0;i<15;i++){let x=x0+2+hash(cx*17+i,cz,2)*28,z=z0+2+hash(cx,cz*17+i,3)*28;if(Math.hypot(x,z)<20||Math.hypot(x-7,z)<8)continue;let b=biome(x,z);if(b<0)continue;nodes.push(node(b,x,z,key))}world.set(key,{root,nodes})}
 function stream(){let cx=Math.floor(player.position.x/CH),cz=Math.floor(player.position.z/CH);for(let x=cx-R;x<=cx+R;x++)for(let z=cz-R;z<=cz+R;z++)chunk(x,z);for(let [key,c] of world){let [x,z]=key.split(',').map(Number);if(Math.abs(x-cx)>R+1||Math.abs(z-cz)>R+1){scene.remove(c.root);c.root.traverse(o=>o.geometry?.dispose());for(let n of c.nodes){scene.remove(n.mesh);n.mesh.traverse(o=>o.geometry?.dispose());resources.splice(resources.indexOf(n),1)}world.delete(key)}}}
-const count=()=>st.inv.reduce((a,b)=>a+b,0);let heading=0,pitch=.38,dist=10,active=0,keys={},current=null,placing=null,carried=null,actionTime=0,elapsed=0,workerClock=0;function pop(s){let e=$('notice');e.textContent=s;e.classList.add('show');clearTimeout(pop.t);pop.t=setTimeout(()=>e.classList.remove('show'),2200)}
+const count=()=>st.inv.reduce((a,b)=>a+b,0)+st.products.reduce((a,b)=>a+b,0);
+let heading=0,pitch=.38,dist=10,active=0,keys={},current=null,placing=null,carried=null,elapsed=0,workerClock=0;
+let harvesting=null,harvestProgress=0,stepPhase=0;
+const PLAYER_RADIUS=.43;
+function blocked(x,z){
+const box=(bx,bz,w,d)=>Math.abs(x-bx)<w/2+PLAYER_RADIUS&&Math.abs(z-bz)<d/2+PLAYER_RADIUS;
+if(box(0,0,5,4))return true;
+for(const b of st.buildings)if(box(b.x,b.z,3.5,3.3))return true;
+for(const o of resources){if(o.dead)continue;const r=[.78,1.1,1.05,.88,.65][o.type]+PLAYER_RADIUS;if((x-o.x)**2+(z-o.z)**2<r*r)return true}
+return false;
+}
+function movePlayer(dx,dz){let x=player.position.x,z=player.position.z;
+if(!blocked(x+dx,z))player.position.x=x+dx;
+if(!blocked(player.position.x,z+dz))player.position.z=z+dz;
+}
+const stopHarvest=()=>{harvesting=null;harvestProgress=0};
+const harvestInterval=type=>[.78,.88,1.02,.74,.65][type]*[1,.68,.42][Math.max(0,st.tools[type])];
+function animatePlayer(dt,moving){
+stepPhase+=(moving?dt*12:dt*3);
+const stride=moving?Math.sin(stepPhase)*.63:0;
+leftLeg.rotation.x=T.MathUtils.damp(leftLeg.rotation.x,stride,13,dt);
+rightLeg.rotation.x=T.MathUtils.damp(rightLeg.rotation.x,-stride,13,dt);
+avatar.position.y=T.MathUtils.damp(avatar.position.y,moving?Math.abs(Math.sin(stepPhase))*.08:0,12,dt);
+if(harvesting){const phase=Math.sin(harvestProgress/harvestInterval(harvesting.type)*Math.PI*2),type=harvesting.type;
+if(type===0){rightArm.rotation.set(-1+phase*.85,0,-.5-phase*.25);leftArm.rotation.set(-.25,0,-.35);avatar.rotation.z=.07*phase}
+if(type===1){rightArm.rotation.set(-1.8+phase*1.15,0,-.1);leftArm.rotation.set(-.65,0,-.2);avatar.rotation.x=.07*phase}
+if(type===2){rightArm.rotation.set(-1.35+.09*phase,.2,-.12);leftArm.rotation.set(-1.25-.09*phase,-.2,.1);avatar.position.y+=.02*phase}
+if(type===3){rightArm.rotation.set(-.6+phase*.8,0,-.25);leftArm.rotation.set(-.9-phase*.3,0,.16);avatar.rotation.x=.12*phase}
+if(type===4){rightArm.rotation.set(-.55,.7*phase,-.6+phase*.65);leftArm.rotation.set(-.4,0,-.18);avatar.rotation.y=.12*phase}
+toolModels.forEach((t,i)=>t.visible=i===type);
+}else{avatar.rotation.set(T.MathUtils.damp(avatar.rotation.x,0,10,dt),T.MathUtils.damp(avatar.rotation.y,0,10,dt),T.MathUtils.damp(avatar.rotation.z,0,10,dt));
+rightArm.rotation.set(T.MathUtils.damp(rightArm.rotation.x,moving?stride*.6:0,13,dt),T.MathUtils.damp(rightArm.rotation.y,0,13,dt),T.MathUtils.damp(rightArm.rotation.z,0,13,dt));
+leftArm.rotation.set(T.MathUtils.damp(leftArm.rotation.x,moving?-stride*.6:0,13,dt),T.MathUtils.damp(leftArm.rotation.y,0,13,dt),T.MathUtils.damp(leftArm.rotation.z,0,13,dt));
+toolModels.forEach(t=>t.visible=false)}
+cargo.rotation.z=moving?Math.sin(stepPhase)*.04:0;
+}
+function updateInventory(){
+const grid=$('inventoryGrid');if(!grid)return;
+const items=[];for(let i=0;i<5;i++)for(let j=0;j<st.inv[i];j++)items.push(i);
+for(let i=0;i<5;i++)for(let j=0;j<st.products[i];j++)items.push(i+5);
+const signature=st.bag+':'+items.join(',');if(grid.dataset.signature===signature)return;grid.dataset.signature=signature;
+const labels=['▰','◆','◈','⬟','✦'];
+grid.innerHTML=Array.from({length:st.bag},(_,i)=>{const type=items[i];
+return '<div class="inventory-slot'+(type===undefined?' empty':'')+'"'+(type===undefined?'':' title="'+(type<5?raw[type]:processed[type-5])+'"')+'>'+(type===undefined?'':'<span class="inventory-symbol resource-'+type%5+'">'+labels[type%5]+'</span>')+'</div>'}).join('');
+$('inventoryCapacity').textContent=count()+' / '+st.bag;updateCargo()
+}function pop(s){let e=$('notice');e.textContent=s;e.classList.add('show');clearTimeout(pop.t);pop.t=setTimeout(()=>e.classList.remove('show'),2200)}
 function closest(){let best=null,d=3.5;for(let o of resources)if(!o.dead){let q=Math.hypot(player.position.x-o.x,player.position.z-o.z);if(q<d){best=o;d=q}}for(let b of st.buildings){let q=Math.hypot(player.position.x-b.x,player.position.z-b.z);if(q<d){best=b;d=q}}return best}
 function sell(){let amount=st.inv.reduce((a,n,i)=>a+n*values[i],0)+st.products.reduce((a,n,i)=>a+n*values[i]*3,0)+st.stock.reduce((a,i)=>a+(i===0?65:values[i]*4),0);if(!amount)return pop('Rien à vendre');st.inv.fill(0);st.products.fill(0);st.stock=[];st.gold+=amount;pop('Vente : +'+amount+' or');save();renderPanel()}
 function harvest(){if(actionTime>0)return;actionTime=.26;if(placing){let x=Math.round(player.position.x-Math.sin(heading)*6),z=Math.round(player.position.z-Math.cos(heading)*6);if(Math.hypot(x,z)<12||st.buildings.some(b=>Math.hypot(b.x-x,b.z-z)<6))return pop('Terrain indisponible');st.buildings.push({...placing,x,z,workers:0,stock:0});addBuilding(st.buildings.at(-1));placing=null;pop('Bâtiment construit');save();return}if(carried){drop();return}let o=closest();if(!o)return; if(o.kind){if(o.kind==='factory'){let n=Math.min(5,st.inv[o.type]);if(!n)return pop('Apportez des matières premières');st.inv[o.type]-=n;st.products[o.type]+=n;pop('+'+n+' '+processed[o.type])}else if(o.kind==='worker'){let n=Math.min(o.stock,st.bag-count());o.stock-=n;st.inv[o.type]+=n;pop(n+' unités récupérées')}else if(o.kind==='seller')sell();save();return}let i=o.type;if(st.tools[i]<0)return pop('Achetez un outil au marché (E)');if(count()>=st.bag)return pop('Sac plein');let power=st.tools[i]===2?3:st.tools[i]===1?2:1;o.hp-=power;st.inv[i]+=Math.min(power,st.bag-count());pop('+'+power+' '+raw[i]);if(o.hp<=0){o.dead=true;scene.remove(o.mesh);if(i===0){let g=new T.Group();g.add(cy(.36,3.2,m.tree,0,.38,0));g.rotation.z=Math.PI/2;g.position.set(o.x,0,o.z);scene.add(g);o.log=g;pop('Arbre abattu : F pour porter le tronc')}setTimeout(()=>{if(!world.has(o.key))return;o.dead=false;o.hp=o.max;scene.add(o.mesh);if(o.log&&!carried)scene.remove(o.log)},50000)}save()}
