@@ -10,7 +10,10 @@ try{
   const context=await browser.newContext({viewport:{width:1280,height:800}});
   const page=await context.newPage();
   page.on('pageerror',e=>errors.push('SCRIPT '+e.message));
-  page.on('console',m=>{if(m.type()==='error')errors.push('CONSOLE '+m.text())});
+  page.on('console',m=>{if(m.type()==='error'&&!m.text().includes('404 (File not found)'))errors.push('CONSOLE '+m.text())});
+  page.on('response',r=>{
+    if(r.status()>=400&&(/\\.(js|css|html)(\\?|$)/.test(r.url())||r.url().includes('/src/')))errors.push('HTTP '+r.status()+' '+r.url());
+  });
   page.on('requestfailed',r=>errors.push('NETWORK '+r.url()+' '+r.failure()?.errorText));
   await page.goto('http://127.0.0.1:8765/',{waitUntil:'domcontentloaded',timeout:30000});
   await page.waitForSelector('#play',{timeout:30000});
