@@ -93,7 +93,8 @@ const floorGeometry=new T.BoxGeometry(4.08,.16,4.08);
 const accentGeometry=new T.IcosahedronGeometry(.19,0);
 const weedGeometry=new T.ConeGeometry(.16,.62,3);
 const stalkGeometry=new T.CylinderGeometry(.04,.055,.75,4);
-const decorMaterials=[M(0x87916f),M(0x54754a),M(0xaf9675),M(0xb5aa7f),M(0xd2ae63),M(0x5d8661)];
+const cactusGeometry=new T.CylinderGeometry(.14,.2,1.13,6);
+const decorMaterials=[M(0x87916f),M(0x54754a),M(0xaf9675),M(0x5e9d67),M(0xd2ae63),M(0x5d8661)];
 const dummy=new T.Object3D();
 function decorations(cx,cz,root){
 const items=[[],[],[],[],[],[]],x0=cx*CH,z0=cz*CH;
@@ -112,10 +113,10 @@ items[kind].push({x,z,scale:.55+hash(cx+n,cz+n,49)*1.5,turn:hash(cx+n,cz,48)*6.2
 }
 items.forEach((batch,i)=>{
 if(!batch.length)return;
-const geo=i===0||i===2||i===3?accentGeometry:i===4?stalkGeometry:weedGeometry;
+const geo=i===0||i===2?accentGeometry:i===3?cactusGeometry:i===4?stalkGeometry:weedGeometry;
 const mesh=new T.InstancedMesh(geo,decorMaterials[i],batch.length);
 mesh.receiveShadow=true;mesh.castShadow=false;
-batch.forEach((obj,j)=>{dummy.position.set(obj.x,i===4?.4:obj.scale*.14,obj.z);
+batch.forEach((obj,j)=>{dummy.position.set(obj.x,i===4?.4:i===3?obj.scale*.55:obj.scale*.14,obj.z);
 dummy.rotation.set(0,obj.turn,0);dummy.scale.set(obj.scale,obj.scale*(i===4?1.3:1),obj.scale);
 dummy.updateMatrix();mesh.setMatrixAt(j,dummy.matrix)});
 mesh.instanceMatrix.needsUpdate=true;root.add(mesh)
@@ -134,8 +135,9 @@ groups.forEach((group,i)=>{
 if(!group.length)return;
 const mesh=new T.InstancedMesh(floorGeometry,mats[i],group.length);
 mesh.receiveShadow=true;mesh.castShadow=false;
-group.forEach(([x,z],j)=>{dummy.position.set(x,-.12,z);dummy.rotation.set(0,0,0);dummy.scale.set(1,1,1);dummy.updateMatrix();mesh.setMatrixAt(j,dummy.matrix)});
-mesh.instanceMatrix.needsUpdate=true;root.add(mesh);
+group.forEach(([x,z],j)=>{dummy.position.set(x,-.12,z);dummy.rotation.set(0,0,0);dummy.scale.set(1,1,1);dummy.updateMatrix();mesh.setMatrixAt(j,dummy.matrix);
+const shade=.91+hash(cx*17+j,cz*13+j,57)*.16;mesh.setColorAt(j,new T.Color(shade,shade,shade))});
+mesh.instanceMatrix.needsUpdate=true;mesh.instanceColor.needsUpdate=true;root.add(mesh);
 });
 decorations(cx,cz,root);scene.add(root);
 for(let i=0;i<20;i++){
@@ -290,10 +292,10 @@ if(harvesting===o){stopHarvest();return}
 harvesting=o;harvestProgress=0;player.rotation.y=Math.atan2(o.x-player.position.x,o.z-player.position.z);pop('Récolte en cours · Déplacez-vous pour arrêter')
 }
 
-function drop(){let inPad=isSelling(player.position.x,player.position.z);if(inPad){st.stock.push(0);scene.remove(carried);pop('Tronc déposé dans la zone de vente')}else{scene.remove(carried);pop('Tronc déposé')}carried=null;save()}
+function drop(){sound.effect('step');let inPad=isSelling(player.position.x,player.position.z);if(inPad){st.stock.push(0);scene.remove(carried);pop('Tronc déposé dans la zone de vente')}else{scene.remove(carried);pop('Tronc déposé')}carried=null;save()}
 function interact(){if(panel)return;if(isSelling(player.position.x,player.position.z)){if(carried)return drop();return sell()}
 const fallen=resources.find(n=>n.log&&n.dead&&Math.hypot(n.x-player.position.x,n.z-player.position.z)<3);
-if(fallen&&!carried){stopHarvest();carried=fallen.log;fallen.log=null;return pop('Transportez le tronc vers la zone verte')}
+if(fallen&&!carried){stopHarvest();sound.effect('ui');carried=fallen.log;fallen.log=null;return pop('Transportez le tronc vers la zone verte')}
 harvest()}
 function buy(cost,fn){if(st.gold<cost){sound.effect('exhausted');return pop('Or insuffisant')}st.gold-=cost;sound.effect('buy');fn();updateInventory();save();renderPanel()}
 function addBuilding(b){let g=new T.Group();g.add(cube(3.5,2.2,3.3,m.wood,0,1.1,0),cube(4.1,.65,3.9,b.kind==='factory'?m.roof:m.leaf,0,2.52,0),cube(.85,1.4,.12,m.shirt,0,.7,1.7));g.position.set(b.x,0,b.z);scene.add(g);b.mesh=g}
@@ -307,7 +309,7 @@ const add=(title,sub,cost,action,off=false,biomeId=-1)=>`<article class="shop-ca
 <div class="shop-card-head"><span class="item-icon">${biomeId>=0?biomeIcons[biomeId]:'✦'}</span><div><strong>${title}</strong><small>${sub}</small></div></div>
 <button data-action="${action}" ${off?'disabled':''}>${cost}</button></article>`;
 const section=(title,kicker,content)=>`<section class="catalog-section"><div class="catalog-heading"><h3>${title}</h3><span>${kicker}</span></div><div class="catalog-grid">${content}</div></section>`;
-function openPanel(k){stopHarvest();panel=panel===k?null:k;renderPanel();if(panel)document.exitPointerLock?.()}
+function openPanel(k){stopHarvest();sound.effect('ui');panel=panel===k?null:k;renderPanel();if(panel)document.exitPointerLock?.()}
 function renderPanel(){
 const box=$('panel');box.classList.toggle('hidden',!panel);if(!panel)return;
 $('panelTitle').textContent=panels[panel];$('panelTag').textContent='FRONTIER CAPITAL';
@@ -347,8 +349,8 @@ out+=section('Stock en dépôt','ZONE DE VENTE',add('Marchandises à vendre',st.
 }
 $('shopbody').innerHTML=out;$('panelhint').textContent=st.gold.toLocaleString('fr-FR')+' pièces d’or';
 }
-$('panel').onclick=e=>{let b=e.target.closest('button');if(!b)return;if(b.dataset.tab)return panel=b.dataset.tab,renderPanel();let a=b.dataset.action;if(!a)return;if(a==='sell')return sell();if(a==='bag')return buy(450,()=>st.bag=16);if(a==='stamina')return buy([500,1250,2600,5500][st.staminaLevel||0]||99999,()=>{st.staminaLevel=(st.staminaLevel||0)+1;stamina=maxStamina()});if(a==='cart')return buy(1200,()=>st.cart=true);if(a==='truck')return buy(4500,()=>st.truck=true);let [kind,id]=a.split(':'),i=+id;if(kind==='tool'){let tier=st.tools[i]+1;return buy(tier===0?prices[i]:tier===1?650:2900,()=>st.tools[i]=tier)}if(kind==='hire')return buy(300,()=>st.buildings[i].workers++);if(kind==='talent')return buy(500,()=>st.talents[i]++);if(['factory','worker','transport','seller'].includes(kind))return buy(kind==='factory'?480+i*150:kind==='worker'?550+i*160:kind==='transport'?1400:1800,()=>{placing={kind,type:i};panel=null;renderPanel();pop('Allez à l’emplacement, F pour construire')})};const close=()=>{stopHarvest();panel=null;renderPanel()};$('close').onclick=close;$('resume').onclick=close;
-addEventListener('keydown',e=>{keys[e.code]=true;if(['KeyW','KeyZ','KeyA','KeyQ','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))stopHarvest();if(e.repeat)return;if(e.code==='KeyF')interact();if(e.code==='KeyE'&&Math.hypot(player.position.x,player.position.z)<7)openPanel('market');if(e.code==='KeyG'&&carried)drop();if(e.code==='KeyB')openPanel('build');if(e.code==='KeyU')openPanel('talents');if(e.code==='KeyI')openPanel('inventory');if(e.code==='KeyR')pop(st.truck?'Camion possédé':'Achetez un camion au comptoir');if(e.code==='Escape'){if(placing){placing=null;pop('Placement annulé')}close()}});addEventListener('keyup',e=>keys[e.code]=false);addEventListener('mousemove',e=>{if(document.pointerLockElement===renderer.domElement){heading-=e.movementX*.0025;pitch=T.MathUtils.clamp(pitch+e.movementY*.002,-.1,1.15)}});addEventListener('wheel',e=>dist=T.MathUtils.clamp(dist+Math.sign(e.deltaY),5,18),{passive:true});addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});renderer.domElement.onclick=()=>{if(!panel)renderer.domElement.requestPointerLock?.()};$('play').onclick=()=>{sound.boot();$('welcome').classList.add('hidden');$('hud').classList.remove('hidden');renderer.domElement.requestPointerLock?.()};
+$('panel').onclick=e=>{let b=e.target.closest('button');if(!b)return;if(b.dataset.tab){sound.effect('ui');panel=b.dataset.tab;return renderPanel()}let a=b.dataset.action;if(!a)return;if(a==='sell')return sell();if(a==='bag')return buy(450,()=>st.bag=16);if(a==='stamina')return buy([500,1250,2600,5500][st.staminaLevel||0]||99999,()=>{st.staminaLevel=(st.staminaLevel||0)+1;stamina=maxStamina()});if(a==='cart')return buy(1200,()=>st.cart=true);if(a==='truck')return buy(4500,()=>st.truck=true);let [kind,id]=a.split(':'),i=+id;if(kind==='tool'){let tier=st.tools[i]+1;return buy(tier===0?prices[i]:tier===1?650:2900,()=>st.tools[i]=tier)}if(kind==='hire')return buy(300,()=>st.buildings[i].workers++);if(kind==='talent')return buy(500,()=>st.talents[i]++);if(['factory','worker','transport','seller'].includes(kind))return buy(kind==='factory'?480+i*150:kind==='worker'?550+i*160:kind==='transport'?1400:1800,()=>{placing={kind,type:i};panel=null;renderPanel();pop('Allez à l’emplacement, F pour construire')})};const close=()=>{stopHarvest();panel=null;renderPanel()};$('close').onclick=close;$('resume').onclick=close;
+addEventListener('keydown',e=>{keys[e.code]=true;if(['KeyW','KeyZ','KeyA','KeyQ','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))stopHarvest();if(e.repeat)return;if(e.code==='KeyF')interact();if(e.code==='KeyE'&&Math.hypot(player.position.x,player.position.z)<7)openPanel('market');if(e.code==='KeyG'&&carried){sound.effect('ui');drop()}if(e.code==='KeyB')openPanel('build');if(e.code==='KeyU')openPanel('talents');if(e.code==='KeyI')openPanel('inventory');if(e.code==='KeyR')pop(st.truck?'Camion possédé':'Achetez un camion au comptoir');if(e.code==='Escape'){if(placing){placing=null;pop('Placement annulé')}close()}});addEventListener('keyup',e=>keys[e.code]=false);addEventListener('mousemove',e=>{if(document.pointerLockElement===renderer.domElement){heading-=e.movementX*.0025;pitch=T.MathUtils.clamp(pitch+e.movementY*.002,-.1,1.15)}});addEventListener('wheel',e=>dist=T.MathUtils.clamp(dist+Math.sign(e.deltaY),5,18),{passive:true});addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});renderer.domElement.onclick=()=>{if(!panel)renderer.domElement.requestPointerLock?.()};$('play').onclick=()=>{sound.boot();$('welcome').classList.add('hidden');$('hud').classList.remove('hidden');renderer.domElement.requestPointerLock?.()};
 $('soundToggle').onclick=()=>{sound.boot();const enabled=sound.toggle();$('soundToggle').classList.toggle('muted',!enabled);$('soundToggle').innerHTML=enabled?'♪ <span>SON</span>':'♪ <span>MUET</span>'};
 const minimap=$('map').getContext('2d');function map(){minimap.clearRect(0,0,168,168);minimap.save();minimap.beginPath();minimap.arc(84,84,82,0,7);minimap.clip();for(let x=0;x<24;x++)for(let z=0;z<24;z++){let b=biome(player.position.x+(x-12)*9,player.position.z+(z-12)*9);minimap.fillStyle=b<0?'#598654':colors[b];minimap.fillRect(x*7,z*7,8,8)}minimap.fillStyle='white';minimap.beginPath();minimap.arc(84,84,4,0,7);minimap.fill();minimap.restore()}
 
