@@ -87,7 +87,9 @@ if(d<nearest){nearest=d;selected=Math.floor(hash(gx,gz,35)*5)}
 }
 return selected;
 }
-function node(type,x,z,key){const g=new T.Group();g.position.set(x,0,z);let hp=[40,50,60,30,30][type];if(type===0){g.add(cy(.31,3,m.tree,0,1.5,0));for(let i=0;i<3;i++)g.add(orb(1.2,m.leaf,(i-1)*.3,3+i*.34,(i-1)*.13))}if(type===1)g.add(orb(1.1,m.rock,0,.9,0));if(type===2){g.add(orb(1,m.rock,0,.8,0));for(let i=0;i<3;i++)g.add(orb(.3,m.ore,(i-1)*.5,1.3,(i%2)*.3))}if(type===3)g.add(orb(1,m.desert,0,.6,0));if(type===4)for(let i=0;i<9;i++){let a=i*2.3;g.add(cy(.045,1.1,m.wheat,Math.sin(a)*.43,.55,Math.cos(a)*.43),orb(.16,m.wheat,Math.sin(a)*.43,1.1,Math.cos(a)*.43))}scene.add(g);let o={type,x,z,mesh:g,hp,max:hp,key,dead:false};resources.push(o);return o}
+function node(type,x,z,key){const g=new T.Group();g.position.set(x,0,z);let hp=[40,50,60,30,30][type];if(type===0){g.add(cy(.31,3,m.tree,0,1.5,0));for(let i=0;i<3;i++)g.add(orb(1.2,m.leaf,(i-1)*.3,3+i*.34,(i-1)*.13))}if(type===1)g.add(orb(1.1,m.rock,0,.9,0));if(type===2){g.add(orb(1,m.rock,0,.8,0));for(let i=0;i<3;i++)g.add(orb(.3,m.ore,(i-1)*.5,1.3,(i%2)*.3))}if(type===3)g.add(orb(1,m.desert,0,.6,0));if(type===4)for(let i=0;i<9;i++){let a=i*2.3;g.add(cy(.045,1.1,m.wheat,Math.sin(a)*.43,.55,Math.cos(a)*.43),orb(.16,m.wheat,Math.sin(a)*.43,1.1,Math.cos(a)*.43))}if(type===0){for(let i=1;i<g.children.length;i++)g.children[i].castShadow=false}
+if(type===4)g.traverse(o=>{if(o.isMesh)o.castShadow=false});
+scene.add(g);let o={type,x,z,mesh:g,hp,max:hp,key,dead:false};resources.push(o);return o}
 
 const floorGeometry=new T.BoxGeometry(4.08,.16,4.08);
 const accentGeometry=new T.IcosahedronGeometry(.19,0);
@@ -140,16 +142,72 @@ const shade=.91+hash(cx*17+j,cz*13+j,57)*.16;mesh.setColorAt(j,new T.Color(shade
 mesh.instanceMatrix.needsUpdate=true;mesh.instanceColor.needsUpdate=true;root.add(mesh);
 });
 decorations(cx,cz,root);scene.add(root);
+world.set(key,{root,nodes,hasNodes:false})
+}
+function populate(cx,cz,c){
+if(c.hasNodes)return;c.hasNodes=true;
+const x0=cx*CH,z0=cz*CH,key=cx+','+cz;
 for(let i=0;i<13;i++){
 const x=x0+2+hash(cx*17+i,cz,2)*28,z=z0+2+hash(cx,cz*17+i,3)*28;
 if(Math.hypot(x,z)<23||isSelling(x,z)||Math.hypot(x-10,z-1)<8)continue;
-const b=biome(x,z);if(b<0)continue;nodes.push(node(b,x,z,key));
+const b=biome(x,z);if(b<0)continue;
+const o=node(b,x,z,key);c.nodes.push(o);
 }
-world.set(key,{root,nodes})
 }
-
-
-function stream(){let cx=Math.floor(player.position.x/CH),cz=Math.floor(player.position.z/CH);for(let x=cx-R;x<=cx+R;x++)for(let z=cz-R;z<=cz+R;z++)chunk(x,z);for(let [key,c] of world){let [x,z]=key.split(',').map(Number);if(Math.abs(x-cx)>R+1||Math.abs(z-cz)>R+1){scene.remove(c.root);c.root.traverse(o=>{if(o.isInstancedMesh)o.dispose()});for(let n of c.nodes){scene.remove(n.mesh);n.mesh.traverse(o=>o.geometry?.dispose());resources.splice(resources.indexOf(n),1)}world.delete(key)}}}
+const generationQueue=[],queuedGeneration=new Set(),unloadQueue=[];
+let streamingCenter='';
+function stream(){
+const cx=Math.floor(player.position.x/CH),cz=Math.floor(player.position.z/CH);
+const center=cx+','+cz;
+if(streamingCenter===center)return;
+streamingCenter=center;
+generationQueue.length=0;queuedGeneration.clear();
+const coords=[];
+for(let x=cx-R;x<=cx+R;x++)for(let z=cz-R;z<=cz+R;z++){
+const key=x+','+z;
+if(!world.has(key))coords.push({x,z,d:(x-cx)**2+(z-cz)**2,key});
+}
+coords.sort((a,b)=>a.d-b.d);
+for(const item of coords){generationQueue.push(item);queuedGeneration.add(item.key)}
+for(const [key,c] of world){
+const [x,z]=key.split(',').map(Number);
+if(Math.abs(x-cx)>R+1||Math.abs(z-cz)>R+1)unloadQueue.push(key)
+}
+}
+function pumpWorld(){
+const cx=Math.floor(player.position.x/CH),cz=Math.floor(player.position.z/CH);
+if(generationQueue.length){
+const next=generationQueue.shift();queuedGeneration.delete(next.key);
+if(Math.abs(next.x-cx)<=R&&Math.abs(next.z-cz)<=R&&!world.has(next.key))chunk(next.x,next.z);
+}
+let populated=0;
+for(let radius=0;radius<=1&&populated<1;radius++){
+for(let x=cx-radius;x<=cx+radius&&populated<1;x++)for(let z=cz-radius;z<=cz+radius&&populated<1;z++){
+const c=world.get(x+','+z);
+if(c&&!c.hasNodes){populate(x,z,c);populated++}
+}
+}
+if(unloadQueue.length){
+const key=unloadQueue.shift(),c=world.get(key);
+if(c){
+const [x,z]=key.split(',').map(Number);
+if(Math.abs(x-cx)>R+1||Math.abs(z-cz)>R+1){
+scene.remove(c.root);
+c.root.traverse(o=>{if(o.isInstancedMesh)o.dispose()});
+for(const n of c.nodes){
+scene.remove(n.mesh);
+n.mesh.traverse(o=>{if(o.isMesh)o.geometry?.dispose()});
+const index=resources.indexOf(n);if(index>=0)resources.splice(index,1);
+}
+world.delete(key)
+}
+}
+}
+}
+function updateResourceVisibility(){
+const px=player.position.x,pz=player.position.z,maximum=53*53;
+for(const o of resources)o.mesh.visible=!o.dead&&(o.x-px)**2+(o.z-pz)**2<maximum;
+}
 const count=()=>st.inv.reduce((a,b)=>a+b,0)+st.products.reduce((a,b)=>a+b,0);
 let heading=0,pitch=.38,dist=10,active=0,keys={},current=null,placing=null,carried=null,elapsed=0,workerClock=0;
 let harvesting=null,harvestProgress=0,stepPhase=0;
@@ -359,6 +417,7 @@ let clock=new T.Clock(),ticks=0;
 function frame(){
 requestAnimationFrame(frame);
 const dt=Math.min(clock.getDelta(),.05);elapsed+=dt;
+pumpWorld();
 const side=Number(!!(keys.KeyD||keys.ArrowRight))-Number(!!(keys.KeyA||keys.KeyQ||keys.ArrowLeft));
 const front=Number(!!(keys.KeyW||keys.KeyZ||keys.ArrowUp))-Number(!!(keys.KeyS||keys.ArrowDown));
 const moving=!panel&&(side!==0||front!==0);
@@ -428,7 +487,7 @@ if(b.kind==='transport'){const n=st.stock.length;st.stock=[];st.gold+=n*65}
 updateInventory();save()
 }
 if(ticks++%12===0){
-stream();updateInventory();
+stream();updateResourceVisibility();updateInventory();
 $('coins').textContent=st.gold;$('bag').textContent=count()+'/'+st.bag;
 $('coordinates').textContent=Math.round(player.position.x)+' / '+Math.round(player.position.z);
 const biomeId=biome(player.position.x,player.position.z);
@@ -457,4 +516,4 @@ map()
 }
 renderer.render(scene,cam)
 }
-stream();updateInventory();frame();setInterval(save,15000);
+stream();pumpWorld();updateInventory();frame();setInterval(save,15000);
