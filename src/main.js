@@ -5,7 +5,10 @@ scene.add(new T.HemisphereLight(0xffffff,0x657449,2.4));const sun=new T.Directio
 const M=c=>new T.MeshLambertMaterial({color:c}),m={grass:M(0x658b55),forest:M(0x3a784e),mountain:M(0x858b83),mine:M(0x94775c),desert:M(0xd7bd7d),field:M(0xb2b75e),tree:M(0x845b35),leaf:M(0x388653),rock:M(0x888e90),ore:M(0x709fad),wheat:M(0xebbb53),skin:M(0xe8b997),shirt:M(0x275c70),wood:M(0xac7852),roof:M(0x965e46),gold:M(0xffd068)};
 function cube(w,h,d,mat,x=0,y=0,z=0){let q=new T.Mesh(new T.BoxGeometry(w,h,d),mat);q.position.set(x,y,z);q.castShadow=true;q.receiveShadow=true;return q}function orb(r,mat,x=0,y=0,z=0){let q=new T.Mesh(new T.IcosahedronGeometry(r,1),mat);q.position.set(x,y,z);q.castShadow=true;return q}function cy(r,h,mat,x=0,y=0,z=0){let q=new T.Mesh(new T.CylinderGeometry(r,r,h,8),mat);q.position.set(x,y,z);q.castShadow=true;return q}
 const types=['FORÊT','MONTAGNE','EXCAVATION','DÉSERT','CHAMPS'],raw=['Bois','Pierre','Minerai','Sable','Blé'],processed=['Planches','Pierre taillée','Lingots','Verre','Farine'],tools=[['Hache','Hache renforcée','Tronçonneuse'],['Pioche','Pioche acier','Brise-roche'],['Pic de mine','Foreuse','Foreuse industrielle'],['Pelle','Pelle renforcée','Excavatrice'],['Faucille','Faux','Moissonneuse']],worksites=['Cabane de bûcheron','Carrière','Mine','Camp de terrassiers','Ferme'],factories=['Scierie','Atelier de taille','Fonderie','Verrerie','Moulin'],prices=[100,120,150,100,100],values=[12,15,22,10,14],colors=['#488756','#87938b','#b88f6b','#e3c67c','#c8b64e'];
-let defaultState={gold:100,bag:8,inv:[0,0,0,0,0],products:[0,0,0,0,0],tools:[-1,-1,-1,-1,-1],talents:[0,0,0,0,0],buildings:[],stock:[],truck:false,cart:false,x:0,z:9,seed:7331};let st={...defaultState};try{let a=JSON.parse(localStorage.getItem('irh-state')||'{}');for(let k in defaultState)if(a[k]!==undefined)st[k]=a[k]}catch{}const save=()=>{st.x=player.position.x;st.z=player.position.z;localStorage.setItem('irh-state',JSON.stringify(st))};
+let defaultState={gold:100,bag:8,inv:[0,0,0,0,0],products:[0,0,0,0,0],tools:[-1,-1,-1,-1,-1],talents:[0,0,0,0,0],buildings:[],stock:[],truck:false,cart:false,x:0,z:9,seed:7331};let st={...defaultState};try{let a=JSON.parse(localStorage.getItem('irh-state')||'{}');for(let k in defaultState)if(a[k]!==undefined)st[k]=a[k]}catch{}const save=()=>{st.x=player.position.x;st.z=player.position.z;
+const cleanBuildings=st.buildings.map(b=>({kind:b.kind,type:b.type,x:b.x,z:b.z,workers:b.workers,stock:b.stock}));
+try{localStorage.setItem('irh-state',JSON.stringify({...st,buildings:cleanBuildings}))}catch(e){console.warn('Storage unavailable',e)}
+};
 
 const player=new T.Group(),avatar=new T.Group();player.add(avatar);
 avatar.add(cy(.42,1.12,m.shirt,0,1.4,0),orb(.35,m.skin,0,2.15,.04));
@@ -63,7 +66,8 @@ for(const b of st.buildings)if(box(b.x,b.z,3.5,3.3))return true;
 for(const o of resources){if(o.dead)continue;const r=[.78,1.1,1.05,.88,.65][o.type]+PLAYER_RADIUS;if((x-o.x)**2+(z-o.z)**2<r*r)return true}
 return false;
 }
-function movePlayer(dx,dz){let x=player.position.x,z=player.position.z;
+function movePlayer(dx,dz){const x=player.position.x,z=player.position.z;
+// Separate-axis checks permit natural sliding without passing through solid objects.
 if(!blocked(x+dx,z))player.position.x=x+dx;
 if(!blocked(player.position.x,z+dz))player.position.z=z+dz;
 }
