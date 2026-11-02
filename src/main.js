@@ -256,8 +256,55 @@ harvest()}
 function buy(cost,fn){if(st.gold<cost){sound.effect('exhausted');return pop('Or insuffisant')}st.gold-=cost;sound.effect('buy');fn();updateInventory();save();renderPanel()}
 function addBuilding(b){let g=new T.Group();g.add(cube(3.5,2.2,3.3,m.wood,0,1.1,0),cube(4.1,.65,3.9,b.kind==='factory'?m.roof:m.leaf,0,2.52,0),cube(.85,1.4,.12,m.shirt,0,.7,1.7));g.position.set(b.x,0,b.z);scene.add(g);b.mesh=g}
 st.buildings.forEach(addBuilding);
-const panels={market:'COMPTOIR',build:'CONSTRUCTION',talents:'PROGRESSION',inventory:'INVENTAIRE'};let panel=null;const add=(title,sub,cost,action,off=false)=>'<div class="offer" style="display:flex;align-items:center;justify-content:space-between;padding:10px;border-bottom:1px solid #ffffff22;gap:10px"><div><strong>'+title+'</strong><div style="opacity:.65;font-size:12px">'+sub+'</div></div><button data-action="'+action+'" '+(off?'disabled':'')+'>'+cost+'</button></div>';function openPanel(k){stopHarvest();panel=panel===k?null:k;renderPanel();if(panel)document.exitPointerLock?.()}
-function renderPanel(){let e=$('panel');e.classList.toggle('hidden',!panel);if(!panel)return;$('panelTitle').textContent=panels[panel];$('panelTag').textContent='IRH';$('tabs').innerHTML=['market','build','talents','inventory'].map(k=>'<button data-tab="'+k+'">'+panels[k]+'</button>').join(' ');let s='';if(panel==='market'){s+='<h3>OUTILS — 3 PALIERS PAR BIOME</h3>';for(let i=0;i<5;i++){let tier=st.tools[i]+1;if(tier<3)s+=add(tools[i][tier],types[i]+' · Palier '+(tier+1),(tier===0?prices[i]:tier===1?650:2900)+' OR','tool:'+i)}if(st.bag===8)s+=add('Sac renforcé','8 → 16 emplacements','450 OR','bag');if(!st.cart)s+=add('Chariot','Transport léger','1200 OR','cart');if(!st.truck)s+=add('Camion de ressources','Capacité de transport importante','4500 OR','truck');s+=add('Tout vendre','Sac et zone de vente','VENDRE','sell')}if(panel==='build'){s+='<h3>INDUSTRIES</h3>';for(let i=0;i<5;i++)s+=add(factories[i],raw[i]+' → '+processed[i],(480+i*150)+' OR','factory:'+i);s+='<h3>COLLECTE AUTOMATISÉE</h3>';for(let i=0;i<5;i++)s+=add(worksites[i],'Collecte et stockage', (550+i*160)+' OR','worker:'+i);s+='<h3>LOGISTIQUE</h3>'+add('Dépôt transporteur','Automatise les livraisons','1400 OR','transport:0')+add('Comptoir vendeur','Vente automatique','1800 OR','seller:0')+'<h3>EMPLOYÉS</h3>';st.buildings.forEach((b,i)=>s+=add((b.kind==='worker'?worksites[b.type]:b.kind==='factory'?factories[b.type]:'Bâtiment')+' #'+(i+1),'Employés : '+b.workers+' · stock : '+b.stock,'300 OR','hire:'+i))}if(panel==='talents'){for(let i=0;i<5;i++)s+=add(types[i]+' · expertise '+st.talents[i],'+10 % valeur des marchandises (à venir)','500 OR','talent:'+i)}if(panel==='inventory'){for(let i=0;i<5;i++)s+=add(raw[i],st.inv[i]+' unités','—','noop',true);for(let i=0;i<5;i++)if(st.products[i])s+=add(processed[i],st.products[i]+' unités','—','noop',true);s+='<p>Sac : '+count()+'/'+st.bag+' · Aire de vente : '+st.stock.length+'</p>'}$('shopbody').innerHTML=s;$('panelhint').textContent=st.gold+' pièces d’or'}
+
+const panels={market:'COMPTOIR',build:'CONSTRUCTION',talents:'PROGRESSION',inventory:'INVENTAIRE'};
+let panel=null;
+const labels=['BOIS','PIERRE','MINERAI','SABLE','BLÉ'];
+const biomeIcons=['♧','◆','◈','◒','✺'];
+const add=(title,sub,cost,action,off=false,biomeId=-1)=>`<article class="shop-card ${biomeId>=0?'biome-'+biomeId:''}">
+<div class="shop-card-head"><span class="item-icon">${biomeId>=0?biomeIcons[biomeId]:'✦'}</span><div><strong>${title}</strong><small>${sub}</small></div></div>
+<button data-action="${action}" ${off?'disabled':''}>${cost}</button></article>`;
+const section=(title,kicker,content)=>`<section class="catalog-section"><div class="catalog-heading"><h3>${title}</h3><span>${kicker}</span></div><div class="catalog-grid">${content}</div></section>`;
+function openPanel(k){stopHarvest();panel=panel===k?null:k;renderPanel();if(panel)document.exitPointerLock?.()}
+function renderPanel(){
+const box=$('panel');box.classList.toggle('hidden',!panel);if(!panel)return;
+$('panelTitle').textContent=panels[panel];$('panelTag').textContent='FRONTIER CAPITAL';
+$('tabs').innerHTML=['market','build','talents','inventory'].map(k=>'<button data-tab="'+k+'" '+(panel===k?'class="active"':'')+'>'+panels[k]+'</button>').join(' ');
+let out='';
+if(panel==='market'){
+let group='';for(let i=0;i<5;i++){
+const tier=st.tools[i]+1;if(tier>=3)continue;
+const cost=tier===0?prices[i]:tier===1?650:2900;
+group+=add(tools[i][tier],types[i]+' · Palier '+(tier+1)+' / 3',cost+' OR','tool:'+i,false,i);
+}
+out+=section('Outils & récolte','CINQ INDUSTRIES',group||'<p class="catalog-empty">Tous les outils sont au niveau maximum.</p>');
+const level=st.staminaLevel||0;
+let utility='';
+if(st.bag===8)utility+=add('Capacité de stockage','8 → 16 emplacements','450 OR','bag');
+if(level<4)utility+=add('Condition physique','Endurance '+maxStamina()+' → '+(maxStamina()+32),[500,1250,2600,5500][level]+' OR','stamina');
+if(!st.cart)utility+=add('Chariot utilitaire','Transport de petites charges','1200 OR','cart');
+if(!st.truck)utility+=add('Camion de ressources','Grand volume de transport','4500 OR','truck');
+out+=section('Équipement','CONSERVATION & MOBILITÉ',utility||'<p class="catalog-empty">Équipement entièrement amélioré.</p>');
+out+=section('Comptoir','TRANSACTIONS',add('Vendre le chargement','Inventaire et zone de vente','VENDRE','sell'));
+}
+if(panel==='build'){
+for(let i=0;i<5;i++){
+out+=section(types[i]+' · '+raw[i].toUpperCase(),'CHAÎNE DE PRODUCTION',add(worksites[i],'Collecte automatique · stockage',(550+i*160)+' OR','worker:'+i,false,i)+add(factories[i],raw[i]+' → '+processed[i],(480+i*150)+' OR','factory:'+i,false,i));
+}
+out+=section('Logistique','TRANSPORT & COMMERCE',add('Dépôt de transport','Déplacements des ressources','1400 OR','transport:0')+add('Comptoir vendeur','Vente automatisée','1800 OR','seller:0'));
+if(st.buildings.length)out+=section('Personnel','RECRUTEMENT',st.buildings.map((b,i)=>add((b.kind==='worker'?worksites[b.type]:b.kind==='factory'?factories[b.type]:b.kind==='seller'?'Comptoir vendeur':'Dépôt transport')+' #'+(i+1),'Employés : '+(b.workers||0)+' · Stock : '+(b.stock||0),'300 OR','hire:'+i,false,b.type)).join(''));
+}
+if(panel==='talents'){
+const level=st.staminaLevel||0;
+out+=section('Endurance & sprint','PERFORMANCES',level<4?add('Endurance '+(level+1),'Réserve '+maxStamina()+' → '+(maxStamina()+32)+' · récupération +4/s',[500,1250,2600,5500][level]+' OR','stamina'):add('Endurance MAX','Capacité maximale atteinte','MAX','noop',true));
+out+=section('Expertise des métiers','SPÉCIALISATIONS',types.map((name,i)=>add(name+' · Palier '+st.talents[i],'+10 % à la valeur de vente (développement)','500 OR','talent:'+i,false,i)).join(''));
+}
+if(panel==='inventory'){
+out+=section('Contenu transporté',count()+' / '+st.bag+' EMPLACEMENTS',types.map((name,i)=>add(raw[i],st.inv[i]+' unité(s) · '+processed[i]+' : '+st.products[i],values[i]+' / unité','noop',true,i)).join(''));
+out+=section('Stock en dépôt','ZONE DE VENTE',add('Marchandises à vendre',st.stock.length+' tronc(s) enregistré(s)','VENDRE','sell'));
+}
+$('shopbody').innerHTML=out;$('panelhint').textContent=st.gold.toLocaleString('fr-FR')+' pièces d’or';
+}
 $('panel').onclick=e=>{let b=e.target.closest('button');if(!b)return;if(b.dataset.tab)return panel=b.dataset.tab,renderPanel();let a=b.dataset.action;if(!a)return;if(a==='sell')return sell();if(a==='bag')return buy(450,()=>st.bag=16);if(a==='stamina')return buy([500,1250,2600,5500][st.staminaLevel||0]||99999,()=>{st.staminaLevel=(st.staminaLevel||0)+1;stamina=maxStamina()});if(a==='cart')return buy(1200,()=>st.cart=true);if(a==='truck')return buy(4500,()=>st.truck=true);let [kind,id]=a.split(':'),i=+id;if(kind==='tool'){let tier=st.tools[i]+1;return buy(tier===0?prices[i]:tier===1?650:2900,()=>st.tools[i]=tier)}if(kind==='hire')return buy(300,()=>st.buildings[i].workers++);if(kind==='talent')return buy(500,()=>st.talents[i]++);if(['factory','worker','transport','seller'].includes(kind))return buy(kind==='factory'?480+i*150:kind==='worker'?550+i*160:kind==='transport'?1400:1800,()=>{placing={kind,type:i};panel=null;renderPanel();pop('Allez à l’emplacement, F pour construire')})};const close=()=>{stopHarvest();panel=null;renderPanel()};$('close').onclick=close;$('resume').onclick=close;
 addEventListener('keydown',e=>{keys[e.code]=true;if(['KeyW','KeyZ','KeyA','KeyQ','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))stopHarvest();if(e.repeat)return;if(e.code==='KeyF')interact();if(e.code==='KeyE'&&Math.hypot(player.position.x,player.position.z)<7)openPanel('market');if(e.code==='KeyG'&&carried)drop();if(e.code==='KeyB')openPanel('build');if(e.code==='KeyU')openPanel('talents');if(e.code==='KeyI')openPanel('inventory');if(e.code==='KeyR')pop(st.truck?'Camion possédé':'Achetez un camion au comptoir');if(e.code==='Escape'){if(placing){placing=null;pop('Placement annulé')}close()}});addEventListener('keyup',e=>keys[e.code]=false);addEventListener('mousemove',e=>{if(document.pointerLockElement===renderer.domElement){heading-=e.movementX*.0025;pitch=T.MathUtils.clamp(pitch+e.movementY*.002,-.1,1.15)}});addEventListener('wheel',e=>dist=T.MathUtils.clamp(dist+Math.sign(e.deltaY),5,18),{passive:true});addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});renderer.domElement.onclick=()=>{if(!panel)renderer.domElement.requestPointerLock?.()};$('play').onclick=()=>{sound.boot();$('welcome').classList.add('hidden');$('hud').classList.remove('hidden');renderer.domElement.requestPointerLock?.()};
 $('soundToggle').onclick=()=>{sound.boot();const enabled=sound.toggle();$('soundToggle').classList.toggle('muted',!enabled);$('soundToggle').innerHTML=enabled?'♪ <span>SON</span>':'♪ <span>MUET</span>'};
