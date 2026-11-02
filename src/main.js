@@ -22,11 +22,11 @@ leftArm.add(orb(.12,m.skin,0,-.78,0));rightArm.add(orb(.12,m.skin,0,-.78,0));
 const toolHolder=new T.Group();toolHolder.position.set(0,-.76,.08);rightArm.add(toolHolder);
 const toolModels=[];
 for(let type=0;type<5;type++){let g=new T.Group();g.add(cy(.05,.95,m.wood,0,-.32,0));
-if(type===0)g.add(cube(.46,.26,.1,m.rock,.17,.07,0));
-if(type===1)g.add(cube(.9,.16,.17,m.rock,0,.08,0));
+if(type===0)g.add(cube(.46,.26,.12,m.rock,.15,-.72,.02));
+if(type===1)g.add(cube(.9,.17,.16,m.rock,0,-.73,0));
 if(type===2){g.add(cy(.19,.5,m.ore,0,-.17,0));g.add(cy(.06,.35,m.rock,0,-.53,0))}
-if(type===3)g.add(cube(.34,.37,.09,m.rock,0,-.78,0));
-if(type===4){g.add(cube(.6,.1,.1,m.rock,.16,.08,0));g.add(cube(.09,.31,.1,m.rock,.42,-.12,0))}
+if(type===3)g.add(cube(.34,.37,.09,m.rock,0,-.79,0));
+if(type===4){g.add(cube(.62,.1,.1,m.rock,.17,-.71,0));g.add(cube(.09,.31,.1,m.rock,.43,-.86,0))}
 g.visible=false;toolHolder.add(g);toolModels.push(g)}
 const cargo=new T.Group();avatar.add(cargo);const cargoPieces=[];let cargoSignature='';
 function cargoObject(type){const g=new T.Group(),kind=type%5;
@@ -171,22 +171,48 @@ if(!blocked(player.position.x,z+dz))player.position.z=z+dz;
 const stopHarvest=()=>{harvesting=null;harvestProgress=0};
 const harvestInterval=type=>[.78,.88,1.02,.74,.65][type]*[1,.68,.42][Math.max(0,st.tools[type])];
 function animatePlayer(dt,moving){
-stepPhase+=(moving?dt*12:dt*3);
+stepPhase+=dt*(moving?12:2.1);
 const stride=moving?Math.sin(stepPhase)*.63:0;
 leftLeg.rotation.x=T.MathUtils.damp(leftLeg.rotation.x,stride,13,dt);
 rightLeg.rotation.x=T.MathUtils.damp(rightLeg.rotation.x,-stride,13,dt);
 avatar.position.y=T.MathUtils.damp(avatar.position.y,moving?Math.abs(Math.sin(stepPhase))*.08:0,12,dt);
-if(harvesting){const phase=Math.sin(harvestProgress/harvestInterval(harvesting.type)*Math.PI*2),type=harvesting.type;
-if(type===0){rightArm.rotation.set(-1+phase*.85,0,-.5-phase*.25);leftArm.rotation.set(-.25,0,-.35);avatar.rotation.z=.07*phase}
-if(type===1){rightArm.rotation.set(-1.8+phase*1.15,0,-.1);leftArm.rotation.set(-.65,0,-.2);avatar.rotation.x=.07*phase}
-if(type===2){rightArm.rotation.set(-1.35+.09*phase,.2,-.12);leftArm.rotation.set(-1.25-.09*phase,-.2,.1);avatar.position.y+=.02*phase}
-if(type===3){rightArm.rotation.set(-.6+phase*.8,0,-.25);leftArm.rotation.set(-.9-phase*.3,0,.16);avatar.rotation.x=.12*phase}
-if(type===4){rightArm.rotation.set(-.55,.7*phase,-.6+phase*.65);leftArm.rotation.set(-.4,0,-.18);avatar.rotation.y=.12*phase}
+if(harvesting){
+const type=harvesting.type;
+const p=Math.min(1,harvestProgress/Math.max(.15,harvestInterval(type)));
+const up=Math.sin(p*Math.PI)**2;
+const phase=Math.sin(p*Math.PI*2);
+const pose=(arm,x,y,z)=>{arm.rotation.x=T.MathUtils.damp(arm.rotation.x,x,19,dt);arm.rotation.y=T.MathUtils.damp(arm.rotation.y,y,19,dt);arm.rotation.z=T.MathUtils.damp(arm.rotation.z,z,19,dt)};
+const holder=(x,y,z)=>toolHolder.rotation.set(x,y,z);
+if(type===0){
+// Controlled overhead axe lift and forward trunk strike.
+pose(rightArm,-.8-1.0*up,.0,-.27);pose(leftArm,-.6-.3*up,0,-.12);
+holder(-.8+.35*up,0,.03*phase);avatar.rotation.x=.03*phase;avatar.rotation.z=-.06*up;
+}else if(type===1){
+// Heavy two-beat pick swing with a deeper torso lean.
+pose(rightArm,-1.0-1.1*up,0,-.12);pose(leftArm,-.6-.5*up,0,-.24);
+holder(-.82+.25*up,0,0);avatar.rotation.x=.11*phase;avatar.rotation.z=.03*phase;
+}else if(type===2){
+// Steady drill pressure, vibration, and bracing arm.
+pose(rightArm,-1.3,0,-.1);pose(leftArm,-1.15,0,.2);
+holder(-1.4+.06*phase,0,.06*phase);avatar.rotation.x=.08;avatar.position.y+=Math.abs(phase)*.012;
+}else if(type===3){
+// Shovel dips toward the ground and then lifts material.
+pose(rightArm,-.5-.9*up,0,-.2);pose(leftArm,-.7-.5*up,0,.14);
+holder(-.8-.3*up,0,0);avatar.rotation.x=.18+.06*phase;
+}else{
+// A broad sideways harvesting sweep rather than an overhead hit.
+pose(rightArm,-.72,.75*phase,-.38+.2*phase);pose(leftArm,-.57,0,-.15);
+holder(-.92,0,.3*phase);avatar.rotation.y=.14*phase;avatar.rotation.x=.04;
+}
 toolModels.forEach((t,i)=>t.visible=i===type);
-}else{avatar.rotation.set(T.MathUtils.damp(avatar.rotation.x,0,10,dt),T.MathUtils.damp(avatar.rotation.y,0,10,dt),T.MathUtils.damp(avatar.rotation.z,0,10,dt));
-rightArm.rotation.set(T.MathUtils.damp(rightArm.rotation.x,moving?stride*.6:0,13,dt),T.MathUtils.damp(rightArm.rotation.y,0,13,dt),T.MathUtils.damp(rightArm.rotation.z,0,13,dt));
-leftArm.rotation.set(T.MathUtils.damp(leftArm.rotation.x,moving?-stride*.6:0,13,dt),T.MathUtils.damp(leftArm.rotation.y,0,13,dt),T.MathUtils.damp(leftArm.rotation.z,0,13,dt));
-toolModels.forEach(t=>t.visible=false)}
+}else{
+const smooth=(x)=>T.MathUtils.damp(x,0,12,dt);
+avatar.rotation.set(smooth(avatar.rotation.x),smooth(avatar.rotation.y),smooth(avatar.rotation.z));
+rightArm.rotation.set(T.MathUtils.damp(rightArm.rotation.x,moving?stride*.6:0,13,dt),smooth(rightArm.rotation.y),smooth(rightArm.rotation.z));
+leftArm.rotation.set(T.MathUtils.damp(leftArm.rotation.x,moving?-stride*.6:0,13,dt),smooth(leftArm.rotation.y),smooth(leftArm.rotation.z));
+toolHolder.rotation.set(smooth(toolHolder.rotation.x),smooth(toolHolder.rotation.y),smooth(toolHolder.rotation.z));
+toolModels.forEach(t=>t.visible=false);
+}
 cargo.rotation.z=moving?Math.sin(stepPhase)*.04:0;
 }
 function updateInventory(){
@@ -245,7 +271,7 @@ function harvest(){
 if(panel)return;
 if(placing){
 const x=Math.round(player.position.x+Math.sin(player.rotation.y)*6),z=Math.round(player.position.z+Math.cos(player.rotation.y)*6);
-if(Math.hypot(x,z)<12||st.buildings.some(b=>Math.hypot(b.x-x,b.z-z)<6)||resources.some(o=>!o.dead&&Math.hypot(o.x-x,o.z-z)<4))return pop('Terrain indisponible');
+if(Math.hypot(x,z)<12||Math.abs(x-SALE.x)<SALE.w/2+3&&Math.abs(z-SALE.z)<SALE.d/2+3||st.buildings.some(b=>Math.hypot(b.x-x,b.z-z)<6)||resources.some(o=>!o.dead&&Math.hypot(o.x-x,o.z-z)<4))return pop('Terrain indisponible');
 st.buildings.push({...placing,x,z,workers:0,stock:0});addBuilding(st.buildings.at(-1));
 placing=null;sound.effect('build');pop('Bâtiment construit');save();return
 }
