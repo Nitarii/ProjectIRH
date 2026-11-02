@@ -1,6 +1,6 @@
 import * as T from 'three';
-import {createSound} from './sound.js';
-import {createAtmosphere} from './atmosphere.js';
+import {createSound} from './sound.js?v=20261102c';
+import {createAtmosphere} from './atmosphere.js?v=20261102c';
 const $=id=>document.getElementById(id), scene=new T.Scene();scene.background=new T.Color('#a6cbd1');scene.fog=new T.FogExp2('#a6cbd1',.007);
 const cam=new T.PerspectiveCamera(65,innerWidth/innerHeight,.1,450),renderer=new T.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.25));renderer.shadowMap.enabled=true;$('game').append(renderer.domElement);
 scene.add(new T.HemisphereLight(0xffffff,0x657449,2.4));const sun=new T.DirectionalLight(0xffe7bc,2.3);sun.position.set(70,95,40);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.bias=-.0004;sun.shadow.normalBias=.024;sun.shadow.radius=2;sun.shadow.camera.left=-60;sun.shadow.camera.right=60;sun.shadow.camera.top=60;sun.shadow.camera.bottom=-60;scene.add(sun);
@@ -423,6 +423,21 @@ renderer.domElement.addEventListener('webglcontextrestored',()=>{monitor.context
 window.addEventListener('error',event=>{monitor.lastError=String(event.message||'Runtime error').slice(0,250)});
 window.addEventListener('unhandledrejection',event=>{monitor.lastError=String(event.reason||'Unhandled rejection').slice(0,250)});
 let clock=new T.Clock(),ticks=0;
+const performanceBudget={sampleAt:performance.now(),frames:0,reduced:false};
+function controlQuality(){
+const p=performanceBudget;p.frames++;
+const now=performance.now(),duration=now-p.sampleAt;
+if(duration<4000)return;
+const fps=p.frames*1000/duration;
+monitor.estimatedFps=Math.round(fps);p.frames=0;p.sampleAt=now;
+if(fps<19&&!p.reduced){
+p.reduced=true;
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1));
+renderer.shadowMap.enabled=false;
+monitor.lowPowerMode=true;
+console.warn('Reduced graphics load for stable rendering');
+}
+}
 function frame(){
 requestAnimationFrame(frame);
 const dt=Math.min(clock.getDelta(),.05);elapsed+=dt;
@@ -526,5 +541,6 @@ map()
 renderer.render(scene,cam);
 monitor.frames++;monitor.drawCalls=renderer.info.render.calls;
 monitor.chunks=world.size;monitor.resources=resources.length;
+controlQuality();
 }
 stream();pumpWorld();updateInventory();frame();setInterval(save,15000);
