@@ -16,10 +16,12 @@
   </div>
   <div id="location" class="location"><span class="locator">◈</span><span id="biomeName">FORÊT</span></div>
   <div class="rightcol"><canvas id="map" width="168" height="168"></canvas><div id="clock">JOUR 01 · 08:00</div></div>
+  <div class="stamina"><div class="stamina-head"><span>ENDURANCE <small id="staminaRank">NIV. 1</small></span><span id="staminaCount">100 / 100</span></div><div class="stamina-track"><div id="staminaFill" class="stamina-fill"></div></div><div class="stamina-help">MAJ <span>SPRINT</span></div></div>
   <div class="mission"><strong id="objective">ACHETEZ VOTRE PREMIER OUTIL</strong><span id="detail">Marchand au camp : touche E</span></div>
   <div id="target" class="target hidden"><strong id="targetTitle"></strong><div id="targetLife"></div><span id="targetHint"></span></div>
-  <div id="prompt" class="prompt hidden"></div>
-  <div class="bottom"><div class="keyline"><span><kbd>Z</kbd><kbd>Q</kbd><kbd>S</kbd><kbd>D</kbd> DÉPLACER</span><span><kbd>SOURIS</kbd> CAMÉRA</span><span><kbd>F</kbd> RÉCOLTER / PORTER</span><span><kbd>G</kbd> DÉPOSER</span><span><kbd>E</kbd> VENDRE / MARCHAND</span><span><kbd>B</kbd> CONSTRUIRE</span><span><kbd>U</kbd> PROGRESSER</span><span><kbd>R</kbd> VÉHICULE</span><span><kbd>ÉCHAP</kbd> MENU</span></div></div>
+  <div id="prompt" class="prompt hidden"><kbd>F</kbd></div>
+  <div class="bottom"><div class="keyline"><span><kbd>Z</kbd><kbd>Q</kbd><kbd>S</kbd><kbd>D</kbd> DÉPLACER</span><span><kbd>MAJ</kbd> COURIR</span><span><kbd>SOURIS</kbd> CAMÉRA</span><span><kbd>F</kbd> RÉCOLTER / PORTER</span><span><kbd>G</kbd> DÉPOSER</span><span><kbd>E</kbd> VENDRE / MARCHAND</span><span><kbd>B</kbd> CONSTRUIRE</span><span><kbd>U</kbd> PROGRESSER</span><span><kbd>R</kbd> VÉHICULE</span><span><kbd>ÉCHAP</kbd> MENU</span></div></div>
+  <button id="soundToggle" class="sound-toggle" type="button" title="Activer ou couper les sons" aria-label="Activer ou couper les sons">♪ <span>SON</span></button>
   <aside id="miniInventory" class="inventory-mini" aria-label="Inventaire"><div class="inventory-title"><span>INVENTAIRE</span><span id="inventoryCapacity">0 / 8</span></div><div id="inventoryGrid" class="inventory-grid"></div></aside>
 </div>
 <div id="notice" class="notice"></div>
