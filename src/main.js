@@ -4,7 +4,7 @@ import {createAtmosphere} from './atmosphere.js?v=20261103ad';
 import {createIndustry} from './industry.js?v=20261104d';
 import {inventoryIcon} from './item-icons.js?v=20261103k';
 import {createResourceGraphics} from './resource-visuals.js?v=20261103ac';
-import {createFieldBuilder} from './wheat-fields.js?v=20261103k';
+import {createFieldBuilder} from './wheat-fields.js?v=20261104n';
 import {makeStructure} from './structures.js?v=20261104c';
 import {EQUIPMENT,EQUIPMENT_FR,TOOL_SPEED,TOOL_YIELD,ECONOMY,toolCost,buildingCost,workerCarryCost,MAX_EXPERTISE,expertiseCost,expertiseMultiplier,expertiseHarvestSpeed,AUTO_UPGRADE_COSTS,autoSpeedMultiplier} from './balance.js?v=20261104n';
 import {loadSettings,storeSettings,keyLabel,isPressed,applyQuality,ACTIONS,detectKeyboardLayout} from './settings.js?v=20261104g';
@@ -197,7 +197,7 @@ return selected;
 }
 const resourceGraphics=createResourceGraphics(T);
 const harvestFx=createHarvestEffects(T,scene);
-const buildWheatField=createFieldBuilder(T,biome,hash);
+const buildWheatField=createFieldBuilder(T,biome,hash,(x,z)=>st.buildings.some(b=>pointInOrientedRect(x,z,facilityFootprint(b),.38)));
 function node(type,x,z,key){
 const variant=Math.floor(hash(Math.floor(x*3),Math.floor(z*3),66)*4);
 const g=resourceGraphics.createNode(type,variant,x+z*3);
@@ -681,7 +681,13 @@ function placementAllowed(x,z){
 }
 function clearPlacementObstacles(building){
  const area=facilityFootprint(building),margin=.38;
- for(const c of world.values()){
+ for(const [chunkKey,c] of world){
+  const [cx,cz]=chunkKey.split(',').map(Number);
+  // Wheat is batched separately from small decorations; rebuild only close chunks.
+  if(Math.hypot(cx*CH+CH/2-area.x,cz*CH+CH/2-area.z)<Math.hypot(area.w,area.d)/2+CH){
+    for(const mesh of c.root.userData.wheatMeshes||[]){c.root.remove(mesh);mesh.dispose()}
+    buildWheatField(cx,cz,c.root);
+  }
   for(const node of c.nodes){
    if(!pointInOrientedRect(node.x,node.z,area,margin+.65))continue;
    node.dead=true;node.hp=0;node.mesh.visible=false;
