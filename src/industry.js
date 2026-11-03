@@ -187,12 +187,15 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
   }
 
   const gridSize=12,sourceCells=new Map(),buildingCells=new Map();
+  const workerBuildings=Array.from({length:5},()=>[]),
+    factoryBuildings=Array.from({length:5},()=>[]);
   let indexedResources=-1,indexedBuildings=-1,indexedAt=-99;
   const gridKey=(x,z)=>Math.floor(x/gridSize)+','+Math.floor(z/gridSize);
   function rebuildSpatialIndex(){
     if(resources.length===indexedResources&&buildings.length===indexedBuildings&&time-indexedAt<1.0)return;
     indexedAt=time;indexedResources=resources.length;indexedBuildings=buildings.length;
     sourceCells.clear();buildingCells.clear();
+    for(let t=0;t<5;t++){workerBuildings[t].length=0;factoryBuildings[t].length=0}
     for(const r of resources){
       if(r.dead)continue;
       const key=gridKey(r.x,r.z);
@@ -200,6 +203,8 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       sourceCells.get(key).push(r);
     }
     for(const b of buildings){
+      if(b.kind==='worker')workerBuildings[b.type]?.push(b);
+      if(b.kind==='factory')factoryBuildings[b.type]?.push(b);
       const key=gridKey(b.x,b.z);
       if(!buildingCells.has(key))buildingCells.set(key,[]);
       buildingCells.get(key).push(b);
@@ -413,13 +418,18 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     return distance(a,a.routeGoal||goal)<.38;
   }
   function reserveResource(a){
-    const b=a.home;
-    let best=null,score=Infinity;
-    for(const r of resources){
-      if(r.dead||r.type!==b.type||(r.unreachableUntil||0)>time||r.workerClaim&&r.workerClaim!==a.id)continue;
-      const d=distance(r,b);
-      if(d>55||d<2.5)continue;
-      if(d<score){best=r;score=d}
+    const b=a.home,cx=Math.floor(b.x/gridSize),cz=Math.floor(b.z/gridSize);
+    let best=null,score=55*55;
+    for(let ix=cx-5;ix<=cx+5;ix++)for(let iz=cz-5;iz<=cz+5;iz++){
+      const candidates=sourceCells.get(ix+','+iz);
+      if(!candidates)continue;
+      for(const r of candidates){
+        if(r.dead||r.type!==b.type||(r.unreachableUntil||0)>time||
+          r.workerClaim&&r.workerClaim!==a.id)continue;
+        const dx=r.x-b.x,dz=r.z-b.z,d2=dx*dx+dz*dz;
+        if(d2<6.25||d2>=score)continue;
+        best=r;score=d2;
+      }
     }
     if(!best)return null;
     best.workerClaim=a.id;return best;
@@ -458,31 +468,39 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
   }
   function findTransport(a){
     let best=null,score=Infinity;
-    for(const origin of buildings){
-      if(origin.kind!=='worker'||origin.stockRaw<1||distance(a.home,origin)>125)continue;
-      for(const dest of buildings){
-        if(dest.kind!=='factory'||dest.type!==origin.type||distance(origin,dest)>145)continue;
-        const free=totalCapacity-dest.inputRaw;
-        if(free<=0)continue;
-        const cost=distance(a.home,origin)+distance(origin,dest)*.65;
-        if(cost<score){score=cost;best={origin,dest}}
+    for(let type=0;type<5;type++){
+      for(const origin of workerBuildings[type]){
+        if(origin.stockRaw<1||distance(a.home,origin)>125)continue;
+        for(const dest of factoryBuildings[type]){
+          if(distance(origin,dest)>145||dest.inputRaw>=totalCapacity)continue;
+          const cost=distance(a.home,origin)+distance(origin,dest)*.65;
+          if(cost<score){score=cost;best={origin,dest}}
+        }
       }
     }
     if(!best)return;
-    a.targetBuilding=best.origin;a.receiver=best.dest;a.goal=stockAccess(best.origin,false,a.slot);
+    a.targetBuilding=best.origin;a.receiver=best.dest;
+    a.goal=stockAccess(best.origin,false,a.slot);
     a.state='toPickup';a.carryType=best.origin.type;a.processed=false;
   }
   function findSeller(a){
-    const choices=buildings.filter(b=>distance(a.home,b)<=160);
-    const processed=choices.filter(b=>b.kind==='factory'&&b.stockProcessed>0);
-    const raw=choices.filter(b=>b.kind==='worker'&&b.stockRaw>0);
-    // Always choose any available processed goods before raw materials.
-    const pool=processed.length?processed:raw;
-    if(!pool.length)return;
-    pool.sort((x,y)=>distance(a.home,x)-distance(a.home,y));
-    const b=pool[0];
-    a.targetBuilding=b;a.processed=processed.length>0;a.carryType=b.type;
-    a.goal=stockAccess(b,a.processed,a.slot);a.state='toPickup';
+    let best=null,score=160*160,processed=false;
+    // Finished products take priority over raw goods without allocating or sorting lists.
+    for(const b of buildings){
+      if(b.kind!=='factory'||b.stockProcessed<1)continue;
+      const dx=a.home.x-b.x,dz=a.home.z-b.z,d2=dx*dx+dz*dz;
+      if(d2<score){score=d2;best=b;processed=true}
+    }
+    if(!best){
+      for(const b of buildings){
+        if(b.kind!=='worker'||b.stockRaw<1)continue;
+        const dx=a.home.x-b.x,dz=a.home.z-b.z,d2=dx*dx+dz*dz;
+        if(d2<score){score=d2;best=b}
+      }
+    }
+    if(!best)return;
+    a.targetBuilding=best;a.processed=processed;a.carryType=best.type;
+    a.goal=stockAccess(best,processed,a.slot);a.state='toPickup';
   }
   function gather(a,dt){
     if(!a.target||a.target.dead||!resources.includes(a.target)){idle(a,.8);return}
