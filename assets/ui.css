@@ -620,3 +620,42 @@ body.touch-placement .touch-action-pad{grid-template-columns:repeat(3,minmax(0,1
  .creator-field select,.options-box select,.vault-info textarea{font-size:16px}
  .creator-body{max-height:calc(100dvh - 18px);overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 }
+
+/* Live HUD density: transform only the game overlay, not game or menu canvases.
+   JS supplies the inverse-sized HUD viewport to keep corners anchored. */
+#hud{position:fixed;top:0;left:0;right:auto;bottom:auto;z-index:3;
+ transform:scale(var(--hud-scale,1));transform-origin:top left;pointer-events:none}
+#hud #map{width:var(--minimap-size,168px)!important;height:var(--minimap-size,168px)!important;
+ max-width:calc(100vw - 30px);max-height:calc(100dvh - 80px)}
+#hud .keyline button{pointer-events:auto}
+#hud .rightcol{pointer-events:none}
+/* Single-purpose stock menu: amounts appear once and the keyboard shortcut
+   is visible directly on the corresponding action button. */
+.storage-management{grid-column:1/-1;display:flex;flex-direction:column;gap:13px;min-width:0}
+.storage-management .storage-overview{display:flex;flex-direction:row;align-items:center;
+ justify-content:space-between;flex-wrap:wrap;gap:15px;margin:0;padding:15px 19px}
+.storage-management .storage-overview span{display:flex;align-items:center;gap:10px;font-size:13px}
+.storage-management .storage-overview strong{font:800 18px/1 'Barlow Condensed',sans-serif;
+ letter-spacing:.4px;color:#f7ecc9}
+.storage-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.stock-action{display:flex;align-items:center;justify-content:center;gap:12px;
+ min-height:63px;padding:12px;border-radius:10px;border:1px solid #a5ddae88;
+ background:#264a40;color:#ecf5ea;cursor:pointer;font:800 16px 'Barlow Condensed',sans-serif}
+.stock-action:hover:not(:disabled),.stock-action:focus-visible{background:#366d57;border-color:#d2ffca}
+.stock-action:focus-visible{outline:2px solid #ebd08a;outline-offset:2px}
+.stock-action:disabled{opacity:.38;cursor:not-allowed}
+.stock-action kbd{display:grid;place-items:center;min-width:33px;height:36px;margin:0;
+ background:#b5e1bc;color:#143329;border-radius:7px;font:900 19px 'Barlow Condensed',sans-serif}
+.stock-action:disabled kbd{opacity:.7}
+@media(max-width:650px){
+ #hud #map{width:min(var(--minimap-size,168px),35vw)!important;
+ height:min(var(--minimap-size,168px),35vw)!important}
+ .storage-actions{gap:8px}
+ .stock-action{gap:8px;min-height:55px;font-size:15px;padding:9px}
+ .stock-action kbd{min-width:29px;height:32px;font-size:17px}
+ .storage-management .storage-overview{padding:12px;gap:9px}
+}
+@media(max-height:390px) and (orientation:landscape){
+ #hud #map{display:block!important;width:min(var(--minimap-size,168px),20dvh)!important;
+ height:min(var(--minimap-size,168px),20dvh)!important}
+}
