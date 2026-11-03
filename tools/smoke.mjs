@@ -156,6 +156,39 @@ try{
   await tradePage.waitForFunction(()=>document.querySelector('#placementHud').classList.contains('hidden'),null,{timeout:15000});
   console.log(JSON.stringify({trade:afterVendor,clock:beforeVendor.clock,zoomUnchanged:zoomBefore,placement},null,2));
   await tradeContext.close();
+
+  const optionsContext=await browser.newContext({viewport:{width:1280,height:800},locale:'en-US'});
+  const optionsPage=await optionsContext.newPage();
+  optionsPage.on('pageerror',e=>errors.push('OPTIONS SCRIPT '+e.message));
+  await optionsPage.goto('http://127.0.0.1:8765/',{waitUntil:'domcontentloaded',timeout:30000});
+  await optionsPage.locator('#play').click({timeout:15000});
+  await optionsPage.waitForFunction(()=>window.__irhMonitor?.frames>10,null,{timeout:30000});
+  const initialLanguage=await optionsPage.evaluate(()=>document.documentElement.lang);
+  if(initialLanguage!=='en')throw new Error('English locale should be default for non-French visitors');
+  await optionsPage.keyboard.press('Escape');
+  await optionsPage.waitForFunction(()=>!!document.querySelector('#settingVolume'),null,{timeout:15000});
+  await optionsPage.locator('#settingVolume').fill('28');
+  await optionsPage.locator('#settingQuality').selectOption('low');
+  await optionsPage.locator('#settingAudio').uncheck();
+  await optionsPage.locator('#settingLanguage').selectOption('fr');
+  await optionsPage.locator('button[data-bind="build"]').click();
+  await optionsPage.keyboard.press('j');
+  const optionsState=await optionsPage.evaluate(()=>({
+    language:document.documentElement.lang,
+    settings:JSON.parse(localStorage.getItem('irh-options')||'{}'),
+    canvasPixelRatio:document.querySelector('#game canvas').width/window.innerWidth
+  }));
+  if(optionsState.language!=='fr'||optionsState.settings.volume!==.28||
+     optionsState.settings.quality!=='low'||optionsState.settings.muted!==true||
+     optionsState.settings.bindings.build!=='KeyJ'||optionsState.canvasPixelRatio>=.99)
+    throw new Error('Settings not applied: '+JSON.stringify(optionsState));
+  await optionsPage.keyboard.press('Escape');
+  await optionsPage.keyboard.press('j');
+  await optionsPage.waitForFunction(()=>!document.querySelector('#panel').classList.contains('hidden'),null,{timeout:12000});
+  const newKeyWorks=await optionsPage.evaluate(()=>document.querySelector('#panelTitle').textContent);
+  if(newKeyWorks!=='CONSTRUCTION')throw new Error('Remapped construction binding did not open menu');
+  console.log(JSON.stringify({options:optionsState,remappedBuild:true},null,2));
+  await optionsContext.close();
   if(errors.length)throw new Error('Browser errors after scenarios: '+errors.join(' | '));
 
 }finally{
