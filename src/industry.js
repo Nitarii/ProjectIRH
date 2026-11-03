@@ -327,6 +327,9 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       const step=Math.min(remaining,dt*speed*(hooks.roads?.speedAt(a.x,a.z)||1));
       a.x+=(endpoint.x-a.x)/remaining*step;
       a.z+=(endpoint.z-a.z)/remaining*step;
+      // Offscreen employees still really use roads; count their movement
+      // so a busy route is not dismantled merely because the player left.
+      hooks.onMove?.(a.id,a.x,a.z);
       return distance(a,goal)<.82;
     }
     a.routeCooldown=Math.max(0,(a.routeCooldown||0)-dt);
