@@ -5,39 +5,40 @@
 <meta name="theme-color" content="#0b1516">
 <meta name="author" content="Nitarii">
 <meta name="copyright" content="Copyright 2026 Nitarii. All rights reserved.">
-<meta name="description" content="IRH — Frontier Capital, an original procedural game by Nitarii.">
-<title>IRH — Frontier Capital</title>
-<link rel="stylesheet" href="./assets/ui.css?v=20261104c">
+<meta name="description" content="Nitari's Industrial Madness, an original procedural game by Nitarii.">
+<title>Nitari's Industrial Madness (NIM)</title>
+<link rel="stylesheet" href="./assets/ui.css?v=20261104n">
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js"}}</script>
 </head>
 <body>
 <div id="game"></div>
 <div id="hud" class="hidden">
   <div class="hudhead">
-    <div class="brand"><span class="sigil">◆</span><span>IRH <small>FRONTIER CAPITAL</small></span></div>
+    <div class="brand"><span class="sigil">◆</span><span>NIM <small>INDUSTRIAL MADNESS</small></span></div>
     <div class="hudstats"><div class="gold"><span id="goldGain" class="gold-gain" aria-live="polite"></span><span>✦</span> <b id="coins">100</b> <small id="goldUnit">OR</small></div></div>
   </div>
   <div id="location" class="location"><span class="locator">◈</span><span id="biomeName">FORÊT</span></div>
   <div class="rightcol"><div id="clock">JOUR 01 · 08:00</div><canvas id="map" width="168" height="168"></canvas></div>
   <div class="stamina hidden" id="staminaHud"><div class="stamina-head"><span>ENDURANCE <small id="staminaRank">NIV. 1</small></span><span id="staminaCount">100 / 100</span></div><div class="stamina-track"><div id="staminaFill" class="stamina-fill"></div></div></div>
   <div class="mission"><strong id="objective">ACHETEZ VOTRE PREMIER OUTIL</strong><span id="detail">Marchand au camp : touche F</span></div>
-  <div id="target" class="target hidden"><strong id="targetTitle"></strong><div id="targetLife"></div><span id="targetHint"></span></div>
+  <div id="target" class="target hidden"><strong id="targetTitle"></strong><div id="targetLife"><span id="targetLifeValue" class="target-life-value"></span></div><span id="targetHint"></span></div>
   <div id="prompt" class="prompt hidden" aria-hidden="true">F</div>
   <div id="placementHud" class="placement-hud hidden" aria-live="polite">
     <div class="placement-head"><span class="placement-symbol">⌑</span><div><strong>CONSTRUCTION</strong><span id="placementName"></span></div></div>
     <div id="placementStatus" class="placement-status">PLACE DISPONIBLE</div>
     <div class="placement-actions"><span><kbd>F</kbd> PLACER</span><span id="rotationHint"><kbd>Q / E</kbd> TOURNER</span><span><kbd>ÉCHAP</kbd> ANNULER</span></div>
   </div>
-  <div class="bottom"><div class="keyline"><span><kbd>F</kbd> INTERAGIR</span><span><kbd>C</kbd> COMPTOIR</span><span><kbd>B</kbd> CONSTRUIRE</span><span><kbd>U</kbd> PROGRESSER</span><span id="autoShortcut"><kbd>R</kbd> AUTO</span><span><kbd>TAB</kbd> MENU</span></div></div><div id="autoState" class="auto-state hidden" aria-live="polite"><span class="auto-title">MODE AUTO</span><small class="auto-penalty">−20 % vitesse de déplacement et de récolte</small></div>
+  <div class="bottom"><div class="keyline"><span><kbd>F</kbd> INTERAGIR</span><span><kbd>C</kbd> COMPTOIR</span><span><kbd>B</kbd> CONSTRUIRE</span><span><kbd>T</kbd> PROGRESSER</span><span><kbd id="mapShortcut">M</kbd> CARTE</span><span id="autoShortcut"><kbd>R</kbd> AUTO</span><span><kbd>TAB</kbd> MENU</span></div></div><div id="autoState" class="auto-state hidden" aria-live="polite"><span class="auto-title">MODE AUTO</span><small class="auto-penalty">−20 % vitesse de déplacement et de récolte</small></div>
   <aside id="miniInventory" class="inventory-mini" aria-label="Inventaire"><div class="inventory-title"><span>INVENTAIRE</span><span id="inventoryCapacity">0 / 8</span></div><div id="inventoryGrid" class="inventory-grid"></div></aside>
 </div>
 <div id="notice" class="notice"></div>
+<div id="worldMap" class="world-map hidden" role="dialog" aria-modal="true" aria-label="Carte du monde"><div class="world-map-sheet"><header class="world-map-heading"><div><small>EXPLORATION</small><h2 id="worldMapTitle">CARTE DU MONDE</h2></div><button id="worldMapClose" type="button" aria-label="Fermer la carte">×</button></header><canvas id="worldMapCanvas" width="800" height="520" aria-label="Carte explorée, glisser pour déplacer"></canvas><footer class="world-map-footer"><span id="worldMapCoords">X 0 · Z 0</span><span id="worldMapHelp">Glisser pour déplacer · molette pour zoomer · zones sombres inexplorées</span><div class="world-map-zoom"><button id="worldMapZoomOut" type="button" aria-label="Dézoomer">−</button><button id="worldMapCenter" type="button" aria-label="Centrer sur le joueur">⌖</button><button id="worldMapZoomIn" type="button" aria-label="Zoomer">+</button></div></footer></div></div>
 <div id="panel" class="panel hidden"><div class="sheet"><header><div><div class="eyebrow" id="panelTag">COMPTOIR</div><h2 id="panelTitle">Marché</h2></div><button id="close" class="close" title="Fermer">×</button></header><nav id="tabs"></nav><div id="shopbody" class="shopbody"></div><footer><span id="panelhint"></span><button id="resume" class="cta small">REPRENDRE ↗</button></footer></div></div>
-<div id="welcome" class="welcome"><div class="welcomeinner"><div class="mark">◇</div><p class="eyebrow">UN MONDE, CINQ INDUSTRIES, AUCUNE FRONTIÈRE</p><h1>IRH<span>FRONTIER<br>CAPITAL</span></h1><p class="intro">Partez de rien. Récoltez la terre. Construisez un empire.</p><button id="play" class="cta">ENTRER DANS LE MONDE <span>→</span></button><div class="welcomefoot">MONDE PROCÉDURAL INFINI · SAUVEGARDE AUTOMATIQUE · VERSION ALPHA · © 2026 NITARII</div></div></div>
+<div id="welcome" class="welcome"><div class="welcomeinner"><div class="mark">◇</div><p class="eyebrow">UN MONDE, CINQ INDUSTRIES, AUCUNE FRONTIÈRE</p><h1>NIM<span>INDUSTRIAL<br>MADNESS</span></h1><p class="intro">Partez de rien. Récoltez la terre. Construisez un empire.</p><button id="play" class="cta">ENTRER DANS LE MONDE <span>→</span></button><div class="welcomefoot">MONDE PROCÉDURAL INFINI · SAUVEGARDE AUTOMATIQUE · VERSION ALPHA · © 2026 NITARII</div></div></div>
 <div id="creator" class="creator hidden" role="dialog" aria-modal="true" aria-label="Character customization">
   <div id="creatorBody" class="creator-body"></div>
 </div>
 <div id="reticle" class="hidden"></div>
-<script type="module" src="./src/main.js?v=20261104g"></script>
+<script type="module" src="./src/main.js?v=20261104n"></script>
 </body>
 </html>
