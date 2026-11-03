@@ -450,7 +450,8 @@ const skyWeather=createSkyWeather(T,scene,player,cam,sun,hemisphere,{
   seed:st.seed
 });
 const nightLighting=createNightLighting(T,scene,{
-  buildings:()=>st.buildings,roads,player,
+  buildings:()=>st.buildings,
+  fixedBuildings:[{id:'central-market',x:0,z:0,rotation:0}],roads,player,
   viewDistance:()=>settings.viewDistance,
   quality:()=>settings.quality,
   isBlocked:(x,z)=>industry.blocked(x,z,.45)
