@@ -1862,15 +1862,10 @@ const now=performance.now(),duration=now-p.sampleAt;
 if(duration<4000)return;
 const fps=p.frames*1000/duration;
 monitor.estimatedFps=Math.round(fps);p.frames=0;p.sampleAt=now;
-if(fps<19&&!p.reduced){
-p.reduced=true;
-renderer.setPixelRatio(Math.min(renderer.getPixelRatio(),Math.min(window.devicePixelRatio||1,1.5)*settings.renderScale*.82));
-renderer.shadowMap.enabled=false;
-R=Math.min(R,settings.quality==='low'?1:2);
-streamingCenter='';
-monitor.lowPowerMode=true;
-console.warn('Reduced graphics load for stable rendering');
-}
+// Respect the visual quality chosen in Settings: never permanently
+// disable shadows, shorten the world draw distance or lower resolution
+// based on one short low-FPS sample. Track frame-rate issues instead.
+monitor.lowPerformance=fps<25;
 }
 applyLocale();
 applyHudSettings();
@@ -1998,10 +1993,12 @@ $('targetHint').textContent=tr('RÉCOLTE EN COURS',settings.language);
 $('target').classList.remove('hidden')
 }else $('target').classList.add('hidden');
 document.body.dataset.biome=String(biomeId);
-monitor.buildingLabels=industry.getLabels();
-monitor.resourceGeometries=resourceGraphics.geometryCount;
-monitor.batchedChunks=0;
-for(const c of world.values())if(c.resourceBatches?.length)monitor.batchedChunks++;
+if(ticks%120===1){
+  monitor.buildingLabels=industry.getLabels();
+  monitor.resourceGeometries=resourceGraphics.geometryCount;
+  monitor.batchedChunks=0;
+  for(const c of world.values())if(c.resourceBatches?.length)monitor.batchedChunks++;
+}
 }
 map();
 exploration.update(dt);
@@ -2020,7 +2017,7 @@ renderer.render(scene,cam);
 monitor.frames++;monitor.drawCalls=renderer.info.render.calls;
 monitor.playerX=player.position.x;monitor.playerZ=player.position.z;
 monitor.placementRotation=placing?.rotation??null;monitor.autoMode=autoMode;monitor.bikeRiding=bikeRiding;monitor.bicycleDistance=bicycle.distance;monitor.bagCapacity=st.bag;monitor.music=sound.currentMusic;
-monitor.resourceExhausted=Object.keys(resourceLife.exhausted).length;
+if(ticks%240===1)monitor.resourceExhausted=Object.keys(resourceLife.exhausted).length;
 monitor.chunks=world.size;monitor.resources=resources.length;
 monitor.inventoryCount=count();monitor.cameraDistance=dist;monitor.constructionActive=!!placing;
 monitor.gameMinutes=st.gameMinutes;monitor.terrainPaths=trails.count;
