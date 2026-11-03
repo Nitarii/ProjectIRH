@@ -929,7 +929,7 @@ if(panel==='storage'){
     tr(item,settings.language),'<div class="storage-overview">'+
     '<strong>'+tr(item,settings.language)+'</strong>'+
     '<span>'+(settings.language==='fr'?'Stock':'Stock')+' : '+(building[field]||0)+' / '+industry.capacity+'</span>'+
-    '<span>'+(settings.language==='fr'?'Transporté':'Carried')+' : '+carrying+'</span></div>'+
+    '<span>'+(settings.language==='fr'?'Transporté':'Carried')+' : '+carrying+'</span><span>'+(settings.language==='fr'?'A/Q : déposer · E : récupérer · F : fermer':'A: deposit · E: withdraw · F: close')+'</span></div>'+
     add(settings.language==='fr'?'Déposer':'Deposit',
       settings.language==='fr'?'Depuis votre inventaire':'From your inventory',
       settings.language==='fr'?'DÉPOSER':'DEPOSIT','stockDeposit',carrying<=0,building.type)+
@@ -1178,6 +1178,15 @@ addEventListener('keydown',e=>{
   if(placing&&(e.code==='KeyQ'||e.code==='KeyE')){
     e.preventDefault();rotatePlacement(e.code==='KeyE'?1:-1);return;
   }
+  if(panel==='storage'){
+    if(e.code==='KeyF'){e.preventDefault();close();return}
+    if(e.code==='KeyA'||e.code==='KeyE'){
+      e.preventDefault();const b=st.buildings.find(b=>b.id===activeStorage?.buildingId);
+      if(b){const n=transferStock(st,b,activeStorage.kind,e.code==='KeyA'?'deposit':'withdraw',industry.capacity);
+        if(n){sound.effect('ui');updateInventory();save();renderPanel()}}
+      return;
+    }
+  }
   if(exploration.visible)return;
   if(panel)return;
   if(e.code===settings.bindings.map){e.preventDefault();exploration.setVisible(true);document.exitPointerLock?.();return}
@@ -1276,12 +1285,13 @@ $('play').onclick=()=>{
 const exploration=createExplorationMap({canvas:$('worldMapCanvas'),overlay:$('worldMap'),player,biome,buildings:()=>st.buildings,settings,onDiscover:cells=>{st.explored=cells;}});
 exploration.load(st.explored);
 const minimap=$('map').getContext('2d');
-let lastMapX=Infinity,lastMapZ=Infinity,lastMapAt=-Infinity;
+let lastMapX=Infinity,lastMapZ=Infinity,lastMapAt=-Infinity,lastExplorationSave=0;
 function map(){
 const px=player.position.x,pz=player.position.z;
 if(Math.hypot(px-lastMapX,pz-lastMapZ)<.65&&elapsed-lastMapAt<1.8)return;
 lastMapX=px;lastMapZ=pz;lastMapAt=elapsed;
 exploration.visit(px,pz);
+if(elapsed-lastExplorationSave>22){lastExplorationSave=elapsed;save()}
 minimap.clearRect(0,0,168,168);minimap.save();minimap.beginPath();minimap.arc(84,84,82,0,7);minimap.clip();for(let x=0;x<24;x++)for(let z=0;z<24;z++){let b=biome(player.position.x+(x-12)*9,player.position.z+(z-12)*9);minimap.fillStyle=b<0?'#598654':colors[b];minimap.fillRect(x*7,z*7,8,8)}minimap.fillStyle='white';minimap.beginPath();minimap.arc(84,84,4,0,7);minimap.fill();
 const vx=-px,vz=-pz,vl=Math.hypot(vx,vz);
 if(vl>14){const ax=84+vx/vl*73,az=84+vz/vl*73,angle=Math.atan2(vz,vx);
