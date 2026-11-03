@@ -934,9 +934,15 @@ onResourceDepleted(node){
   save();
 },
 blocked:sceneryBlocked,
+roads,
 onMove(id,x,z){trails.recordMovement(id,x,z)}
 });
-function addBuilding(b){return industry.register(b)}
+roads.setProbes({
+  blocked:(x,z,r)=>industry.blocked(x,z,r),
+  traffic:(x,z)=>trails.traffic(x,z),
+  invalidate:(x,z)=>trails.invalidate(x,z)
+});
+function addBuilding(b){const result=industry.register(b);roads.invalidatePlan();return result}
 st.buildings.forEach(addBuilding);
 const autoPilot=createAutoPilot({
   player,blocked,move:movePlayer,resources:()=>resources,
@@ -949,6 +955,8 @@ const autoPilot=createAutoPilot({
   },
   sell:()=>sell({notifyEmpty:false,includeCarried:true}),
   speedMultiplier:()=>autoSpeedMultiplier(st.autoLevel),
+  terrainSpeed:(x,z)=>roads.speedAt(x,z),
+  hasRoads:()=>roads.built>0,
   onChange:on=>{
     autoMode=on;
     syncAutoEyes(on);
@@ -1737,7 +1745,8 @@ const rightX=cameraBackZ,rightZ=-cameraBackX;
 const forwardX=-cameraBackX,forwardZ=-cameraBackZ;
 const vx=(rightX*side+forwardX*front)/len;
 const vz=(rightZ*side+forwardZ*front)/len;
-movePlayer(vx*dt*(bikeRiding?(sprinting?17.5:13.1):(sprinting?10.3:6.3)),vz*dt*(bikeRiding?(sprinting?17.5:13.1):(sprinting?10.3:6.3)));
+const terrainSpeed=roads.speedAt(player.position.x,player.position.z);
+movePlayer(vx*dt*terrainSpeed*(bikeRiding?(sprinting?17.5:13.1):(sprinting?10.3:6.3)),vz*dt*terrainSpeed*(bikeRiding?(sprinting?17.5:13.1):(sprinting?10.3:6.3)));
 const targetAngle=Math.atan2(vx,vz);
 const difference=Math.atan2(Math.sin(targetAngle-player.rotation.y),Math.cos(targetAngle-player.rotation.y));
 player.rotation.y+=difference*Math.min(1,dt*16);
@@ -1837,6 +1846,7 @@ monitor.resourceExhausted=Object.keys(resourceLife.exhausted).length;
 monitor.chunks=world.size;monitor.resources=resources.length;
 monitor.inventoryCount=count();monitor.cameraDistance=dist;monitor.constructionActive=!!placing;
 monitor.gameMinutes=st.gameMinutes;monitor.terrainPaths=trails.count;
+monitor.roadTiles=roads.built;monitor.roadPlan=roads.plannedCount;
 monitor.renderResolution=renderer.getPixelRatio();monitor.viewDistance=settings.viewDistance;
 monitor.jumpHeight=player.position.y;
 controlQuality();
