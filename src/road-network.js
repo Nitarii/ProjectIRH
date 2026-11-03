@@ -32,7 +32,7 @@ export function createRoadNetwork(state,{cell=3,maxTiles=5600}={}){
   }
   function addConnection(from,to){
     const length=distance(from,to);
-    if(length>470||length<.01)return;
+    if(length>900||length<.01)return;
     const waypoints=[from];
     const parts=Math.ceil(length/55);
     let current=from;
@@ -80,7 +80,7 @@ export function createRoadNetwork(state,{cell=3,maxTiles=5600}={}){
       }
       if(chosen<0)break;
       const target=remaining.splice(chosen,1)[0];
-      if(best<=470)addConnection(neighbor,target);
+      if(best<=900)addConnection(neighbor,target);
       connected.push(target);
     }
     upgradeKeys=[...planned];upgradeCursor=0;
