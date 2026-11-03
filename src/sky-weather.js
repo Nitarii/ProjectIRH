@@ -6,9 +6,7 @@ const fract=x=>x-Math.floor(x);
 const rand=(x,z,seed)=>fract(Math.sin(x*127.1+z*311.7+seed*57.1)*43758.5453);
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 export function solarState(gameMinutes=0){
-  const phase=fract((Number(gameMinutes)||0)+480>=0?
-    ((Number(gameMinutes)||0)+480)/DAY:
-    1+((Number(gameMinutes)||0)+480)/DAY);
+  const phase=fract(((Number(gameMinutes)||0)+480)/DAY);
   const altitude=Math.sin(phase*6.28318530718-Math.PI*.5);
   const daylight=clamp((altitude+.115)*3.1,0,1);
   const twilight=clamp(1-Math.abs(altitude)*3.5,0,1);
@@ -130,7 +128,7 @@ export function createSkyWeather(T,scene,player,camera,sun,ambient,{
           accum+=density;
           lighted+=density*(.69+.31*layer);
         }
-        float alpha=(1.0-exp(-accum*.46))*smoothstep(1.04,.60,shape);
+        float alpha=(1.0-exp(-accum*.46))*(1.0-smoothstep(.60,1.04,shape));
         float fade=1.0-smoothstep(fogStart,fogEnd,vDistance);
         alpha*=fade*.88;
         if(alpha<.012)discard;
@@ -172,7 +170,11 @@ export function createSkyWeather(T,scene,player,camera,sun,ambient,{
     }
     cloudSites.sort((a,b)=>a.dist-b.dist);
   }
-  const horizon=new T.Color(),zenith=new T.Color(),dusk=new T.Color(0xc88f70);
+  const horizon=new T.Color(),dusk=new T.Color(0xc88f70);
+  const warm=new T.Color(0xffbc7e),daySun=new T.Color(0xffe7cc),
+        moon=new T.Color(0x92afd7),nightAmbient=new T.Color(0x879bb9),
+        dayAmbient=new T.Color(0xf2f6e9),nightGround=new T.Color(0x344057),
+        dayGround=new T.Color(0x657449);
   let lastLightAt=-100,phase=0,daylight=1,cloudQuality=0;
   function update(dt,elapsed,gameMinutes){
     if(dt<0)return;
@@ -203,17 +205,18 @@ export function createSkyWeather(T,scene,player,camera,sun,ambient,{
       // Reuse existing Color objects; adapt fog to horizon to hide chunk pop-in.
       if(scene.fog)scene.fog.color.copy(horizon);
       if(scene.background?.isColor)scene.background.copy(horizon);
-      const warm=new T.Color(0xffbc7e),daySun=new T.Color(0xffe7cc),moon=new T.Color(0x92afd7);
       sun.color.copy(moon).lerp(daySun,daylight).lerp(warm,solar.twilight*.65);
       sun.intensity=.10+2.15*daylight;
-      sun.position.set(player.position.x+sunDir.x*95,
-        Math.max(18,Math.abs(sunDir.y)*112),player.position.z+sunDir.z*95);
+      const moonPhase=solar.altitude<0?-1:1;
+      sun.position.set(player.position.x+sunDir.x*95*moonPhase,
+        Math.max(18,Math.abs(sunDir.y)*112),
+        player.position.z+sunDir.z*95*moonPhase);
       sun.target.position.set(player.position.x,0,player.position.z);
       sun.target.updateMatrixWorld();
       if(ambient){
         ambient.intensity=.72+1.65*daylight;
-        ambient.color.set(0x879bb9).lerp(new T.Color(0xf2f6e9),daylight);
-        ambient.groundColor.set(0x344057).lerp(new T.Color(0x657449),daylight);
+        ambient.color.copy(nightAmbient).lerp(dayAmbient,daylight);
+        ambient.groundColor.copy(nightGround).lerp(dayGround,daylight);
       }
     }
     resampleClouds();
