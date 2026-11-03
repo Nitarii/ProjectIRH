@@ -44,6 +44,13 @@ test('AI travel-time routing chooses a faster paved detour',
 const seller={id:'s',kind:'seller',x:60,z:25};
 economy.prepareWarehouse(seller);
 test('empty seller has nothing to sell',economy.chooseWarehouseSale(seller)===null);
+const distantHaul=economy.selectTransportJob(
+  {kind:'transport',x:500,z:15},
+  [{id:'origin',kind:'worker',x:610,z:15,type:1,stockRaw:100},
+   {id:'destination',kind:'seller',x:970,z:15,type:0,
+    warehouseRaw:[0,0,0,0,0],warehouseProcessed:[0,0,0,0,0]}]);
+test('transport jobs are not arbitrarily limited to nearby buildings',
+  distantHaul?.dest.id==='destination'&&distantHaul?.origin.id==='origin');
 test('processed stock reaches seller warehouse',economy.deliverTransport(seller,2,true,14)===14);
 test('seller chooses its own refined goods',economy.chooseWarehouseSale(seller)?.processed===true);
 test('sale pickup debits warehouse',economy.pickupWarehouse(seller,2,true,7)===7&&
