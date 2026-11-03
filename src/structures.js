@@ -1,3 +1,4 @@
+import {normalizeRotation} from './facility-layout.js';
 import {decorateFacility} from './factory-scene.js?v=20261103w';
 // Small industrial structures share materials and geometry detail budgets.
 export function makeStructure(T, scene, building) {
@@ -178,6 +179,7 @@ export function makeStructure(T, scene, building) {
   // Do not change the model scale without changing its collision envelopes.
   const facility=decorateFacility(T,group,building,[wood,stone,metal,trim,roof,amber]);
   group.position.set(building.x,0,building.z);
+  group.rotation.y=normalizeRotation(building.rotation);
   scene.add(group);
   return {
     group,setLanguage,get labelText(){return currentLabel},colliders:facility.colliders,workstations:facility.workstations,
