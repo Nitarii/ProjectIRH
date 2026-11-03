@@ -686,8 +686,44 @@ out+=section('Stock en dépôt','ZONE DE VENTE',add('Marchandises à vendre',st.
 $('shopbody').innerHTML=out;translateTree($('shopbody'),settings.language);
 $('panelhint').textContent=tr(st.gold.toLocaleString(settings.language==='fr'?'fr-FR':'en-US')+' pièces d’or',settings.language);
 }
+function clearCarriedInventory(){
+  st.inv=[0,0,0,0,0];st.products=[0,0,0,0,0];st.stock=[];
+  if(carried){scene.remove(carried);carried=null}
+  stopHarvest();updateInventory();save();
+}
+function safeRespawn(){
+  if(placing)cancelPlacement();
+  clearCarriedInventory();
+  player.position.set(0,0,9);
+  player.rotation.y=Math.PI;
+  jumpVelocity=0;st.x=0;st.z=9;
+  stamina=maxStamina();streamingCenter='';
+  close();save();
+  pop(settings.language==='fr'?'Personnage débloqué · ressources transportées perdues':'Character unstuck · carried resources forfeited');
+}
+function resetEntireGame(){
+  const fresh={
+    gold:100,bag:8,inv:[0,0,0,0,0],products:[0,0,0,0,0],
+    tools:[-1,-1,-1,-1,-1],talents:[0,0,0,0,0],
+    buildings:[],stock:[],truck:false,cart:false,staminaLevel:0,
+    gameMinutes:0,x:0,z:9,
+    seed:Math.floor(Math.random()*2000000000)+10000,
+    trails:{}
+  };
+  try{localStorage.setItem('irh-state',JSON.stringify(fresh))}
+  catch(e){console.error('Cannot reset saved progress',e);pop('Save unavailable');return}
+  location.reload();
+}
 $('panel').onclick=e=>{
 const button=e.target.closest('button');if(!button)return;
+if(button.dataset.system){
+  const action=button.dataset.system;
+  if(action==='requestReset')$('resetConfirm').classList.remove('hidden');
+  if(action==='cancelReset')$('resetConfirm').classList.add('hidden');
+  if(action==='confirmReset')resetEntireGame();
+  if(action==='unstuck')safeRespawn();
+  return;
+}
 if(button.dataset.bind){awaitingBinding=button.dataset.bind;renderPanel();return}
 if(button.dataset.tab){sound.effect('ui');panel=button.dataset.tab;return renderPanel()}
 const a=button.dataset.action;if(!a)return;
@@ -718,18 +754,34 @@ if(['factory','worker','transport','seller'].includes(kind)){
 }
 };
 $('panel').oninput=e=>{
-if(e.target.id==='settingVolume'){
-  settings.volume=Number(e.target.value)/100;
-  sound.setVolume(settings.volume);
-  $('volumeLabel').textContent=Math.round(settings.volume*100)+'%';
-  storeSettings(settings);
-}};
+const id=e.target.id,value=Number(e.target.value);
+if(id==='settingVolume'){
+  settings.volume=value/100;sound.setVolume(settings.volume);
+  $('volumeLabel').textContent=value+'%';
+}else if(id==='settingResolution'){
+  settings.renderScale=value/100;
+  $('resolutionLabel').textContent=value+'%';
+  applyQuality(renderer,sun,settings.quality,settings.renderScale);
+}else if(id==='settingDistance'){
+  settings.viewDistance=value;
+  $('distanceLabel').textContent=value+' m';
+  R=Math.max(2,Math.min(8,Math.ceil(value/CH)));
+  scene.fog.density=.60/value;
+  streamingCenter='';
+  updateResourceVisibility();
+}else if(id==='settingSensitivity'){
+  settings.mouseSensitivity=value/100;
+  $('sensitivityLabel').textContent=value+'%';
+}else return;
+storeSettings(settings);
+};
 $('panel').onchange=e=>{
 const id=e.target.id;
 if(id==='settingAudio')settings.muted=!e.target.checked;
 else if(id==='settingQuality'){
   settings.quality=e.target.value;
-  R=settings.quality==='low'?2:settings.quality==='high'?4:3;streamingCenter='';
+  // Presets alter shadow quality; the independent sliders own distance and resolution.
+  streamingCenter='';
   applyQuality(renderer,sun,settings.quality,settings.renderScale);
   atmosphere.setEnabled(settings.effects&&settings.quality!=='low');
 }else if(id==='settingEffects'){
