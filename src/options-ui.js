@@ -1,5 +1,5 @@
 import {UI} from './language.js?v=20261103p7';
-import {keyLabel,ACTIONS} from './settings.js?v=20261104g';
+import {keyLabel,ACTIONS} from './settings.js?v=20261105d';
 const actionText={
  fr:{forward:'Avancer',backward:'Reculer',left:'Aller à gauche',right:'Aller à droite',
  sprint:'Sprint',interact:'Interagir',market:'Comptoir',auto:'Mode automatique',build:'Construction',talents:'Progression',map:'Carte du monde',
