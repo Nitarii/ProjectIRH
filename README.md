@@ -140,3 +140,15 @@ These simulation tests cannot replace testing all on-screen WebGL collision silh
 On desktop, exiting a menu (button, Escape/Tab, same-menu shortcut), completing a storage transaction, starting building placement, leaving the avatar editor or closing the explored-world map now **requests camera pointer lock automatically** and clears the free-cursor state. The explicit right-click cursor toggle remains available during gameplay. A delayed pointer-lock release event is prevented from undoing this transition. Mobile touch controls never request mouse lock.
 
 Run `node tests/camera-lock-after-menus.mjs` to check overlay closing, map controls and simulated browser event races. Some browsers restrict pointer lock immediately after Escape; when permission is denied, a left click on the game resumes camera capture.
+
+## Night lights, abandoned roads and auto-sale reliability (2026-11-03)
+
+- Constructed facilities, including the central market, now receive warm bronze wall lanterns with a softly glowing amber bulb and surrounding light halo. The current day/night cycle fades their illumination in and out naturally.
+- Civil-engineering workers also install regularly spaced lanterns on the **sides of constructed paths and roads**. Roadlights are tied to the actual saved road tiles: when workers dismantle the last stage of a road, its fixture and associated glow disappear.
+- Rather than one light for every lantern, scenery uses **shared instanced geometry**, one shared glass/glow material and a nearest-neighbor pool of at most **2 (low), 5 (balanced), or 8 (high) true point lights**, without new shadow-casting lights. Unneeded point lights are disabled during the day.
+- All user and employee movement (including distant simulated employees) records actual road use. **Roads idle for 300 seconds of running game time** enter maintenance retirement; builders progressively reduce paved road → dirt path → cleared terrain. Road crew movements do not reset the inactivity clock. Routes used again before demolition remain in service.
+- Abandoned routes are represented by persistent road tiles and no-rebuild tombstones: saves/reloads never silently recreate retired roads. Adding a newly planned connection can make a formerly abandoned route eligible for construction again.
+- The automatic player no longer waits at a resource with a full bag: it cancels harvesting immediately, replaces the current harvest objective with the market trip, sells at the market and resumes normal selection. Long trips continue to use bounded route legs.
+- Regression tests: `node tests/night-roads-autosell.mjs` exercises lights, day/night fading, 300-second retirement, progressive demolition, saved tombstones, and full-bag selling even around a physical obstacle.
+
+Lighting and movement were tested in headless simulations. Actual WebGL appearance, smartphone GPU cost, and GitHub Pages deployment remain to be verified in a real browser.
