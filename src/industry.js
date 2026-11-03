@@ -136,8 +136,34 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     return {x:target.x+dx/len*approach,z:target.z+dz/len*approach};
   }
 
-  function staticBlocked(x,z,radius=.35,target=null){
+  const gridSize=12,sourceCells=new Map(),buildingCells=new Map();
+  let indexedResources=-1,indexedBuildings=-1,indexedAt=-99;
+  const gridKey=(x,z)=>Math.floor(x/gridSize)+','+Math.floor(z/gridSize);
+  function rebuildSpatialIndex(){
+    if(resources.length===indexedResources&&buildings.length===indexedBuildings&&time-indexedAt<1.0)return;
+    indexedAt=time;indexedResources=resources.length;indexedBuildings=buildings.length;
+    sourceCells.clear();buildingCells.clear();
+    for(const r of resources){
+      if(r.dead)continue;
+      const key=gridKey(r.x,r.z);
+      if(!sourceCells.has(key))sourceCells.set(key,[]);
+      sourceCells.get(key).push(r);
+    }
     for(const b of buildings){
+      const key=gridKey(b.x,b.z);
+      if(!buildingCells.has(key))buildingCells.set(key,[]);
+      buildingCells.get(key).push(b);
+    }
+  }
+  function* nearby(map,x,z){
+    const cx=Math.floor(x/gridSize),cz=Math.floor(z/gridSize);
+    for(let dx=-2;dx<=2;dx++)for(let dz=-2;dz<=2;dz++){
+      const list=map.get((cx+dx)+','+(cz+dz));
+      if(list)for(const o of list)yield o;
+    }
+  }
+  function staticBlocked(x,z,radius=.35,target=null){
+    for(const b of nearby(buildingCells,x,z)){
       if(Math.abs(x-b.x)>14||Math.abs(z-b.z)>14)continue;
       const view=models.get(b.id);
       if(view?.colliders?.length){
@@ -145,7 +171,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
           if(Math.abs(x-c.x)<c.w/2+radius&&Math.abs(z-c.z)<c.d/2+radius)return true;
       }else if(Math.abs(x-b.x)<2.45+radius&&Math.abs(z-b.z)<2.3+radius)return true;
     }
-    for(const r of resources){
+    for(const r of nearby(sourceCells,x,z)){
       if(r.dead||r===target)continue;
       const d=[.75,1.05,1,.8,.48][r.type]+radius;
       if(Math.abs(r.x-x)<d&&Math.abs(r.z-z)<d&&(r.x-x)**2+(r.z-z)**2<d*d)return true;
@@ -523,6 +549,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
   function register(b){ensure(b);reconcile();return b.mesh}
   function update(dt,px,pz,cam=null){
     time+=dt;planningClock+=dt;viewer={x:px,z:pz};camera=cam;
+    rebuildSpatialIndex();
     if(camera&&typeof camera.getWorldDirection==='function'&&T.Vector3){
       if(frustum){
         camera.updateMatrixWorld();
@@ -576,7 +603,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
   function sync(){for(const b of buildings)ensure(b);reconcile()}
   function readStats(){return {...lastStats}}
   function dispose(){for(const a of agents)removeView(a)}
-  function blocked(x,z,radius=.43){return staticBlocked(x,z,radius)}
+  function blocked(x,z,radius=.43){rebuildSpatialIndex();return staticBlocked(x,z,radius)}
   function snapshot(){
     return agents.map(a=>({id:a.id,role:a.role,slot:a.slot,state:a.state,workMotion:a.workMotion,
       x:a.x,z:a.z,abstract:a.abstract,carry:a.carry,home:a.home.id}));
