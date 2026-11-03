@@ -16,6 +16,7 @@ jobs:
           node-version: 22
       - run: npm install --no-save --no-audit --no-fund playwright-core@1.57.0
       - run: which google-chrome
+      - run: node tools/localization.test.mjs
       - run: node tools/trails.test.mjs
       - run: node tools/navigation.test.mjs
       - run: node tools/industry.test.mjs
