@@ -749,8 +749,8 @@ function drop(){
 function nearbyBuildingEntrance(){
   let best=null,bestDistance=2.55;
   for(const b of st.buildings){
-    const z=b.z+(b.kind==='factory'?3.55:3.60);
-    const d=Math.hypot(player.position.x-b.x,player.position.z-z);
+    const entrance=worldPoint(b,0,b.kind==='factory'?4.95:3.60);
+    const d=Math.hypot(player.position.x-entrance.x,player.position.z-entrance.z);
     if(d<bestDistance){best=b;bestDistance=d}
   }
   return best;
@@ -835,10 +835,17 @@ const autoPilot=createAutoPilot({
     autoMode=on;
     $('autoState').classList.toggle('hidden',!on);
     $('autoShortcut').classList.toggle('active',on);
-    $('autoState').textContent=settings.language==='fr'?'MODE AUTO':'AUTO MODE';
+    updateAutoIndicator();
   }
 });
 
+function updateAutoIndicator(){
+  const fr=settings.language==='fr';
+  $('autoState').innerHTML='<span class="auto-title">'+(fr?'MODE AUTO':'AUTO MODE')+
+    '</span><small class="auto-penalty">'+
+    (fr?'−20 % vitesse de déplacement et de récolte':'−20% movement and gathering speed')+
+    '</small>';
+}
 const panels={market:'COMPTOIR',build:'CONSTRUCTION',employees:'EMPLOYÉS',storage:'DÉPÔT',talents:'PROGRESSION',settings:'PARAMÈTRES'};
 let employeeFilterId=null,activeStorage=null;
 let panel=null;
@@ -1117,7 +1124,7 @@ $('inventoryGrid').dataset.signature='';
 updateInventory();
 const prompt=$('prompt');if(!prompt.classList.contains('hidden'))prompt.textContent=keyLabel(settings.bindings.interact);
 $('autoShortcut').innerHTML='<kbd>'+keyLabel(settings.bindings.auto)+'</kbd> AUTO';
-$('autoState').textContent=settings.language==='fr'?'MODE AUTO':'AUTO MODE';
+updateAutoIndicator();
 
 }
 addEventListener('keydown',e=>{
@@ -1275,7 +1282,7 @@ function interactionAnchor(){
   const pile=nearestStock(st.buildings,player.position,b=>industry.buildingGeometry(b.id)?.stockPoints);
   if(pile)return [pile.point.x,1.6,pile.point.z];
   const building=nearbyBuildingEntrance();
-  if(building)return [building.x,2.9,building.z+1.8];
+  if(building){const p=worldPoint(building,0,2);return [p.x,2.9,p.z]}
   const nearby=closest();
   if(!nearby)return null;
   if(nearby.kind)return [nearby.x,3.1,nearby.z];
