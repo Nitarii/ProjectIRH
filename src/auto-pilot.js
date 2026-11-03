@@ -4,7 +4,7 @@ import {createRouter} from './navigation.js?v=20261104d';
 // The navigator performs a bounded plan per objective, never once per frame.
 export function createAutoPilot({
   player,blocked,move,resources,count,capacity,isSelling,sale,
-  harvest,isHarvesting,sell,onChange
+  harvest,isHarvesting,sell,onChange,speedMultiplier=()=>.8
 }){
   let enabled=false,route=[],stepIndex=0,target=null,goal=null;
   let selling=false,stalled=0,retry=0,elapsed=0;
@@ -26,6 +26,19 @@ export function createAutoPilot({
     const router=createRouter(blocked,{cell:1.15,maxVisits:1550});
     selling=count()>=capacity();
     if(selling){
+      // Route toward the market in bounded, obstacle-aware legs when far away.
+      // The grid router has a finite search horizon, so distant goals must be staged.
+      const remaining=distance(player.position,sale);
+      if(remaining>73){
+        const a=Math.atan2(sale.z-player.position.z,sale.x-player.position.x);
+        for(const length of [58,35,17])for(const offset of [0,.24,-.24,.58,-.58,1,-1]){
+          const direction=a+offset;
+          const waypoint={x:player.position.x+Math.cos(direction)*length,z:player.position.z+Math.sin(direction)*length};
+          const path=tryRoute(waypoint,router);
+          if(path){goal=waypoint;route=path;stepIndex=0;return true}
+        }
+        return false;
+      }
       const options=[
         {x:sale.x,z:sale.z},{x:sale.x-1,z:sale.z},
         {x:sale.x+1,z:sale.z},{x:sale.x,z:sale.z+1}
@@ -94,7 +107,7 @@ export function createAutoPilot({
       }else clearRoute();
       return false;
     }
-    const speed=5.35*.8,speedStep=Math.min(d,dt*speed);
+    const speed=6.3*Math.max(.5,Math.min(1.5,Number(speedMultiplier())||.8)),speedStep=Math.min(d,dt*speed);
     const dx=(point.x-player.position.x)/d,dz=(point.z-player.position.z)/d;
     const oldX=player.position.x,oldZ=player.position.z;
     move(dx*speedStep,dz*speedStep);
