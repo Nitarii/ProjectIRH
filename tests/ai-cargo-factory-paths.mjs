@@ -57,7 +57,7 @@ class Geometry{}
 class Mesh{constructor(){this.position=new Position();this.rotation=new Position();this.visible=true;}}
 class Group{constructor(){this.children=[]}add(item){this.children.push(item)}}
 const T={Mesh,BoxGeometry:Geometry,CylinderGeometry:Geometry,
-  IcosahedronGeometry:Geometry,Group};
+  IcosahedronGeometry:Geometry,MeshLambertMaterial:Geometry,Group};
 const routerMaker=new Function(clean(read('src/navigation.js'))+';return createRouter;')();
 let combinations=0,segments=0,detours=0;
 for(let type=0;type<5;type++)for(let quarter=0;quarter<4;quarter++){
