@@ -25,8 +25,10 @@ const o=new T.Mesh(new T.IcosahedronGeometry(4+random(i*4+k)*4,1),cloudMat);
 o.position.set((k-1.5)*4,random(i*12+k)*2,0);g.add(o)
 }scene.add(g);clouds.push({g,seed:i});
 }
-let wave=0;
+let wave=0,enabled=true;
+function setEnabled(on){enabled=!!on;for(const l of leaves)l.mesh.visible=enabled;for(const b of birds)b.group.visible=enabled;for(const c of clouds)c.g.visible=enabled;}
 function update(dt,t,resources){
+if(!enabled)return;
 wave+=dt;
 const px=player.position.x,pz=player.position.z;
 const current=biomeAt(px,pz);
@@ -53,5 +55,5 @@ for(const o of resources){if(o.dead||Math.abs(o.x-px)>42||Math.abs(o.z-pz)>42)co
 o.mesh.rotation.z=o.type===0||o.type===4?wind*Math.sin(o.x*.3+o.z*.2+wave):0;
 }
 }
-return {update};
+return {update,setEnabled};
 }
