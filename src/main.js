@@ -1,6 +1,6 @@
 import * as T from 'three';
 import {createSound} from './sound.js?v=20261102c';
-import {createAtmosphere} from './atmosphere.js?v=20261102c';
+import {createAtmosphere} from './atmosphere.js?v=20261103m';
 import {createIndustry} from './industry.js?v=20261103j';
 import {inventoryIcon} from './item-icons.js?v=20261103k';
 import {createResourceGraphics} from './resource-visuals.js?v=20261103k';
@@ -764,6 +764,7 @@ map()
 renderer.render(scene,cam);
 monitor.frames++;monitor.drawCalls=renderer.info.render.calls;
 monitor.chunks=world.size;monitor.resources=resources.length;
+monitor.inventoryCount=count();monitor.cameraDistance=dist;monitor.constructionActive=!!placing;monitor.gameMinutes=st.gameMinutes;
 controlQuality();
 }
 stream();pumpWorld();updateInventory();frame();setInterval(save,15000);
