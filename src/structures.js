@@ -1,4 +1,4 @@
-import {decorateFacility} from './factory-scene.js?v=20261103v';
+import {decorateFacility} from './factory-scene.js?v=20261103w';
 // Small industrial structures share materials and geometry detail budgets.
 export function makeStructure(T, scene, building) {
   const palette=[
@@ -44,7 +44,7 @@ export function makeStructure(T, scene, building) {
   if(kind==='worker'){
     if(t===0){
       shed();for(let i=-1;i<=1;i++)box(3.45,.15,.15,wood,0,.72+i*.45,1.71);
-      stackLogs(2,-1.1);cylinder(.31,.42,.8,stone,-2,.42,-1.1);
+      box(1.52,.15,.80,wood,2,.22,-1.1);cylinder(.31,.42,.8,stone,-2,.42,-1.1);
     }else if(t===1){
       shed(stone);for(let i=0;i<5;i++)ico(.42,stone,-1.5+i*.55,.4,2);
       box(2.1,.26,1.1,metal,.7,1.4,-1.0);cylinder(.10,.1,2,wood,1.5,1.5,-1.6);
@@ -71,7 +71,7 @@ export function makeStructure(T, scene, building) {
       for(let i=0;i<6;i++)cylinder(.15,.15,.22,metal,-1.2+i*.45,.76,2);
       const blade=cylinder(.61,.61,.12,metal,0,1.35,1.92,14);blade.rotation.x=Math.PI/2;
       moving.push({mesh:blade,mode:'blade',speed:5.5});
-      stackLogs(2,1.0);chimney(-1.2,-1.0);
+      box(1.55,.15,.9,wood,2,.22,1.0);chimney(-1.2,-1.0);
     }else if(t===1){
       shed(stone);box(2.6,.30,1.2,dark,0,.75,2);
       for(let i=0;i<3;i++)box(.7,.65,.65,stone,-.85+i*.75,1.24,2);
@@ -150,13 +150,13 @@ const label=(kind==='worker'?names[0][t]:kind==='factory'?names[1][t]:
   }
   if(kind==='worker'){
     for(let i=0;i<3;i++)box(.16,1.12,.16,wood,-1.35+i*1.35,.64,1.86);
-    if(t===0){stackLogs(-1.5,-2.0);box(1.5,.13,1.6,roof,2,1.08,-1)}
+    if(t===0){box(1.5,.15,1.0,wood,-1.5,.23,-2);box(1.5,.13,1.6,roof,2,1.08,-1)}
     else if(t===1||t===2){ico(.43,stone,1.85,.45,-1.5);ico(.28,metal,-1.80,.34,-1.6)}
     else if(t===3){cylinder(.42,.46,1.1,metal,1.6,.60,-1.5)}
     else {box(2.0,.22,1.1,wood,1.6,.46,-1.6);cylinder(.5,.54,.7,wood,-1.6,.40,-1.6)}
   }else if(kind==='factory'){
     for(let i=0;i<3;i++)box(.17,.65,.16,metal,-1.3+i*1.3,1.1,1.75);
-    if(t===0||t===1){box(1.4,.14,.7,metal,0,.46,2.05);stackLogs(-1.8,-2)}
+    if(t===0||t===1){box(1.4,.14,.7,metal,0,.46,2.05);box(1.5,.15,1.0,wood,-1.8,.22,-2)}
     if(t===2||t===3){
       for(let i=0;i<2;i++)cylinder(.24,.31,1.8,metal,-1.5+i*3,1.1,-1.4);
       box(1.35,.42,.22,amber,.60,.47,1.83)
