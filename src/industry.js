@@ -1,4 +1,4 @@
-import {makeStructure} from './structures.js?v=20261103r';
+import {makeStructure} from './structures.js?v=20261103t';
 import {createRouter} from './navigation.js';
 
 export function createIndustry(T, scene, st, resources, biome, sale, values, hooks={}) {
