@@ -1169,12 +1169,7 @@ if(button.dataset.tab){
 }
 const a=button.dataset.action;if(!a)return;
 if(a==='stockDeposit'||a==='stockWithdraw'){
-  const b=st.buildings.find(b=>b.id===activeStorage?.buildingId);
-  if(!b)return;
-  const n=transferStock(st,b,activeStorage.kind,a==='stockDeposit'?'deposit':'withdraw',industry.capacity);
-  if(n){sound.effect('ui');updateInventory();save();renderPanel();}
-  else pop(settings.language==='fr'?'Aucune ressource à transférer':'No resources available to transfer');
-  return;
+  return performStockTransfer(a==='stockDeposit'?'deposit':'withdraw');
 }
 if(a==='sell')return sell();
 if(a==='autoUpgrade'){
@@ -1253,7 +1248,26 @@ storeSettings(settings);
 if(id==='settingLanguage')applyLocale();
 renderPanel();
 };
-const close=()=>{panel=null;renderPanel()};$('close').onclick=close;$('resume').onclick=close;
+const close=()=>{
+  const wasStorage=panel==='storage';
+  panel=null;
+  if(wasStorage)activeStorage=null;
+  renderPanel();
+};
+$('close').onclick=close;$('resume').onclick=close;
+function performStockTransfer(action){
+  if(panel!=='storage'||!activeStorage)return 0;
+  const building=st.buildings.find(b=>b.id===activeStorage.buildingId);
+  if(!building)return 0;
+  const moved=transferStock(st,building,activeStorage.kind,action,industry.capacity);
+  if(moved>0){
+    sound.effect('ui');
+    updateInventory();save();close();
+    return moved;
+  }
+  pop(settings.language==='fr'?'Transfert impossible':'Cannot transfer');
+  return 0;
+}
 function applyLocale(){
 document.documentElement.lang=settings.language;
 const mobileText=settings.language==='fr'
@@ -1329,9 +1343,8 @@ addEventListener('keydown',e=>{
   if(panel==='storage'){
     if(e.code==='KeyF'){e.preventDefault();close();return}
     if(e.code==='KeyA'||e.code==='KeyE'){
-      e.preventDefault();const b=st.buildings.find(b=>b.id===activeStorage?.buildingId);
-      if(b){const n=transferStock(st,b,activeStorage.kind,e.code==='KeyA'?'deposit':'withdraw',industry.capacity);
-        if(n){sound.effect('ui');updateInventory();save();renderPanel()}}
+      e.preventDefault();
+      performStockTransfer(e.code==='KeyA'?'deposit':'withdraw');
       return;
     }
   }
