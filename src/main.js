@@ -478,6 +478,44 @@ renderer.domElement.addEventListener('webglcontextlost',event=>{
 renderer.domElement.addEventListener('webglcontextrestored',()=>{monitor.contextLost=false});
 window.addEventListener('error',event=>{monitor.lastError=String(event.message||'Runtime error').slice(0,250)});
 window.addEventListener('unhandledrejection',event=>{monitor.lastError=String(event.reason||'Unhandled rejection').slice(0,250)});
+const tooltipPosition=new T.Vector3(),tooltipForward=new T.Vector3();
+function interactionAnchor(){
+  if(panel)return null;
+  const px=player.position.x,pz=player.position.z;
+  if(placing)return [px+Math.sin(player.rotation.y)*6,2.1,pz+Math.cos(player.rotation.y)*6];
+  if(isSelling(px,pz)){
+    const x=T.MathUtils.clamp(px,SALE.x-SALE.w/2+1,SALE.x+SALE.w/2-1);
+    const z=T.MathUtils.clamp(pz,SALE.z-SALE.d/2+1,SALE.z+SALE.d/2-1);
+    return [x,.9,z];
+  }
+  const log=resources.find(o=>o.dead&&o.log&&Math.hypot(o.log.position.x-px,o.log.position.z-pz)<3.2);
+  if(log)return [log.log.position.x,1.6,log.log.position.z];
+  if(carried)return [px,2.9,pz];
+  if(Math.hypot(px,pz)<7)return [0,3.4,2.25];
+  const nearby=closest();
+  if(!nearby)return null;
+  if(nearby.kind)return [nearby.x,3.1,nearby.z];
+  return [nearby.x,[2.25,1.75,1.9,1.2,1.6][nearby.type],nearby.z];
+}
+function positionInteractionTooltip(){
+  const prompt=$('prompt'),anchor=interactionAnchor();
+  if(!anchor){prompt.classList.add('hidden');return}
+  tooltipPosition.set(anchor[0],anchor[1],anchor[2]);
+  cam.getWorldDirection(tooltipForward);
+  if(tooltipPosition.clone().sub(cam.position).dot(tooltipForward)<.1){
+    prompt.classList.add('hidden');return;
+  }
+  tooltipPosition.project(cam);
+  if(!Number.isFinite(tooltipPosition.x)||!Number.isFinite(tooltipPosition.y)||tooltipPosition.z>1||
+     Math.abs(tooltipPosition.x)>1.04||Math.abs(tooltipPosition.y)>1.04){
+    prompt.classList.add('hidden');return;
+  }
+  prompt.style.left=Math.round((tooltipPosition.x+1)*.5*window.innerWidth)+'px';
+  prompt.style.top=Math.round((1-tooltipPosition.y)*.5*window.innerHeight)+'px';
+  if(prompt.textContent!=='F')prompt.textContent='F';
+  prompt.classList.remove('hidden');
+  prompt.classList.toggle('sale',isSelling(player.position.x,player.position.z));
+}
 let clock=new T.Clock(),ticks=0;
 const performanceBudget={sampleAt:performance.now(),frames:0,reduced:false};
 function controlQuality(){
@@ -576,14 +614,7 @@ $('biomeName').textContent=biomeId<0?'CAMP CENTRAL':types[biomeId];
 $('clock').textContent='JOUR '+String(1+Math.floor(elapsed/600)).padStart(2,'0')+' · '+String(8+Math.floor(elapsed/60)%16).padStart(2,'0')+':00';
 $('objective').textContent=st.tools.every(t=>t<0)?'ACHETEZ VOTRE PREMIER OUTIL':'DÉVELOPPEZ VOTRE EMPIRE';
 $('detail').textContent=st.tools.every(t=>t<0)?'Approchez du comptoir et appuyez sur F':'Récoltez, transformez et automatisez';
-const o=closest(),saleNearby=isSelling(player.position.x,player.position.z);
-const hasLog=resources.some(n=>n.log&&n.dead&&Math.hypot(n.x-player.position.x,n.z-player.position.z)<3);
-const nearMarket=Math.hypot(player.position.x,player.position.z)<7;
-const k=saleNearby||placing||hasLog||carried||o?'F':nearMarket?'E':'';
-const text=saleNearby?(carried?'DÉPOSER':'VENDRE'):'';
-$('prompt').innerHTML=k?'<kbd>'+k+'</kbd>'+(text?'<span>'+text+'</span>':''):'';
-$('prompt').classList.toggle('hidden',!k||!!panel);
-$('prompt').classList.toggle('sale',saleNearby);
+positionInteractionTooltip();
 const highlighted=harvesting;
 if(highlighted){
 $('targetTitle').textContent=raw[highlighted.type];
