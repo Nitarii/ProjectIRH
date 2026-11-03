@@ -7,10 +7,38 @@ export function createResourceGraphics(T){
     const mesh=new T.Mesh(geometry,material);mesh.position.set(x,y,z);
     mesh.castShadow=false;mesh.receiveShadow=false;group.add(mesh);return mesh
   }
-  function cyl(g,rt,rb,h,mat,x,y,z,segments=7){return part(g,new T.CylinderGeometry(rt,rb,h,segments),mat,x,y,z)}
-  function ico(g,r,mat,x,y,z,detail=0){return part(g,new T.IcosahedronGeometry(r,detail),mat,x,y,z)}
-  function cone(g,r,h,mat,x,y,z,seg=7){return part(g,new T.ConeGeometry(r,h,seg),mat,x,y,z)}
-  function box(g,w,h,d,mat,x,y,z){return part(g,new T.BoxGeometry(w,h,d),mat,x,y,z)}
+  // Geometries are identical across thousands of streamed nodes.
+  // Reuse the exact primitive where dimensions match; retain unique randomized
+  // ore shapes without growing the cache indefinitely.
+  const geometryCache=new Map(),MAX_SHARED=180;
+  function geometry(kind,args,build){
+    const key=kind+':'+args.join(':');
+    let result=geometryCache.get(key);
+    if(result)return result;
+    result=build();
+    if(geometryCache.size<MAX_SHARED){
+      if(!result.userData)result.userData={};
+      result.userData.sharedWorldGeometry=true;
+      geometryCache.set(key,result);
+    }
+    return result;
+  }
+  function cyl(g,rt,rb,h,mat,x,y,z,segments=7){
+    return part(g,geometry('c',[rt,rb,h,segments],
+      ()=>new T.CylinderGeometry(rt,rb,h,segments)),mat,x,y,z);
+  }
+  function ico(g,r,mat,x,y,z,detail=0){
+    return part(g,geometry('i',[r,detail],
+      ()=>new T.IcosahedronGeometry(r,detail)),mat,x,y,z);
+  }
+  function cone(g,r,h,mat,x,y,z,seg=7){
+    return part(g,geometry('k',[r,h,seg],
+      ()=>new T.ConeGeometry(r,h,seg)),mat,x,y,z);
+  }
+  function box(g,w,h,d,mat,x,y,z){
+    return part(g,geometry('b',[w,h,d],
+      ()=>new T.BoxGeometry(w,h,d)),mat,x,y,z);
+  }
   const rnd=(s)=>{let t=Math.sin(s*115.87+18.46)*43758.545;return t-Math.floor(t)};
   function createNode(type,variant,seed){
     const g=new T.Group(),v=((variant%4)+4)%4;
@@ -79,8 +107,8 @@ export function createResourceGraphics(T){
       }
     }else if(type===4){
       const amount=12+v*3;
-      const stems=new T.InstancedMesh(new T.CylinderGeometry(.025,.034,1,5),materials.wheatGreen,amount);
-      const grain=new T.InstancedMesh(new T.ConeGeometry(.092,.4,5),materials.wheat,amount);
+      const stems=new T.InstancedMesh(geometry('c',[.025,.034,1,5],()=>new T.CylinderGeometry(.025,.034,1,5)),materials.wheatGreen,amount);
+      const grain=new T.InstancedMesh(geometry('k',[.092,.4,5],()=>new T.ConeGeometry(.092,.4,5)),materials.wheat,amount);
       stems.castShadow=false;grain.castShadow=false;
       const dummy=new T.Object3D();
       for(let i=0;i<amount;i++){
@@ -96,5 +124,5 @@ export function createResourceGraphics(T){
     }
     return g;
   }
-  return {createNode};
+  return {createNode,get geometryCount(){return geometryCache.size}};
 }
