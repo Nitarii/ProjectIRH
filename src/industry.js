@@ -683,7 +683,13 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       const capacity=6+3*a.home.carryLevel;
       if(a.role==='transport'){
         if(!isPresent(a.receiver)){idle(a,.8);return}
-        const room=transportSpace(a.receiver,a.carryType,a.processed,totalCapacity);
+        // Reserve destination capacity against other in-flight haulers.
+        // This prevents simultaneous pickups from overfilling one warehouse.
+        let inFlight=0;
+        for(const other of agents)
+          if(other!==a&&other.role==='transport'&&other.receiver===a.receiver&&other.carry>0)
+            inFlight+=other.carry;
+        const room=Math.max(0,transportSpace(a.receiver,a.carryType,a.processed,totalCapacity)-inFlight);
         const field=a.processed?'stockProcessed':'stockRaw';
         const n=Math.min(capacity,Math.max(0,source[field]||0),room);
         if(n<=0){idle(a,.7);return}
