@@ -470,7 +470,13 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     a.blockedAge=0;a.noPathAge=0;a.stagnationAge=0;a.navWatch=0;
   }
   function beginHarvester(a){
-    if(a.home.stockRaw>=totalCapacity)return;
+    if(a.home.stockRaw>=totalCapacity){
+      // Full stock never deadlocks collection: a harvester carries its own goods
+      // to the market as an emergency fallback, including when no hauler exists.
+      a.targetBuilding=a.home;a.receiver=null;a.carryType=a.home.type;
+      a.processed=false;a.goal=stockAccess(a.home,false,a.slot);
+      a.state='toPickup';return;
+    }
     const target=reserveResource(a);
     if(!target){if(distance(a.home,viewer)>80){a.state='remoteGather';a.timer=0}return}
     a.target=target;a.targetLog=!!target.log;a.approachAttempts=0;
@@ -483,40 +489,26 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     a.state='toResource';a.timer=0;
   }
   function findTransport(a){
-    let best=null,score=Infinity;
-    for(let type=0;type<5;type++){
-      for(const origin of workerBuildings[type]){
-        if(origin.stockRaw<1||distance(a.home,origin)>125)continue;
-        for(const dest of factoryBuildings[type]){
-          if(distance(origin,dest)>145||dest.inputRaw>=totalCapacity)continue;
-          const cost=distance(a.home,origin)+distance(origin,dest)*.65;
-          if(cost<score){score=cost;best={origin,dest}}
-        }
-      }
-    }
-    if(!best)return;
-    a.targetBuilding=best.origin;a.receiver=best.dest;
-    a.goal=stockAccess(best.origin,false,a.slot);
-    a.state='toPickup';a.carryType=best.origin.type;a.processed=false;
+    const job=selectTransportJob(a.home,buildings,totalCapacity);
+    if(!job)return;
+    a.targetBuilding=job.origin;a.receiver=job.dest;
+    a.carryType=job.type;a.processed=job.processed;
+    a.goal=stockAccess(job.origin,job.processed,a.slot);
+    a.state='toPickup';
   }
   function findSeller(a){
-    let best=null,score=160*160,processed=false;
-    // Finished products take priority over raw goods without allocating or sorting lists.
-    for(const b of buildings){
-      if(b.kind!=='factory'||b.stockProcessed<1)continue;
-      const dx=a.home.x-b.x,dz=a.home.z-b.z,d2=dx*dx+dz*dz;
-      if(d2<score){score=d2;best=b;processed=true}
-    }
-    if(!best){
-      for(const b of buildings){
-        if(b.kind!=='worker'||b.stockRaw<1)continue;
-        const dx=a.home.x-b.x,dz=a.home.z-b.z,d2=dx*dx+dz*dz;
-        if(d2<score){score=d2;best=b}
-      }
-    }
-    if(!best)return;
-    a.targetBuilding=best;a.processed=processed;a.carryType=best.type;
-    a.goal=stockAccess(best,processed,a.slot);a.state='toPickup';
+    const goods=chooseWarehouseSale(a.home);
+    if(!goods)return; // Sellers wait at their trade house for deliveries.
+    a.targetBuilding=a.home;a.processed=goods.processed;
+    a.carryType=goods.type;
+    a.goal=stockAccess(a.home,goods.processed,a.slot);
+    a.state='toPickup';
+  }
+  function beginRoadwork(a){
+    const task=hooks.roads?.claim(a.id,a);
+    if(!task)return;
+    a.roadTask=task;a.goal={x:task.x,z:task.z};
+    a.state='roadToSite';a.timer=0;a.workMotion='shovel';
   }
   function gather(a,dt){
     if(!a.target||a.target.dead&&!a.targetLog||!resources.includes(a.target)){idle(a,.8);return}
@@ -546,7 +538,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
   function updateAgent(a,dt){
     if(a.state==='remoteGather'){
       if(distance(a.home,viewer)<70){idle(a,.5);return}
-      if(a.home.stockRaw>=totalCapacity){a.timer=0;return}
+      if(a.home.stockRaw>=totalCapacity){idle(a,.5);return}
       a.timer+=dt;
       if(a.timer>=4.8){
         const n=Math.min(Math.floor(a.timer/4.8)*(1+a.home.carryLevel),totalCapacity-a.home.stockRaw);
