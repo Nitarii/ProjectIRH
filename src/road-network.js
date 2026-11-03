@@ -174,7 +174,7 @@ export function createRoadNetwork(state,{cell=3,maxTiles=5600}={}){
     const duration=task.mode==='build'?3.4:task.mode==='upgrade'?5.5:2.8;
     const previous=typeof tiles[k]==='object'?tiles[k]:{l:l,p:0};
     const progress=Math.max(0,Math.min(duration,previous.p||0))+Math.max(0,dt);
-    if(progress<duration){tiles[k]={l,p:Number(progress.toFixed(2))};return 'working'}
+    if(progress<duration){tiles[k]={...previous,l,p:Number(progress.toFixed(2))};return 'working'}
     if(task.mode==='demolish'){
       if(l===2){
         // Road → dirt path → cleared ground, both stages done by employees.
