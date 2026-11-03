@@ -29,13 +29,13 @@ let wave=0;
 function update(dt,t,resources){
 wave+=dt;
 const px=player.position.x,pz=player.position.z;
-const current=biomeAt(px,pz),baseLeaf=current===3?3:current===4?4:current===1?2:0;
+const current=biomeAt(px,pz);
 for(let i=0;i<leaves.length;i++){
 const o=leaves[i],a=o.angle+wave*.04*o.speed,x=px+Math.cos(a)*o.range+Math.sin(wave*.8+o.seed)*3,z=pz+Math.sin(a)*o.range+Math.cos(wave*.5+o.seed)*2;
 o.mesh.position.set(x,o.height+Math.sin(wave*1.4+o.seed)*.8,z);
 o.mesh.rotation.set(wave*o.speed+o.seed,wave*.35+o.seed,Math.sin(wave+o.seed));
-const b=biomeAt(x,z);o.mesh.material=materials[b===3?3:b===4?4:baseLeaf];
-o.mesh.visible=b!==2&&b!==1;
+const b=biomeAt(x,z);o.mesh.material=materials[i%3===0?1:0];
+o.mesh.visible=current===0&&b===0;
 }
 for(const b of birds){
 const a=wave*b.speed+b.phase;
