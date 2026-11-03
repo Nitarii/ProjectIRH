@@ -1008,7 +1008,7 @@ $('tabs').classList.toggle('hidden',noTabs);
 $('tabs').innerHTML=noTabs?'':['market','build','employees','talents'].map(k=>
   '<button data-tab="'+k+'" '+(panel===k?'class="active"':'')+'>'+tr(panels[k],settings.language)+'</button>').join(' ');
 $('resume').textContent=panel==='storage'
- ?(settings.language==='fr'?'Fermer':'Close'):UI[settings.language].back;
+ ?keyLabel('KeyF')+' · '+(settings.language==='fr'?'Fermer':'Close'):UI[settings.language].back;
 if(panel==='settings'){
   $('shopbody').innerHTML=optionsMarkup(settings,awaitingBinding,vault.id);
   $('panelhint').textContent='';
@@ -1041,7 +1041,7 @@ if(panel==='employees'){
   if(!chosen.length)out+=section('Personnel','RECRUTEMENT',
     '<p class="catalog-empty">'+(settings.language==='fr'?'Construisez un bâtiment pour recruter du personnel.':'Build a facility to hire workers.')+'</p>');
   else out+=section(settings.language==='fr'?'Recrutement et transport':'Recruitment and transport',
-    settings.language==='fr'?'PERSONNEL':'STAFF',chosen.map(b=>{
+    settings.language==='fr'?'BÂTIMENTS':'FACILITIES',chosen.map(b=>{
     const i=st.buildings.indexOf(b);
     const title=focus?(settings.language==='fr'?'Recruter : ':'Hire: ')+recruitName(b):facilityName(b)+' #'+(i+1);
     const fr=settings.language==='fr';
@@ -1068,7 +1068,7 @@ if(panel==='storage'){
   const held=Math.max(0,Number(carrying)||0),stored=Math.max(0,Number(building[field])||0);
   const card=(action,shortcut,label,disabled)=>'<button class="stock-action" type="button" data-action="'+action+'"'+(disabled?' disabled':'')+
     '><kbd>'+keyLabel(shortcut)+'</kbd><span>'+label+'</span></button>';
-  out+=section(name,fr?'GESTION DU STOCK':'STOCK MANAGEMENT',
+  out+=section(name,fr?'RESSOURCE':'RESOURCE',
     '<div class="storage-management"><div class="storage-overview">'+
       '<span>'+(fr?'Entrepôt':'Storage')+' <strong>'+stored+' / '+industry.capacity+'</strong></span>'+
       '<span>'+(fr?'Sac':'Bag')+' <strong>'+held+'</strong></span></div>'+
@@ -1096,9 +1096,8 @@ out+=section('Expertise des métiers','SPÉCIALISATIONS',types.map((name,i)=>{
 }).join(''));
 }
 $('shopbody').innerHTML=out;translateTree($('shopbody'),settings.language);
-$('panelhint').textContent=panel==='storage'
- ?keyLabel('KeyF')+' · '+(settings.language==='fr'?'Fermer':'Close')
- :st.gold.toLocaleString(settings.language==='fr'?'fr-FR':'en-US')+' '+(settings.language==='fr'?'or':'gold');
+$('panelhint').textContent=panel==='storage'?'':
+  st.gold.toLocaleString(settings.language==='fr'?'fr-FR':'en-US')+' '+(settings.language==='fr'?'or':'gold');
 }
 function clearCarriedInventory(){
   st.inv=[0,0,0,0,0];st.products=[0,0,0,0,0];st.stock=[];
@@ -1270,6 +1269,7 @@ renderPanel();
 const close=()=>{
   const wasStorage=panel==='storage';
   panel=null;
+  keys={};
   if(wasStorage)activeStorage=null;
   renderPanel();
 };
