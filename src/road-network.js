@@ -1,6 +1,6 @@
 // Data-only road construction. Tiles are rendered by the existing terrain vertex colors.
 // Re-planning is triggered by a building signature, never by the render loop.
-import {createRouter} from './navigation.js?v=20261106c';
+import {createRouter} from './navigation.js?v=20261106d';
 import {worldPoint} from './facility-layout.js';
 export function createRoadNetwork(state,{cell=3,maxTiles=5600}={}){
   const tiles=state.roads&&typeof state.roads==='object'&&!Array.isArray(state.roads)?state.roads:{};
