@@ -94,7 +94,7 @@ export function createWildlife(T,scene,{
         Math.sin(angle)*scale*.32,back+scale*.42,-scale*.15+Math.cos(angle)*scale*.45,
         .12,.30,.12);spike.rotation.z=Math.sin(angle)*.32;
     }
-    scene.add(g);return {group:g,legs,tail,species:c};
+    scene.add(g);return {group:g,legs,tail,species:c,detail:g.children.slice(3),nearDetail:true};
   }
   function birdModel(biome){
     const s=BIRD_SPECIES[biome],group=new T.Group(),wings=[];
@@ -208,8 +208,15 @@ export function createWildlife(T,scene,{
         }else{a.direction+=1.37;a.timer=.4}
       }
       const model=a.model,g=model.group;
-      g.visible=distance(a.x,a.z,player.x,player.z)<visible;
+      const dPlayer=distance(a.x,a.z,player.x,player.z);
+      g.visible=dPlayer<visible;
       if(!g.visible)continue;
+      // Hysteretic distant-detail LOD: silhouette survives while small parts
+      // stop consuming draw calls when they occupy less than a few pixels.
+      if((model.nearDetail&&dPlayer>47)||(!model.nearDetail&&dPlayer<38)){
+        model.nearDetail=dPlayer<38;
+        for(const part of model.detail)part.visible=model.nearDetail;
+      }
       g.position.set(a.x,0,a.z);g.rotation.y=Math.PI/2-a.direction;
       const gait=moving?Math.sin(clock*9*a.speed+a.phase)*.39:0;
       for(let i=0;i<model.legs.length;i++)
