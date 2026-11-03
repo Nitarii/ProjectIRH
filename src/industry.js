@@ -1,6 +1,6 @@
-import {makeStructure} from './structures.js?v=20261103r2';
+import {makeStructure} from './structures.js?v=20261104b';
 import {createRouter} from './navigation.js?v=20261103aa';
-import {workstation,storagePoint,yardPoint} from './factory-tasks.js?v=20261103v';
+import {workstation,storagePoint,yardPoint} from './factory-tasks.js?v=20261104b';
 import {worldPoint,rotateOffset,normalizeRotation,pointInOrientedRect} from './facility-layout.js';
 
 export function createIndustry(T, scene, st, resources, biome, sale, values, hooks={}) {
