@@ -1360,7 +1360,7 @@ touchControls=createMobileControls({
   isActive:()=>!panel&&!exploration.visible&&
     $('welcome').classList.contains('hidden')&&$('creator').classList.contains('hidden'),
   onAction:(action,pressed)=>{
-    const code=action==='settings'?'Tab':
+    const code=action==='settings'?'Tab':action==='cancel'?'Escape':
       action==='rotateLeft'?'KeyQ':action==='rotateRight'?'KeyE':settings.bindings[action];
     if(!code)return;
     dispatchEvent(new KeyboardEvent(pressed?'keydown':'keyup',
