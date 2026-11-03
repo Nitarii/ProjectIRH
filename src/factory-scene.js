@@ -25,28 +25,37 @@ export function decorateFacility(T,group,b,materials){
     new T.MeshLambertMaterial({color:0xe5c48b}),
     new T.MeshLambertMaterial({color:0xe2c678})
   ];
+  const finishedMaterials=[
+    new T.MeshLambertMaterial({color:0xc89a66}),
+    new T.MeshLambertMaterial({color:0xb8bfc2}),
+    new T.MeshLambertMaterial({color:0x9fc1c8}),
+    new T.MeshLambertMaterial({color:0xcce7df,transparent:true,opacity:.84}),
+    new T.MeshLambertMaterial({color:0xece2ca})
+  ];
   function stock(kind,access,type){
     const z=access.z-1.03;
-    const mat=contentMaterials[type];
+    const finished=kind==='processed',mat=finished?finishedMaterials[type]:contentMaterials[type];
     const x=access.x;
-    // The pallet and the individually visible items occupy the same space.
     box(1.35,.18,.88,wood,x,.15,z,true);
-    collision(x,z,1.3,.9);
     for(let i=0;i<12;i++){
-      const level=Math.floor(i/4),col=i%4;
+      const level=Math.floor(i/4),col=i%4,px=x-.44+col*.29;
       let obj;
-      if(type===0){
-        obj=cy(.115,.115,.94,mat,x-.44+col*.29,.32+level*.24,z);
-        obj.rotation.z=Math.PI/2;
+      if(finished){
+        if(type===0)obj=box(.25,.12,.61,mat,px,.30+level*.135,z);
+        else if(type===1)obj=box(.26,.23,.50,mat,px,.37+level*.235,z);
+        else if(type===2)obj=box(.24,.16,.46,mat,px,.33+level*.175,z);
+        else if(type===3){
+          obj=cy(.115,.13,.31,mat,px,.35+level*.36,z);
+          // Bottled product is represented by its cylinder silhouette.
+        }else obj=cy(.13,.19,.33,mat,px,.34+level*.38,z);
+      }else if(type===0){
+        obj=cy(.115,.115,.94,mat,px,.32+level*.24,z);obj.rotation.z=Math.PI/2;
       }else if(type===1||type===2){
-        const geo=new T.IcosahedronGeometry(.20,0);
-        obj=new T.Mesh(geo,mat);obj.position.set(x-.42+col*.29,.32+level*.3,z);
-        group.add(obj);
+        obj=new T.Mesh(new T.IcosahedronGeometry(.20,0),mat);
+        obj.position.set(px,.32+level*.30,z);group.add(obj);
       }else if(type===3){
-        obj=box(.24,.18,.48,mat,x-.42+col*.29,.30+level*.18,z);
-      }else{
-        obj=cy(.12,.18,.40,mat,x-.42+col*.29,.38+level*.42,z);
-      }
+        obj=box(.24,.18,.48,mat,px,.30+level*.18,z);
+      }else obj=cy(.12,.18,.40,mat,px,.38+level*.42,z);
       obj.castShadow=false;stocks[kind].push(obj);
     }
     // Side board makes the functional storage role immediately apparent.
