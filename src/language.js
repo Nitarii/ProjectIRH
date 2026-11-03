@@ -1,4 +1,10 @@
 const pairs=[
+['COMMENCEZ AVEC VOS POINGS','START WITH YOUR FISTS'],
+['Récoltez lentement avec vos poings, puis améliorez votre équipement','Gather slowly by hand, then upgrade your tools'],
+['CAMP CENTRAL','HOME BASE'],['PARAMÈTRES','SETTINGS'],
+['RÉCOLTE EN COURS','GATHERING'],['EMPLACEMENT DISPONIBLE','VALID LOCATION'],
+['Niveau','Level'],['Poings','Fists'],
+['Approchez du comptoir et appuyez sur F','Approach the trader and press F'],
 ['COMPTOIR','MARKET'],['CONSTRUCTION','CONSTRUCTION'],['PROGRESSION','PROGRESSION'],['INVENTAIRE','INVENTORY'],
 ['Outils & récolte','TOOLS & GATHERING'],['Équipement','EQUIPMENT'],['Comptoir','TRADING POST'],
 ['Chaîne de production','PRODUCTION CHAIN'],['Logistique','LOGISTICS'],['Personnel','WORKFORCE'],
