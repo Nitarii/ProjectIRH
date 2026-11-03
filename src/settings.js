@@ -4,11 +4,11 @@
 const locale=(typeof navigator!=='undefined'?navigator.language:'en')||'en';
 const defaults={
  language:locale.toLowerCase().startsWith('fr')?'fr':'en',
- muted:false,volume:.5,mouseSensitivity:1,renderScale:1,viewDistance:128,
+ muted:false,goldSound:true,volume:.5,mouseSensitivity:1,renderScale:1,viewDistance:128,
  quality:'balanced',shadows:true,effects:true,
  bindings:{
   forward:'KeyW',backward:'KeyS',left:'KeyA',right:'KeyD',
-  sprint:'ShiftLeft',interact:'KeyF',market:'KeyC',build:'KeyB',talents:'KeyU',
+  sprint:'ShiftLeft',interact:'KeyF',market:'KeyC',build:'KeyB',talents:'KeyT',map:'KeyM',
   auto:'KeyR',drop:'KeyX',vehicle:'KeyV',jump:'Space'
  }
 };
@@ -44,10 +44,12 @@ export function loadSettings(){
    if(previouslySaved.drop==='KeyG'&&previouslySaved.auto==='KeyA')
      bindings.drop='KeyX';
  }
+ // Migrate the former default progression shortcut without overwriting custom bindings.
+ if((Number(stored.controlsVersion)||0)<3&&previouslySaved.talents==='KeyU')bindings.talents='KeyT';
  // Never leave duplicated bindings after migrating a pre-existing saved game.
  const assigned=new Set();
  const alternatives=['KeyR','KeyC','KeyV','KeyX','KeyU','KeyB',
-   'KeyG','KeyH','KeyJ','KeyK','KeyL','KeyP','KeyO','KeyI','KeyN','KeyM'];
+   'KeyT','KeyG','KeyH','KeyJ','KeyK','KeyL','KeyP','KeyO','KeyI','KeyN','KeyM'];
  for(const action of ACTIONS){
    const candidate=bindings[action];
    if(typeof candidate!=='string'||!candidate||assigned.has(candidate)){
@@ -61,7 +63,7 @@ export function loadSettings(){
    mouseSensitivity:clamp(stored.mouseSensitivity,.2,3,defaults.mouseSensitivity),
    renderScale:clamp(stored.renderScale,.5,1.5,defaults.renderScale),
    viewDistance:clamp(stored.viewDistance,64,256,defaults.viewDistance),
-   bindings,controlsVersion:2,
+   bindings,controlsVersion:3,
    language:stored.language==='fr'?'fr':stored.language==='en'?'en':defaults.language};
 }
 export function storeSettings(settings){
