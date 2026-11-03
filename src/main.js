@@ -574,8 +574,13 @@ function syncHudDimensions(){
   $('hud').style.setProperty('--inventory-panel-width',Math.ceil(mini.getBoundingClientRect().width/factor)+'px');
 }
 function applyHudSettings(){
-  $('hud').style.setProperty('--hud-scale',String(settings.hudScale));
-  $('hud').style.setProperty('--minimap-size',settings.minimapSize+'px');
+  const hud=$('hud'),factor=Math.max(.7,Math.min(1.4,settings.hudScale||1));
+  hud.style.setProperty('--hud-scale',String(factor));
+  hud.style.setProperty('--minimap-size',settings.minimapSize+'px');
+  // Transforming a fixed element makes it the viewport for its descendants.
+  // Inverse dimensions keep their edges anchored for both mobile orientations.
+  hud.style.width=Math.ceil(window.innerWidth/factor)+'px';
+  hud.style.height=Math.ceil(window.innerHeight/factor)+'px';
   syncHudDimensions();
 }
 function updateInventory(){
@@ -1410,7 +1415,8 @@ addEventListener('mousemove',e=>{
 },{passive:false});
 function resizeGame(){
   cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();
-  renderer.setSize(innerWidth,innerHeight);syncHudDimensions();
+  renderer.setSize(innerWidth,innerHeight);
+  applyHudSettings();
 }
 addEventListener('resize',resizeGame);
 if(window.visualViewport)window.visualViewport.addEventListener('resize',resizeGame);
