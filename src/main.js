@@ -1022,6 +1022,12 @@ const recruitName=b=>{
   return names[b.kind==='worker'||b.kind==='factory'?b.type:0]||names[0];
 };
 const panels={market:'COMPTOIR',build:'CONSTRUCTION',employees:'EMPLOYÉS',storage:'DÉPÔT',talents:'PROGRESSION',settings:'PARAMÈTRES'};
+function menuShortcut(code,bindings){
+  for(const panel of ['market','build','talents']){
+    if(code===bindings[panel])return panel;
+  }
+  return null;
+}
 let employeeFilterId=null,activeStorage=null;
 let panel=null;
 const biomeIcons=['♧','◆','◈','◒','✺'];
@@ -1436,6 +1442,17 @@ addEventListener('keydown',e=>{
     if(e.code==='KeyA'||e.code==='KeyE'){
       e.preventDefault();
       performStockTransfer(e.code==='KeyA'?'deposit':'withdraw');
+      return;
+    }
+  }
+  // A menu shortcut is a toggle even while a panel is already open.
+  // B/C/T close their own menu (restoring camera control), or switch to
+  // another panel. Keep settings and storage modal input handling intact.
+  if(panel&&panel!=='settings'&&panel!=='storage'){
+    const shortcut=menuShortcut(e.code,settings.bindings);
+    if(shortcut){
+      e.preventDefault();
+      openPanel(shortcut);
       return;
     }
   }
