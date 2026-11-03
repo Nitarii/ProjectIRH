@@ -23,6 +23,13 @@ const sites=[
   {kind:'seller',id:'s',x:100,z:75,rotation:0}
 ];
 test('road planning',roads.rebuild(sites,{x:23,z:0})&&roads.plannedCount>20);
+const remote={roads:{}},remoteRoads=roadsApi.createRoadNetwork(remote);
+remoteRoads.setProbes({blocked:()=>false,traffic:()=>0,invalidate:()=>{}});
+remoteRoads.rebuild([
+ {kind:'road',id:'remoteDepot',x:30,z:25,rotation:0},
+ {kind:'worker',id:'remoteWorker',x:645,z:25,rotation:0}],{x:23,z:0});
+test('road planners can connect facilities hundreds of meters apart',
+  remoteRoads.plannedCount>130&&remoteRoads.plannedCount<=5600);
 let guard=0;
 while(roads.completed<roads.plannedCount&&guard++<2000){
   const job=roads.claim('roadworker',{x:80,z:35});
