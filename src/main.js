@@ -19,7 +19,7 @@ import {decorationCollider} from './decor-collision.js?v=20261103p4';
 import {batchResourceNodes,setDistantResource} from './resource-batches.js?v=20261103p4';
 import {createResourceLifecycle} from './resource-life.js?v=20261106nature2';
 import {createHarvestEffects} from './harvest-fx.js?v=20261103s6';
-import {createAutoPilot} from './auto-pilot.js?v=20261106d';
+import {createAutoPilot} from './auto-pilot.js?v=20261107tool1';
 import {openingBiome,startingBiomes} from './spawn-biomes.js?v=20261103p8';
 import {openSaveVault} from './save-vault.js?v=20261103p7';
 import {normalizeAvatar,attachAvatarDesigner} from './avatar-style.js?v=20261105b';
@@ -982,6 +982,7 @@ const autoPilot=createAutoPilot({
   speedMultiplier:()=>autoSpeedMultiplier(st.autoLevel),
   terrainSpeed:(x,z)=>roads.speedAt(x,z),
   hasRoads:()=>roads.built>0,
+  toolTier:type=>st.tools[type]??-1,
   onChange:on=>{
     autoMode=on;
     syncAutoEyes(on);
