@@ -1,6 +1,6 @@
-# IRH — Frontier Capital
+# Nitari's Industrial Madness (NIM)
 
-Procedural 3D frontier economy and resource game.
+Procedural 3D industrial economy and resource game.
 
 **Creator, author and original rights holder:** **Nitarii**.
 
@@ -23,13 +23,15 @@ also be customized in Settings.
 
 - Move: standard movement cluster / arrow keys
 - Interact / harvest / use physical stockpile: F
-- Automatic harvesting: R (20% slower)
+- Automatic harvesting: R (upgradeable: −20%, −10%, 0%, +10%, +20%)
 - Drop carried large item: X
 - Market: C
 - Construction: B
-- Progression: U
+- Progression: T
+- Explored world map: M / , on AZERTY (drag to pan, wheel to zoom)
+- Open facility storage: A/Q deposits, E withdraws, F closes
 - Bicycle mount/dismount: V (after buying a bicycle)
-- Rotate a construction preview: Q / E or mouse wheel
+- Rotate a construction preview: A/Q / E (physical Q / E) or mouse wheel
 - Pause: Escape or Tab
 
 ## Local personal save
@@ -53,3 +55,11 @@ dependencies retain their own licenses and rights. See
 
 Published builds and source can be viewed publicly; that fact alone
 does not grant permission to reuse the original game materials.
+
+## Auto progression
+
+Auto mode starts at −20% harvest and movement speed. Upgrade in Progression for 20,000, 50,000, 100,000 and 250,000 gold respectively to reach −10%, 0%, +10% and +20%. Each biome's tool tiers, matching worksite types, factory types and expertise ranks have equal prices.
+
+## World map and clearing
+
+The map shows only explored terrain and persists discovery in the encrypted local save. Construction clears interfering resource nodes and nearby decoration within a small safety margin; generated chunks respect existing buildings. World save and browser data remain in the existing IRH format for compatibility.
