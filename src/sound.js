@@ -1,5 +1,5 @@
 export function createSound(){
-  let ctx=null, master=null, ambient=null, wind=null, windGain=null, nextMusic=0, nextBird=0, nextWind=0, notes=0, enabled=true;
+  let ctx=null, master=null, ambient=null, wind=null, windGain=null, nextMusic=0, nextBird=0, nextWind=0, notes=0, enabled=true,volume=.65;
   const AC=window.AudioContext||window.webkitAudioContext;
   const gain=(v)=>{const g=ctx.createGain();g.gain.value=v;g.connect(master);return g};
   function note(freq,start,len,volume=.06,wave='sine',out=master){
@@ -24,7 +24,7 @@ export function createSound(){
     if(ctx){if(ctx.state==='suspended')ctx.resume();return}
     try{
       ctx=new AC();
-      master=ctx.createGain();master.gain.value=.32;master.connect(ctx.destination);
+      master=ctx.createGain();master.gain.value=enabled?volume*.5:0;master.connect(ctx.destination);
       ambient=ctx.createGain();ambient.gain.value=.1;ambient.connect(master);
       wind=ctx.createBufferSource();
       const len=ctx.sampleRate*3,buf=ctx.createBuffer(1,len,ctx.sampleRate),d=buf.getChannelData(0);
@@ -39,7 +39,7 @@ export function createSound(){
   function effect(type=0){
     if(!ctx||!enabled)return;
     const t=ctx.currentTime,tones=[155,115,205,90,380];
-    if(type==='sale'){note(523,t,.16,.15,'triangle');note(784,t+.1,.23,.16,'triangle');note(1046,t+.2,.29,.1,'sine');return}
+    if(type==='sale'||type==='coin'){note(659.25,t,.11,.14,'sine');note(987.77,t+.075,.20,.09,'triangle');note(1318.51,t+.14,.25,.047,'sine');return}
     if(type==='ui'){note(460,t,.085,.07,'sine');return}
     if(type==='buy'){note(320,t,.14,.12,'triangle');note(500,t+.08,.21,.11,'sine');return}
     if(type==='step'){note(70+Math.random()*25,t,.065,.03,'triangle');return}
@@ -75,9 +75,11 @@ export function createSound(){
   }
   function toggle(){
     enabled=!enabled;
-    if(ctx){master.gain.setTargetAtTime(enabled?.32:0,ctx.currentTime,.1);if(enabled&&ctx.state==='suspended')ctx.resume()}
+    if(ctx){master.gain.setTargetAtTime(enabled?volume*.5:0,ctx.currentTime,.1);if(enabled&&ctx.state==='suspended')ctx.resume()}
     else if(enabled)boot();
     return enabled;
   }
-  return {boot,effect,update,toggle,get enabled(){return enabled}};
+  function setVolume(value){volume=Math.max(0,Math.min(1,Number(value)||0));if(ctx)master.gain.setTargetAtTime(enabled?volume*.5:0,ctx.currentTime,.08)}
+  function setEnabled(value){if(enabled!==!!value)toggle();return enabled}
+  return {boot,effect,update,toggle,setVolume,setEnabled,get enabled(){return enabled},get volume(){return volume}};
 }
