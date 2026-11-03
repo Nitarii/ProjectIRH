@@ -704,6 +704,9 @@ function strikeHarvest(){
   harvestFx.emit(o,player.position);
   const gained=Math.min(damage,st.bag-count());
   st.inv[o.type]+=gained;
+  // Automatic mode must leave immediately when the last bag slot fills.
+  // Otherwise the harvest animation can hold the autopilot beside this node.
+  if(autoMode&&count()>=st.bag)stopHarvest();
   if(o.hp<=0){
     resourceLife.deplete(o);
     setDistantResource(T,o,false);
@@ -973,6 +976,7 @@ const autoPilot=createAutoPilot({
   player,blocked,move:movePlayer,resources:()=>resources,
   count,capacity:()=>st.bag,isSelling,sale:SALE,
   isHarvesting:()=>!!harvesting,
+  cancelHarvest:stopHarvest,
   harvest:o=>{
     if(o.dead||count()>=st.bag)return;
     harvesting=o;harvestProgress=0;
