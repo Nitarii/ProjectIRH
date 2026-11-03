@@ -710,6 +710,15 @@ function drop(){
   carried=null;
   pop('Tronc déposé');save();
 }
+function nearbyBuildingEntrance(){
+  let best=null,bestDistance=2.55;
+  for(const b of st.buildings){
+    const z=b.z+(b.kind==='factory'?3.55:3.60);
+    const d=Math.hypot(player.position.x-b.x,player.position.z-z);
+    if(d<bestDistance){best=b;bestDistance=d}
+  }
+  return best;
+}
 function interact(){
   if(panel)return;
   if(placing)return harvest();
@@ -728,6 +737,11 @@ function interact(){
   if(pile){
     activeStorage={buildingId:pile.building.id,kind:pile.kind};
     openPanel('storage');return;
+  }
+  const entrance=nearbyBuildingEntrance();
+  if(entrance){
+    employeeFilterId=entrance.id;
+    openPanel('employees');return;
   }
   if(Math.hypot(px,pz)<7)return openPanel('market');
   harvest();
@@ -1197,6 +1211,8 @@ function interactionAnchor(){
   if(Math.hypot(px,pz)<7)return [0,3.4,2.25];
   const pile=nearestStock(st.buildings,player.position,b=>industry.buildingGeometry(b.id)?.stockPoints);
   if(pile)return [pile.point.x,1.6,pile.point.z];
+  const building=nearbyBuildingEntrance();
+  if(building)return [building.x,2.9,building.z+1.8];
   const nearby=closest();
   if(!nearby)return null;
   if(nearby.kind)return [nearby.x,3.1,nearby.z];
