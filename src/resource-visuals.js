@@ -82,8 +82,8 @@ export function createResourceGraphics(T){
       if(v===0||v===2){
         for(let i=0;i<6;i++){
           const h=.64+rnd(seed+i)*.73;
-          const crystal=cone(g,.23,h,i%2?materials.oreAlt:materials.ore,Math.sin(i*2.4)*.55,1.03+h*.38,Math.cos(i*2.4)*.47,5);
-          crystal.rotation.z=(i-2.5)*.12;
+          const crystal=cone(g,.23,1,i%2?materials.oreAlt:materials.ore,Math.sin(i*2.4)*.55,1.03+h*.38,Math.cos(i*2.4)*.47,5);
+          crystal.scale.y=h;crystal.rotation.z=(i-2.5)*.12;
         }
       }else if(v===1){
         for(let i=0;i<5;i++)ico(g,.29,materials.oreAlt,Math.sin(i*2.2)*.54,.98+Math.abs(Math.sin(i))*.29,Math.cos(i*2.2)*.43);
