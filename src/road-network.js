@@ -172,7 +172,7 @@ export function createRoadNetwork(state,{cell=3,maxTiles=5600}={}){
     if(task.mode==='build'&&(!planned.has(k)||l!==0||retired(k)))return 'cancelled';
     if(task.mode==='upgrade'&&(!planned.has(k)||l!==1||retired(k)||completion<available()))return 'cancelled';
     if(task.mode==='demolish'&&((planned.has(k)&&!retired(k))||l===0))return 'cancelled';
-    const duration=task.mode==='build'?3.4:task.mode==='upgrade'?5.5:2.8;
+    const duration=task.mode==='build'?10.5:task.mode==='upgrade'?18.0:7.5;
     const previous=typeof tiles[k]==='object'?tiles[k]:{l:l,p:0};
     const progress=Math.max(0,Math.min(duration,previous.p||0))+Math.max(0,dt);
     if(progress<duration){tiles[k]={...previous,l,p:Number(progress.toFixed(2))};return 'working'}
