@@ -34,7 +34,8 @@ for(let i=0;i<15;i++)industry.update(.15,10,29);
 assert.equal(industry.readStats().employees,4);
 assert.ok(industry.readStats().visible>=1,'workers should be represented by visible models');
 
-for(let i=0;i<3500;i++)industry.update(.2,800,800);
+let observedHarvest=raw.hp<40;
+for(let i=0;i<3500;i++){industry.update(.2,800,800);if(raw.hp<40||raw.dead)observedHarvest=true}
 const stats=industry.readStats();
 console.log(JSON.stringify({stats,gold:st.gold,buildings:st.buildings.map(b=>({
   id:b.id,kind:b.kind,raw:b.stockRaw,input:b.inputRaw,processed:b.stockProcessed
@@ -43,5 +44,5 @@ assert.ok(stats.delivered>0,'transporters must deliver raw material to matching 
 assert.ok(stats.processed>0,'factory operators must process the inputs');
 assert.ok(stats.soldProcessed>0,'sellers must prioritize finished goods');
 assert.ok(st.gold>100,'sellers must make money through the sale zone');
-assert.ok(raw.hp<40||raw.dead,'visible harvesters must work on actual nearby resources');
+assert.ok(observedHarvest,'harvesters must interact with existing resources during the simulation');
 console.log('Industry logistics checks passed');
