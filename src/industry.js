@@ -245,6 +245,10 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
   function refreshAgentIndex(){
     agentCells.clear();
     for(const a of agents){
+      // Outside the physical simulation radius, employees are data-only.
+      const dx=a.x-viewer.x,dz=a.z-viewer.z;
+      if(dx*dx+dz*dz>185*185){a.inAgentGrid=false;continue}
+      a.inAgentGrid=true;
       const key=personKey(a.x,a.z);
       let list=agentCells.get(key);
       if(!list)agentCells.set(key,list=[]);
@@ -252,6 +256,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     }
   }
   function updateAgentCell(a,oldX,oldZ){
+    if(!a.inAgentGrid)return;
     const original=personKey(oldX,oldZ),next=personKey(a.x,a.z);
     if(original===next)return;
     const list=agentCells.get(original);
@@ -638,6 +643,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
   const forward={x:0,z:1},cullOrigin={x:0,z:0};
   const frustum=T.Frustum&&T.Matrix4&&T.Sphere&&T.Vector3?new T.Frustum():null;
   const projection=frustum?new T.Matrix4():null;
+  const cameraDirection=T.Vector3?new T.Vector3():null;
   const visibilitySphere=frustum?new T.Sphere(new T.Vector3(),2.4):null;
   function inView(x,z,range=165,radius=2.4){
     const dx=x-viewer.x,dz=z-viewer.z;
@@ -735,9 +741,9 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
         projection.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse);
         frustum.setFromProjectionMatrix(projection);
       }
-      const temp=new T.Vector3();camera.getWorldDirection(temp);
-      const length=Math.hypot(temp.x,temp.z)||1;
-      forward.x=temp.x/length;forward.z=temp.z/length;
+      camera.getWorldDirection(cameraDirection);
+      const length=Math.hypot(cameraDirection.x,cameraDirection.z)||1;
+      forward.x=cameraDirection.x/length;forward.z=cameraDirection.z/length;
       cullOrigin.x=camera.position.x;cullOrigin.z=camera.position.z;
     }else camera=null;
     if(planningClock>=.33){reconcile();planningClock=0}
