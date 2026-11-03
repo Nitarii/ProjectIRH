@@ -97,6 +97,17 @@ export function makeStructure(T, scene, building) {
       rotor(0,3.18,1.59);cylinder(.65,.68,.9,wood,1.9,.48,1.1);
       box(1.4,1.1,1.0,wood,-1.75,.58,.9);
     }
+  }else if(kind==='road'){
+    // Small civil-engineering depot, unmistakable from freight and sales facilities.
+    box(3.7,1.95,3.4,wall,0,1.04,-.08);
+    box(4.5,.32,4.2,roof,0,2.2,-.08);
+    box(3.1,1.55,.12,dark,0,.82,1.62);
+    for(let x of [-1.65,1.65])cylinder(.12,.12,2.0,metal,x,1.05,1.90);
+    box(2.3,.20,1.1,stone,0,.12,2.75);
+    for(let i=0;i<3;i++)box(.57,.25,.44,i%2?stone:trim,-1.1+i*1.1,.33,2.76);
+    // Surveyor's marker poles and a compactor stored against the wall.
+    for(let x of [-1.85,1.85])cylinder(.08,.08,2.30,trim,x,1.18,-1.4);
+    cylinder(.42,.42,.85,metal,1.9,.48,-1.20);
   }else if(kind==='transport'){
     box(3.4,2.1,3.2,wall,0,1.1,-.1);
     box(4.1,.30,3.8,roof,0,2.29,-.1);
@@ -122,12 +133,12 @@ export function makeStructure(T, scene, building) {
     fr:[['CABANE DE BÛCHERON','CARRIÈRE','MINE','CAMP DE TERRASSIERS','FERME'],
       ['SCIERIE','ATELIER DE TAILLE','FONDERIE','VERRERIE','MOULIN']]
   };
-  const names={en:['FREIGHT DEPOT','TRADE HOUSE'],fr:['DÉPÔT','COMPTOIR']};
+  const names={en:['FREIGHT DEPOT','TRADE HOUSE','ROADWORKS'],fr:['DÉPÔT','COMPTOIR','ATELIER DE VOIRIE']};
   function labelFor(language){
     const lang=language==='fr'?'fr':'en';
     return kind==='worker'?industries[lang][0][t]:
       kind==='factory'?industries[lang][1][t]:
-      names[lang][kind==='transport'?0:1];
+      names[lang][kind==='transport'?0:kind==='road'?2:1];
   }
   box(2.43,.52,.14,wood,0,2.19,1.72).castShadow=false;
   box(2.34,.39,.03,trim,0,2.19,1.815).castShadow=false;
@@ -174,6 +185,7 @@ export function makeStructure(T, scene, building) {
   }else{
     for(let i=0;i<3;i++)crates(-1.5+i*1.6,-1.75);
     if(kind==='transport')box(1.5,.12,1.4,metal,1.65,.35,-1.6);
+    if(kind==='road'){box(1.5,.10,.55,stone,1.4,.38,-1.6);box(.30,1.5,.30,trim,-1.8,.8,-1.6)}
     if(kind==='seller')box(3.0,.19,.6,trim,0,.95,2.05);
   }
   // Do not change the model scale without changing its collision envelopes.
