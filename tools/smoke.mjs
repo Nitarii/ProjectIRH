@@ -197,6 +197,10 @@ try{
   }));
   if(!placement.active||!placement.menuHidden||!placement.construction.includes('CONSTRUCTION'))
     throw new Error('Placement preview missing: '+JSON.stringify(placement));
+  await tradePage.keyboard.press('e');
+  await tradePage.waitForFunction(()=>window.__irhMonitor?.placementRotation===Math.PI/2,null,{timeout:16000});
+  await tradePage.mouse.wheel(0,380);
+  await tradePage.waitForFunction(()=>window.__irhMonitor?.placementRotation===Math.PI,null,{timeout:16000});
   await tradePage.keyboard.press('Escape');
   await tradePage.waitForFunction(()=>document.querySelector('#placementHud').classList.contains('hidden'),null,{timeout:15000});
   await tradePage.keyboard.press('Tab');
