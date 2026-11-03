@@ -5,6 +5,7 @@ const locale=(typeof navigator!=='undefined'?navigator.language:'en')||'en';
 const defaults={
  language:locale.toLowerCase().startsWith('fr')?'fr':'en',
  muted:false,goldSound:true,volume:.5,mouseSensitivity:1,renderScale:1,viewDistance:128,
+ minimapSize:168,hudScale:1,
  quality:'balanced',shadows:true,effects:true,
  bindings:{
   forward:'KeyW',backward:'KeyS',left:'KeyA',right:'KeyD',
@@ -63,6 +64,8 @@ export function loadSettings(){
    mouseSensitivity:clamp(stored.mouseSensitivity,.2,3,defaults.mouseSensitivity),
    renderScale:clamp(stored.renderScale,.5,1.5,defaults.renderScale),
    viewDistance:clamp(stored.viewDistance,64,256,defaults.viewDistance),
+   minimapSize:clamp(stored.minimapSize,72,260,defaults.minimapSize),
+   hudScale:clamp(stored.hudScale,.7,1.4,defaults.hudScale),
    bindings,controlsVersion:3,
    language:stored.language==='fr'?'fr':stored.language==='en'?'en':defaults.language};
 }
