@@ -343,7 +343,8 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     }
     const endpoint=a.routeGoal||goal;
     const remaining=distance(a,endpoint);
-    if(remaining<.39){a.route=null;a.wait=0;a.blockedAge=0;return true}
+    if(remaining<.39){a.route=null;a.wait=0;a.blockedAge=0;
+      a.routeGoal=null;return distance(a,goal)<.48}
     if(a.abstract){
       const step=Math.min(remaining,dt*speed*(hooks.roads?.speedAt(a.x,a.z)||1));
       a.x+=(endpoint.x-a.x)/remaining*step;
@@ -379,7 +380,23 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       };
       const router=createRouter(blockedForPlan,{cell:1.15,maxVisits:1420,
         speedAt:hooks.roads?.built?(x,z)=>hooks.roads.speedAt(x,z):null});
-      const path=router.route(a,goal,{allowNearby:true,arrivalRadius:.80});
+      // Stage long routes inside the A* search horizon. Do not report arrival
+      // at an intermediate waypoint as arrival at the final building/market.
+      let path=null;
+      const span=distance(a,goal);
+      if(span>72){
+        const angle=Math.atan2(goal.z-a.z,goal.x-a.x);
+        for(const length of [52,35,20]){
+          if(path)break;
+          for(const offset of [0,.38,-.38,.75,-.75]){
+            const candidate={x:a.x+Math.cos(angle+offset)*length,
+              z:a.z+Math.sin(angle+offset)*length};
+            if(blockedForPlan(candidate.x,candidate.z))continue;
+            path=router.route(a,candidate,{allowNearby:true,arrivalRadius:.70});
+            if(path)break;
+          }
+        }
+      }else path=router.route(a,goal,{allowNearby:true,arrivalRadius:.80});
       navReplans++;a.routeEpoch++;
       if(!path){
         routeFailures++;
@@ -426,7 +443,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     a.blockedAge=Math.max(0,a.blockedAge-dt*2.8);
     a.wait=0;a.x=nx;a.z=nz;a.angle=Math.atan2(dx,dz);a.walkPhase+=dt*10;
     hooks.onMove?.(a.id,a.x,a.z);
-    return distance(a,a.routeGoal||goal)<.38;
+    return distance(a,goal)<.38;
   }
   function reserveResource(a){
     const b=a.home,cx=Math.floor(b.x/gridSize),cz=Math.floor(b.z/gridSize);
