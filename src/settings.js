@@ -1,7 +1,7 @@
 const frenchKeyboard=(navigator.language||'en').toLowerCase().startsWith('fr');
 const defaults={
   language:(navigator.language||'en').toLowerCase().startsWith('fr')?'fr':'en',
-  muted:false,volume:.5,mouseSensitivity:1,renderScale:1,viewDistance:160,quality:'balanced',shadows:true,
+  muted:false,volume:.5,mouseSensitivity:1,renderScale:1,viewDistance:128,quality:'balanced',shadows:true,
   effects:true,
   bindings:{
     forward:frenchKeyboard?'KeyZ':'KeyW',backward:'KeyS',left:frenchKeyboard?'KeyQ':'KeyA',right:'KeyD',
@@ -43,14 +43,14 @@ export function isPressed(keys,settings,action){
 }
 export function applyQuality(renderer,sun,quality,renderScale=1){
   const settings={
-    low:{pixel:0.72,shadows:false},
-    balanced:{pixel:1,shadows:true},
-    high:{pixel:1.4,shadows:true}
+    low:{shadows:false,shadowSize:512},
+    balanced:{shadows:true,shadowSize:1024},
+    high:{shadows:true,shadowSize:2048}
   }[quality]||{pixel:1,shadows:true};
-  const ratio=Math.max(.45,Math.min(window.devicePixelRatio||1,settings.pixel)*Math.max(.5,Math.min(1.5,renderScale)));
+  const ratio=Math.max(.45,Math.min(window.devicePixelRatio||1,1.5)*Math.max(.5,Math.min(1.5,renderScale)));
   renderer.setPixelRatio(ratio);
   renderer.shadowMap.enabled=settings.shadows;
-  if(sun){sun.castShadow=settings.shadows;sun.shadow.mapSize.set(settings.shadows?1024:512,settings.shadows?1024:512);
+  if(sun){sun.castShadow=settings.shadows;sun.shadow.mapSize.set(settings.shadowSize,settings.shadowSize);
     sun.shadow.map?.dispose();sun.shadow.map=null}
   renderer.setSize(window.innerWidth,window.innerHeight);
   return ratio;
