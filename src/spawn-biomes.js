@@ -17,7 +17,7 @@ export function openingBiome(x,z,seed){
   const ids=startingBiomes(seed);
   const angle=Math.atan2(x,z);
   // Gently irregular sector borders; zero angle always stays in biome 0.
-  const border=Math.PI/3+Math.sin((r+seed%57)*.028)*.072;
+  const border=Math.PI/4+Math.sin((r+seed%57)*.028)*.055;
   if(Math.abs(angle)<border)return ids[0];
   return angle>0?ids[1]:ids[2];
 }
