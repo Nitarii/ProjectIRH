@@ -307,13 +307,17 @@ let stamina=maxStamina(),sprintLocked=false,footstepTimer=0,jumpVelocity=0;
 const PLAYER_RADIUS=.43;
 function sceneryBlocked(x,z,radius=.35){
   const cx=Math.floor(x/CH),cz=Math.floor(z/CH);
-  for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++){
-    const c=world.get((cx+dx)+','+(cz+dz));
+  const localX=x-cx*CH,localZ=z-cz*CH;
+  // Only cross a chunk edge when a collider can possibly cross it.
+  const xr=localX<2?[cx-1,cx]:localX>CH-2?[cx,cx+1]:[cx];
+  const zr=localZ<2?[cz-1,cz]:localZ>CH-2?[cz,cz+1]:[cz];
+  for(const ix of xr)for(const iz of zr){
+    const c=world.get(ix+','+iz);
     if(!c)continue;
     for(const p of c.root.userData.decorationColliders||[]){
-      const d=p.r+radius;
-      if(Math.abs(p.x-x)>d||Math.abs(p.z-z)>d)continue;
-      if((p.x-x)**2+(p.z-z)**2<d*d)return true;
+      const d=p.r+radius,dx=p.x-x,dz=p.z-z;
+      if(Math.abs(dx)>d||Math.abs(dz)>d)continue;
+      if(dx*dx+dz*dz<d*d)return true;
     }
   }
   return false;
