@@ -125,4 +125,26 @@ check('ambient particles use instancing',atmosphere.particleCount<=32);
 atmosphere.setEnabled(false);
 check('ambient effects can be disabled completely',atmosphere.particleCount===0);
 atmosphere.dispose();
+// Check GLSL source generation without needing a GPU.
+const gameMain=read('src/main.js');
+const shaderStart=gameMain.indexOf('terrainMaterial.onBeforeCompile=shader=>{');
+const shaderEnd=gameMain.indexOf('terrainMaterial.customProgramCacheKey=',shaderStart);
+check('terrain shader install exists',shaderStart>=0&&shaderEnd>shaderStart);
+const terrainMaterial={};
+new Function('terrainMaterial',gameMain.slice(shaderStart,shaderEnd))(terrainMaterial);
+const terrainShader={
+  vertexShader:'#include <common>\\nvoid main(){vec3 transformed=vec3(0.0);\\n#include <worldpos_vertex>\\n}',
+  fragmentShader:'#include <common>\\nvoid main(){vec4 diffuseColor=vec4(1.0);\\n#include <color_fragment>\\n}'
+};
+terrainMaterial.onBeforeCompile(terrainShader);
+check('terrain microshading computes at vertex rate',
+  terrainShader.vertexShader.includes('nimNoise(nimWorldXZ*.19)')&&
+  terrainShader.fragmentShader.includes('nimShade')&&
+  !terrainShader.fragmentShader.includes('nimNoise('));
+check('GLSL injections use actual newlines instead of literal escaped text',
+  !terrainShader.vertexShader.includes('\\\\n')&&
+  terrainShader.vertexShader.includes('varying float nimShade;'));
+check('game uses neutral tonemapping and sRGB output',
+  gameMain.includes('renderer.toneMapping=T.NeutralToneMapping')&&
+  gameMain.includes('renderer.outputColorSpace=T.SRGBColorSpace'));
 console.log('\nPassed '+passed+' nature and rendering regression tests.');
