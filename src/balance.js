@@ -13,6 +13,9 @@ export const EQUIPMENT_FR=[
   ['Faucille','Couteau de moisson','Faux agricole','Débroussailleuse','Moissonneuse compacte']
 ];
 export const TOOL_BASE_COSTS=[250,950,3200,9000,24000];
+export const AUTO_UPGRADE_COSTS=[20000,50000,100000,250000];
+export const AUTO_MULTIPLIERS=[.8,.9,1,1.1,1.2];
+export function autoSpeedMultiplier(level=0){return AUTO_MULTIPLIERS[Math.max(0,Math.min(4,Number(level)||0))]||.8;}
 export const TOOL_SPEED=[2.8,1.85,1.42,1.09,.83,.54];
 export const TOOL_YIELD=[1,1,1,2,3,4];
 export const ECONOMY={
@@ -25,10 +28,10 @@ export const ECONOMY={
   workerCarry:[1600,4200,10500,23000,51000]
 };
 export function toolCost(type,tier){
-  return Math.round(TOOL_BASE_COSTS[tier]*(1+Math.max(0,type)*.13)/10)*10;
+  return TOOL_BASE_COSTS[Math.max(0,Math.min(4,tier|0))];
 }
 export function buildingCost(kind,type=0){
-  if(kind==='factory'||kind==='worker')return ECONOMY[kind][type]||ECONOMY[kind][0];
+  if(kind==='factory'||kind==='worker')return ECONOMY[kind][0];
   return ECONOMY[kind]||0;
 }
 export function workerCarryCost(level){
@@ -38,7 +41,7 @@ export function workerCarryCost(level){
 export const MAX_EXPERTISE=5;
 export function expertiseCost(type,tier){
   if(tier>=MAX_EXPERTISE||tier<0)return Infinity;
-  return Math.round(4800*Math.pow(tier+1,1.78)*(1+type*.08)/50)*50;
+  return Math.round(4800*Math.pow(tier+1,1.78)/50)*50;
 }
 export function expertiseMultiplier(state,type){
   const level=Math.max(0,Math.min(MAX_EXPERTISE,Number(state?.talents?.[type])||0));
