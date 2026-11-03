@@ -20,7 +20,7 @@ export const TOOL_SPEED=[2.8,1.85,1.42,1.09,.83,.54];
 export const TOOL_YIELD=[1,1,1,2,3,4];
 export const ECONOMY={
   bag:2000,bag24:9500,bicycle:6200,hire:1800,
-  transport:10500,seller:13500,
+  transport:4800,seller:5500,road:6200,
   factory:[5400,6700,8300,6600,6100],
   worker:[6300,7200,8800,7500,6800],
   stamina:[1500,3800,8900,19000],
