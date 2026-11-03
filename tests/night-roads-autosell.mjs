@@ -123,4 +123,26 @@ test('full bag causes immediate travel away from the node',avatar.position.x<128
 for(let i=0;i<800&&sold===0;i++)navigator.update(.1);
 test('even distant full bags reach the market and are sold',sold===1&&bag===0);
 test('sale never discards inventory without entering the market',avatar.position.x<=27);
+// Use production A* through an actual blocking building; ensure the real
+// obstacle-aware navigator can reach the market from a full bag.
+const actualRouter=load('src/navigation.js',['createRouter']).createRouter;
+const realAuto=load('src/auto-pilot.js',['createAutoPilot'],{createRouter:actualRouter}).createAutoPilot;
+let fullBag=8,stillHarvesting=true,realSales=0,realCancels=0;
+const realPlayer={position:{x:125,z:0},rotation:{y:0}};
+const wall=(x,z)=>x>74&&x<83&&Math.abs(z)<5;
+const realPilot=realAuto({
+  player:realPlayer,blocked:wall,resources:()=>[],count:()=>fullBag,capacity:()=>8,
+  isSelling:(x,z)=>x>=19&&x<=27&&Math.abs(z)<=4.5,
+  sale:{x:23,z:0},isHarvesting:()=>stillHarvesting,
+  cancelHarvest:()=>{stillHarvesting=false;realCancels++},
+  harvest:()=>{},sell:()=>{fullBag=0;realSales++},onChange:()=>{},
+  move:(dx,dz)=>{
+    if(!wall(realPlayer.position.x+dx,realPlayer.position.z))realPlayer.position.x+=dx;
+    if(!wall(realPlayer.position.x,realPlayer.position.z+dz))realPlayer.position.z+=dz;
+  }
+});
+realPilot.setEnabled(true);
+for(let i=0;i<1200&&realSales===0;i++)realPilot.update(.1);
+test('real A* navigator sells a full bag past a building obstacle',
+  realCancels===1&&realSales===1&&fullBag===0&&realPlayer.position.x<=27);
 console.log('\nPassed '+tested+' nighttime, road abandonment and auto-sell tests.');
