@@ -53,7 +53,29 @@ vault.save({...st,buildings:cleanBuildings}).catch(e=>console.warn('Encrypted st
 const player=new T.Group(),avatar=new T.Group();player.add(avatar);
 const bicycle=createBicycle(T,player);let bikeRiding=false;
 avatar.add(cy(.42,1.12,m.shirt,0,1.4,0),orb(.35,m.skin,0,2.15,.04));
-avatar.add(cube(.1,.055,.08,M(0x312b27),-.14,2.18,.35),cube(.1,.055,.08,M(0x312b27),.14,2.18,.35));
+const eyeNormalMaterial=M(0x121819);
+const eyeChromaMaterial=new T.ShaderMaterial({
+ uniforms:{time:{value:0}},
+ vertexShader:'varying vec2 vUv; void main(){vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
+ fragmentShader:`uniform float time;
+ varying vec2 vUv;
+ void main(){
+   float wave=sin(vUv.x*16.0-vUv.y*12.0+time*5.7)*0.12+
+              sin(vUv.x*8.0+vUv.y*19.0-time*3.6)*0.08;
+   float phase=fract(vUv.x*.70+vUv.y*.35+time*.23+wave);
+   vec3 rgb=.55+.45*cos(6.2831853*(phase+vec3(0.0,.333333,.666667)));
+   float shimmer=.86+.14*sin(vUv.y*22.0+time*6.4);
+   gl_FragColor=vec4(rgb*shimmer,1.0);
+ }`,
+ depthWrite:true,depthTest:true
+});
+const eyes=[cube(.1,.055,.08,eyeNormalMaterial,-.14,2.18,.35),
+            cube(.1,.055,.08,eyeNormalMaterial,.14,2.18,.35)];
+avatar.add(...eyes);
+function syncAutoEyes(on){
+  const material=on?eyeChromaMaterial:eyeNormalMaterial;
+  for(const eye of eyes)if(eye.material!==material)eye.material=material;
+}
 function limb(x,y,len,thick){const g=new T.Group();g.position.set(x,y,0);g.add(cube(thick,len,thick,m.shirt,0,-len/2,0));avatar.add(g);return g}
 const leftLeg=limb(-.23,.88,.86,.26),rightLeg=limb(.23,.88,.86,.26);
 const leftArm=limb(-.53,1.82,.78,.22),rightArm=limb(.53,1.82,.78,.22);
@@ -912,6 +934,7 @@ const autoPilot=createAutoPilot({
   speedMultiplier:()=>autoSpeedMultiplier(st.autoLevel),
   onChange:on=>{
     autoMode=on;
+    syncAutoEyes(on);
     $('autoState').classList.toggle('hidden',!on);
     $('autoShortcut').classList.toggle('active',on);
     updateAutoIndicator();
@@ -1583,10 +1606,11 @@ const cameraTarget=new T.Vector3(),cameraOffset=new T.Vector3();
 function frame(){
 requestAnimationFrame(frame);
 const frameDelta=Math.min(clock.getDelta(),.05);
-const paused=panel==='settings'||exploration.visible||!$('creator').classList.contains('hidden')||
+const paused=panel==='settings'||!$('creator').classList.contains('hidden')||
   !$('welcome').classList.contains('hidden');
 const dt=paused?0:frameDelta;
 elapsed+=dt;st.gameMinutes=(Number(st.gameMinutes)||0)+dt;
+if(autoMode)eyeChromaMaterial.uniforms.time.value=elapsed;
 if(player.position.y>0||jumpVelocity>0){
   jumpVelocity-=23*dt;
   player.position.y=Math.max(0,player.position.y+jumpVelocity*dt);
