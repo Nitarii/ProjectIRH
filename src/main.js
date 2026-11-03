@@ -3,7 +3,7 @@ import {createSound} from './sound.js?v=20261103r2';
 import {createAtmosphere} from './atmosphere.js?v=20261103r';
 import {createIndustry} from './industry.js?v=20261103r2';
 import {inventoryIcon} from './item-icons.js?v=20261103k';
-import {createResourceGraphics} from './resource-visuals.js?v=20261103ab';
+import {createResourceGraphics} from './resource-visuals.js?v=20261103ac';
 import {createFieldBuilder} from './wheat-fields.js?v=20261103k';
 import {makeStructure} from './structures.js?v=20261103r2';
 import {EQUIPMENT,EQUIPMENT_FR,TOOL_SPEED,TOOL_YIELD,ECONOMY,toolCost,buildingCost,workerCarryCost} from './balance.js';
@@ -13,6 +13,7 @@ import {createBaseCamp} from './basecamp.js';
 import {optionsMarkup} from './options-ui.js?v=20261103r2';
 import {createTrails} from './trails.js?v=20261103r1';
 import {decorationCollider} from './decor-collision.js';
+import {batchResourceNodes,setDistantResource} from './resource-batches.js';
 const $=id=>document.getElementById(id), scene=new T.Scene();scene.background=new T.Color('#a6cbd1');scene.fog=new T.FogExp2('#a6cbd1',.0039);
 const cam=new T.PerspectiveCamera(65,innerWidth/innerHeight,.1,450),renderer=new T.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.25));renderer.shadowMap.enabled=true;$('game').append(renderer.domElement);
 scene.add(new T.HemisphereLight(0xffffff,0x657449,2.4));const sun=new T.DirectionalLight(0xffe7bc,2.3);sun.position.set(70,95,40);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.bias=-.0004;sun.shadow.normalBias=.024;sun.shadow.radius=2;sun.shadow.camera.left=-60;sun.shadow.camera.right=60;sun.shadow.camera.top=60;sun.shadow.camera.bottom=-60;scene.add(sun);
@@ -217,6 +218,7 @@ if(Math.hypot(x,z)<23||(Math.abs(x-SALE.x)<SALE.w/2+6&&Math.abs(z-SALE.z)<SALE.d
 const b=biome(x,z);if(b<0)continue;
 const o=node(b,x,z,key);c.nodes.push(o);
 }
+batchResourceNodes(T,c);
 }
 const generationQueue=[],queuedGeneration=new Set(),unloadQueue=[];
 let streamingCenter='';
@@ -280,13 +282,23 @@ function updateResourceVisibility(){
   cam.updateMatrixWorld();
   resourceProjection.multiplyMatrices(cam.projectionMatrix,cam.matrixWorldInverse);
   resourceFrustum.setFromProjectionMatrix(resourceProjection);
+  const nearRange=Math.min(62,Math.max(39,settings.viewDistance*.48));
+  const nearSquared=nearRange*nearRange;
   for(const o of resources){
-    if(o.dead){o.mesh.visible=false;continue}
-    const dx=o.x-px,dz=o.z-pz;
-    if(dx*dx+dz*dz>maximum){o.mesh.visible=false;continue}
-    if(dx*dx+dz*dz<14*14){o.mesh.visible=true;continue}
-    resourceBoundingSphere.center.set(o.x,2.1,o.z);
-    o.mesh.visible=resourceFrustum.intersectsSphere(resourceBoundingSphere);
+    if(o.dead){
+      o.mesh.visible=false;
+      setDistantResource(T,o,false);continue;
+    }
+    const dx=o.x-px,dz=o.z-pz,d2=dx*dx+dz*dz;
+    let visible=d2<=maximum;
+    if(visible&&d2>=14*14){
+      resourceBoundingSphere.center.set(o.x,2.1,o.z);
+      visible=resourceFrustum.intersectsSphere(resourceBoundingSphere);
+    }
+    const batched=!!o.batchSlots?.length;
+    const near=visible&&(!batched||d2<nearSquared);
+    o.mesh.visible=near;
+    if(batched)setDistantResource(T,o,visible&&!near);
   }
 }
 const count=()=>st.inv.reduce((a,b)=>a+b,0)+st.products.reduce((a,b)=>a+b,0);
