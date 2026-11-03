@@ -107,6 +107,55 @@ try{
      workerStats.visibleEmployees<4)throw new Error('Employee scene failed: '+JSON.stringify(workerStats));
   console.log(JSON.stringify({workerStats},null,2));
   await factoryContext.close();
+
+  const tradeContext=await browser.newContext({viewport:{width:1280,height:800}});
+  const tradePage=await tradeContext.newPage();
+  tradePage.on('pageerror',e=>errors.push('TRADE SCRIPT '+e.message));
+  await tradePage.addInitScript(()=>{
+    localStorage.setItem('irh-state',JSON.stringify({
+      x:26,z:15,gold:1800,inv:[3,0,0,0,0],products:[0,1,0,0,0],bag:8,
+      gameMinutes:102,buildings:[{id:'b70',kind:'seller',type:0,x:27,z:17,workers:0}]
+    }));
+  });
+  await tradePage.goto('http://127.0.0.1:8765/',{waitUntil:'domcontentloaded',timeout:30000});
+  await tradePage.locator('#play').click({timeout:15000});
+  await tradePage.waitForFunction(()=>window.__irhMonitor?.frames>14,null,{timeout:30000});
+  const beforeVendor=await tradePage.evaluate(()=>({
+    gold:JSON.parse(localStorage.getItem('irh-state')).gold,
+    count:window.__irhMonitor.inventoryCount,
+    clock:document.querySelector('#clock').textContent
+  }));
+  await tradePage.keyboard.press('f');
+  await tradePage.waitForFunction(()=>window.__irhMonitor?.frames>22,null,{timeout:20000});
+  const afterVendor=await tradePage.evaluate(()=>({
+    count:window.__irhMonitor.inventoryCount,
+    coins:document.querySelector('#coins').textContent
+  }));
+  if(beforeVendor.count!==4||afterVendor.count!==4)
+    throw new Error('Nearby vendor consumed player bag: '+JSON.stringify({beforeVendor,afterVendor}));
+  if(!/\d\d:\d\d$/.test(beforeVendor.clock))
+    throw new Error('Clock does not display game minutes: '+beforeVendor.clock);
+  await tradePage.keyboard.press('b');
+  await tradePage.waitForFunction(()=>!document.querySelector('#panel').classList.contains('hidden'),null,{timeout:15000});
+  const zoomBefore=await tradePage.evaluate(()=>window.__irhMonitor.cameraDistance);
+  await tradePage.mouse.move(700,490);
+  await tradePage.mouse.wheel(0,520);
+  await tradePage.waitForFunction(()=>window.__irhMonitor?.frames>32,null,{timeout:20000});
+  const zoomAfter=await tradePage.evaluate(()=>window.__irhMonitor.cameraDistance);
+  if(zoomAfter!==zoomBefore)throw new Error('Menu wheel changed world camera zoom');
+  await tradePage.locator('button[data-action="worker:0"]').click({timeout:15000});
+  await tradePage.waitForFunction(()=>!document.querySelector('#placementHud').classList.contains('hidden'),null,{timeout:20000});
+  const placement=await tradePage.evaluate(()=>({
+    construction:document.querySelector('#placementHud').textContent,
+    active:window.__irhMonitor.constructionActive,
+    menuHidden:document.querySelector('#panel').classList.contains('hidden')
+  }));
+  if(!placement.active||!placement.menuHidden||!placement.construction.includes('CONSTRUCTION'))
+    throw new Error('Placement preview missing: '+JSON.stringify(placement));
+  await tradePage.keyboard.press('Escape');
+  await tradePage.waitForFunction(()=>document.querySelector('#placementHud').classList.contains('hidden'),null,{timeout:15000});
+  console.log(JSON.stringify({trade:afterVendor,clock:beforeVendor.clock,zoomUnchanged:zoomBefore,placement},null,2));
+  await tradeContext.close();
   if(errors.length)throw new Error('Browser errors after scenarios: '+errors.join(' | '));
 
 }finally{
