@@ -1124,7 +1124,7 @@ if(panel==='employees'){
 }
 if(panel==='storage'){
   const building=storageBuilding;
-  if(!building){panel=null;return renderPanel()}
+  if(!building){panel=null;renderPanel();resumeCameraControl();return}
   const field=building.kind==='worker'?'stockRaw':activeStorage.kind==='processed'?'stockProcessed':'inputRaw';
   const item=activeStorage.kind==='processed'?processed[building.type]:raw[building.type];
   const carrying=activeStorage.kind==='processed'?st.products[building.type]:st.inv[building.type];
