@@ -435,15 +435,15 @@ function refreshDecorationShadows(dt){
   decorationShadowClock=0;decorationShadowX=player.position.x;
   decorationShadowZ=player.position.z;
   const quality=settings.quality;
-  for(const c of world.values()){
+  for(const [key,c] of world){
+    const [cx,cz]=key.split(',').map(Number);
+    const x=cx*CH+CH/2,z=cz*CH+CH/2;
+    const near=Math.abs(x-player.position.x)<78&&
+      Math.abs(z-player.position.z)<78;
     for(const batch of c.root.userData.decorationBatches||[]){
-      const mesh=batch.mesh,objects=batch.instances;
-      // A chunk's first object is enough to reject distant batches cheaply.
-      const sample=objects[0];
-      const close=sample&&Math.abs(sample.x-player.position.x)<70&&
-        Math.abs(sample.z-player.position.z)<70;
-      const casts=quality!=='low'&&close&&(quality==='high'||batch.kind!==4);
-      if(mesh.castShadow!==!!casts)mesh.castShadow=!!casts;
+      const casts=quality!=='low'&&near&&
+        (quality==='high'||batch.kind!==4);
+      if(batch.mesh.castShadow!==casts)batch.mesh.castShadow=casts;
     }
   }
 }
