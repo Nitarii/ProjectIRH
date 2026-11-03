@@ -31,7 +31,7 @@ const cam=new T.PerspectiveCamera(65,innerWidth/innerHeight,.1,450),renderer=new
 scene.add(new T.HemisphereLight(0xffffff,0x657449,2.4));const sun=new T.DirectionalLight(0xffe7bc,2.3);sun.position.set(70,95,40);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.bias=-.0004;sun.shadow.normalBias=.024;sun.shadow.radius=2;sun.shadow.camera.left=-60;sun.shadow.camera.right=60;sun.shadow.camera.top=60;sun.shadow.camera.bottom=-60;scene.add(sun);
 const M=c=>new T.MeshLambertMaterial({color:c}),m={grass:M(0x658b55),forest:M(0x3a784e),mountain:M(0x858b83),mine:M(0x94775c),desert:M(0xd7bd7d),field:M(0xb2b75e),tree:M(0x845b35),leaf:M(0x388653),rock:M(0x888e90),ore:M(0x709fad),wheat:M(0xebbb53),skin:M(0xe8b997),shirt:M(0x275c70),wood:M(0xac7852),roof:M(0x965e46),gold:M(0xffd068)};
 function cube(w,h,d,mat,x=0,y=0,z=0){let q=new T.Mesh(new T.BoxGeometry(w,h,d),mat);q.position.set(x,y,z);q.castShadow=true;q.receiveShadow=true;return q}function orb(r,mat,x=0,y=0,z=0){let q=new T.Mesh(new T.IcosahedronGeometry(r,1),mat);q.position.set(x,y,z);q.castShadow=true;return q}function cy(r,h,mat,x=0,y=0,z=0){let q=new T.Mesh(new T.CylinderGeometry(r,r,h,8),mat);q.position.set(x,y,z);q.castShadow=true;return q}
-const types=['FORÊT','MONTAGNE','EXCAVATION','DÉSERT','CHAMPS'],raw=['Bois','Pierre','Minerai','Sable','Blé'],processed=['Planches','Pierre taillée','Lingots','Verre','Farine'],tools=EQUIPMENT_FR,worksites=['Cabane de bûcheron','Carrière','Mine','Camp de terrassiers','Ferme'],factories=['Scierie','Atelier de taille','Fonderie','Verrerie','Moulin'],values=[12,15,22,10,14],colors=['#488756','#87938b','#b88f6b','#e3c67c','#c8b64e'];
+const types=['FORÊT','MONTAGNE','EXCAVATION','DÉSERT','CHAMPS'],raw=['Bois','Pierre','Minerai','Sable','Blé'],processed=['Planches','Pierre taillée','Lingots','Verre','Farine'],tools=EQUIPMENT_FR,worksites=['Cabane de bûcheron','Carrière','Mine','Camp de terrassiers','Ferme'],factories=['Scierie','Atelier de taille','Fonderie','Verrerie','Moulin'],values=[12,12,12,12,12],colors=['#488756','#87938b','#b88f6b','#e3c67c','#c8b64e'];
 const vault=await openSaveVault();
 let defaultState={gold:100,bag:8,bicycle:false,inv:[0,0,0,0,0],products:[0,0,0,0,0],tools:[-1,-1,-1,-1,-1],talents:[0,0,0,0,0],buildings:[],stock:[],bicycle:false,staminaLevel:0,gameMinutes:0,x:0,z:9,seed:Math.floor(Math.random()*2000000000)+10000,worldVersion:2,exhausted:{},explored:[],autoLevel:0,avatar:null};let st={...defaultState};
 const settings=loadSettings();await detectKeyboardLayout();let awaitingBinding=null;let observedGold=st.gold,goldHideAt=0;try{
@@ -619,8 +619,8 @@ function sell({notifyEmpty=true,includeCarried=isSelling(player.position.x,playe
   stopHarvest();
   const bagValue=st.inv.reduce((sum,n,i)=>sum+Math.round(n*values[i]*expertiseMultiplier(st,i)),0);
   const productValue=st.products.reduce((sum,n,i)=>sum+Math.round(n*values[i]*3*expertiseMultiplier(st,i)),0);
-  const oldStorage=st.stock.reduce((sum,i)=>sum+Math.round((i===0?65:values[i]*4)*expertiseMultiplier(st,i)),0);
-  const logValue=includeCarried&&carried?65:0;
+  const oldStorage=st.stock.reduce((sum,i)=>sum+Math.round(values[i]*expertiseMultiplier(st,i)),0);
+  const logValue=includeCarried&&carried?values[0]:0;
   const amount=bagValue+productValue+oldStorage+logValue;
   if(amount<=0){if(notifyEmpty)pop('Aucune marchandise à vendre');return 0}
   st.inv.fill(0);st.products.fill(0);st.stock=[];
@@ -1425,8 +1425,14 @@ addEventListener('resize',resizeGame);
 if(window.visualViewport)window.visualViewport.addEventListener('resize',resizeGame);
 renderer.domElement.addEventListener('contextmenu',e=>e.preventDefault());
 renderer.domElement.addEventListener('mousedown',e=>{
-  if(e.button!==2||touchControls?.enabled||panel||exploration.visible||
+  if(touchControls?.enabled||panel||exploration.visible||
     !$('welcome').classList.contains('hidden'))return;
+  if(e.button===0){
+    if(!$('creator').classList.contains('hidden'))return;
+    e.preventDefault();mouseFree=false;document.body.classList.remove('mouse-free');
+    renderer.domElement.requestPointerLock?.();return;
+  }
+  if(e.button!==2)return;
   e.preventDefault();
   mouseFree=!mouseFree;
   if(mouseFree)document.exitPointerLock?.();
@@ -1441,10 +1447,7 @@ document.addEventListener('pointerlockchange',()=>{
     mouseFree=true;document.body.classList.add('mouse-free');
   }
 });
-renderer.domElement.onclick=()=>{
-  if(!mouseFree&&!touchControls?.enabled&&!panel&&!exploration.visible)
-    renderer.domElement.requestPointerLock?.();
-};
+// A left click in the gameplay canvas always restores camera mouse control.
 touchControls=createMobileControls({
   root:$('mobileControls'),canvas:renderer.domElement,
   isActive:()=>!panel&&!exploration.visible&&
