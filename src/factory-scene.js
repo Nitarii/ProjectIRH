@@ -1,3 +1,4 @@
+import {worldPoint,normalizeRotation} from './facility-layout.js';
 import {FACTORY_TASKS,YARD,yardPoint,storagePoint} from './factory-tasks.js';
 
 export function decorateFacility(T,group,b,materials){
@@ -5,7 +6,10 @@ export function decorateFacility(T,group,b,materials){
   const workstations=[],animated=[],colliders=[];
   const stocks={raw:[],processed:[]};
   const p=(x,y,z)=>({x,y,z});
-  const collision=(x,z,w,d)=>colliders.push({x:b.x+x,z:b.z+z,w,d});
+  const collision=(x,z,w,d)=>{
+    const point=worldPoint(b,x,z);
+    colliders.push({...point,w,d,angle:normalizeRotation(b.rotation)});
+  };
   function box(w,h,d,m,x,y,z,collide=false){
     const mesh=new T.Mesh(new T.BoxGeometry(w,h,d),m);
     mesh.position.set(x,y,z);mesh.castShadow=false;mesh.receiveShadow=true;group.add(mesh);
@@ -62,14 +66,13 @@ export function decorateFacility(T,group,b,materials){
     box(1.37,.12,.08,trim,x,1.0,z-.45);
   }
   if(b.kind==='worker'){
-    const access=storagePoint(b);
-    stock('raw',{x:access.x-b.x,z:access.z-b.z},b.type);
+    stock('raw',{x:-2.75,z:3.15},b.type);
     // Tree piles, ore crates and produce sacks are deliberately at the pickup point.
   }
   if(b.kind==='factory'){
     // Four square units of clear yard in front of the workshop and five separate stations.
-    box(12.7,.06,8.7,stone,0,.00,6.0);
-    box(11.8,.07,.26,trim,0,.06,10.38);
+    box(17.8,.06,12.25,stone,0,.00,6.55);
+    box(17.0,.07,.26,trim,0,.06,12.7);
     stock('raw',YARD.raw,b.type);stock('processed',YARD.output,b.type);
     FACTORY_TASKS[b.type].forEach((task,i)=>{
       const {x,z}=yardPoint({x:0,z:0},task.point);
@@ -126,7 +129,7 @@ export function decorateFacility(T,group,b,materials){
         default:
           box(1.3,.64,.65,color,x,.4,bodyZ,true);
       }
-      workstations.push({...task,station:i,position:{x:b.x+x,z:b.z+z}});
+      workstations.push({...task,station:i,position:worldPoint(b,x,z)});
     });
   }
   // Model bounds are broad-phase collision shapes, not rigid-body simulation.
