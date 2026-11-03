@@ -64,6 +64,7 @@ export function createRoadNetwork(state,{cell=3,maxTiles=5600}={}){
     const next=relevant.map(b=>[b.id,b.kind,b.x.toFixed(1),b.z.toFixed(1),b.rotation||0].join(':')).join('|')+
       ':sale:'+sale.x.toFixed(1)+','+sale.z.toFixed(1);
     if(next===signature)return false;
+    const topologyChanged=signature!=='';
     signature=next;revision++;
     const anchors=[{x:sale.x,z:sale.z}];
     for(const b of relevant){
@@ -88,7 +89,7 @@ export function createRoadNetwork(state,{cell=3,maxTiles=5600}={}){
     upgradeKeys=[...planned];upgradeCursor=0;
     // A changed building network may require a new route in a previously
     // abandoned corridor. Only newly-added planned cells can be rebuilt.
-    for(const k of planned)if(!old.has(k)&&retired(k)&&stage(k)===0)
+    for(const k of planned)if(topologyChanged&&!old.has(k)&&retired(k)&&stage(k)===0)
       delete tiles[k];
     for(const k of Object.keys(tiles))if(!planned.has(k)&&stage(k)===0)delete tiles[k];
     completion=0;
