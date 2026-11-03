@@ -144,7 +144,7 @@ try{
   const zoomAfter=await tradePage.evaluate(()=>window.__irhMonitor.cameraDistance);
   if(zoomAfter!==zoomBefore)throw new Error('Menu wheel changed world camera zoom');
   await tradePage.locator('button[data-action="worker:0"]').click({timeout:15000});
-  await tradePage.waitForFunction(()=>!document.querySelector('#placementHud').classList.contains('hidden'),null,{timeout:20000});
+  await tradePage.waitForFunction(()=>!document.querySelector('#placementHud').classList.contains('hidden')&&window.__irhMonitor?.constructionActive===true,null,{timeout:20000});
   const placement=await tradePage.evaluate(()=>({
     construction:document.querySelector('#placementHud').textContent,
     active:window.__irhMonitor.constructionActive,
