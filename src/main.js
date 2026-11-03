@@ -831,7 +831,7 @@ addEventListener('keydown',e=>{
   if(e.repeat)return;
   if(e.code==='Escape'||e.code==='Tab'){
     e.preventDefault();
-    if(placing)cancelPlacement();
+    if(placing){cancelPlacement();if(e.code==='Tab')openPanel('settings');}
     else if(panel)close();
     else openPanel('settings');
     return;
@@ -1023,7 +1023,7 @@ $('detail').textContent=tr(st.tools.every(t=>t<0)?'Récoltez lentement avec vos 
 const highlighted=harvesting;
 if(highlighted){
 $('targetTitle').textContent=tr(raw[highlighted.type],settings.language);
-$('targetLife').textContent=highlighted.hp+' / '+highlighted.max+' PV';
+$('targetLife').textContent=highlighted.hp+' / '+highlighted.max+' '+(settings.language==='fr'?'PV':'HP');
 $('targetLife').style.setProperty('--hp',(highlighted.hp/highlighted.max*100)+'%');
 $('targetHint').textContent=tr('RÉCOLTE EN COURS',settings.language);
 $('target').classList.remove('hidden')
@@ -1046,7 +1046,7 @@ renderer.render(scene,cam);
 monitor.frames++;monitor.drawCalls=renderer.info.render.calls;
 monitor.chunks=world.size;monitor.resources=resources.length;
 monitor.inventoryCount=count();monitor.cameraDistance=dist;monitor.constructionActive=!!placing;
-monitor.gameMinutes=st.gameMinutes;monitor.terrainPaths=trails.count;
+monitor.gameMinutes=st.gameMinutes;monitor.terrainPaths=trails.count;monitor.buildingLabels=industry.getLabels();
 monitor.renderResolution=renderer.getPixelRatio();monitor.viewDistance=settings.viewDistance;
 monitor.jumpHeight=player.position.y;
 controlQuality();
