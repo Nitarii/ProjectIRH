@@ -1,17 +1,18 @@
 import * as T from 'three';
 import {createSound} from './sound.js?v=20261103s6';
 import {createAtmosphere} from './atmosphere.js?v=20261103ad';
-import {createIndustry} from './industry.js?v=20261104d';
+import {createIndustry} from './industry.js?v=20261106a';
 import {inventoryIcon} from './item-icons.js?v=20261103k';
 import {createResourceGraphics} from './resource-visuals.js?v=20261103ac';
 import {createFieldBuilder} from './wheat-fields.js?v=20261104n';
-import {makeStructure} from './structures.js?v=20261105b';
-import {EQUIPMENT,EQUIPMENT_FR,TOOL_SPEED,TOOL_YIELD,ECONOMY,toolCost,buildingCost,workerCarryCost,MAX_EXPERTISE,expertiseCost,expertiseMultiplier,expertiseHarvestSpeed,AUTO_UPGRADE_COSTS,autoSpeedMultiplier} from './balance.js?v=20261104n';
+import {makeStructure} from './structures.js?v=20261106a';
+import {EQUIPMENT,EQUIPMENT_FR,TOOL_SPEED,TOOL_YIELD,ECONOMY,toolCost,buildingCost,workerCarryCost,MAX_EXPERTISE,expertiseCost,expertiseMultiplier,expertiseHarvestSpeed,AUTO_UPGRADE_COSTS,autoSpeedMultiplier} from './balance.js?v=20261106a';
 import {loadSettings,storeSettings,keyLabel,isPressed,applyQuality,ACTIONS,detectKeyboardLayout} from './settings.js?v=20261105d';
 import {tr,translateTree,UI} from './language.js?v=20261103p7';
 import {createBaseCamp} from './basecamp.js';
 import {optionsMarkup} from './options-ui.js?v=20261105e';
-import {createTrails} from './trails.js?v=20261103r1';
+import {createTrails} from './trails.js?v=20261106a';
+import {createRoadNetwork} from './road-network.js?v=20261106a';
 import {decorationCollider} from './decor-collision.js?v=20261103p4';
 import {batchResourceNodes,setDistantResource} from './resource-batches.js?v=20261103p4';
 import {createResourceLifecycle} from './resource-life.js?v=20261103s6';
@@ -33,7 +34,7 @@ const M=c=>new T.MeshLambertMaterial({color:c}),m={grass:M(0x658b55),forest:M(0x
 function cube(w,h,d,mat,x=0,y=0,z=0){let q=new T.Mesh(new T.BoxGeometry(w,h,d),mat);q.position.set(x,y,z);q.castShadow=true;q.receiveShadow=true;return q}function orb(r,mat,x=0,y=0,z=0){let q=new T.Mesh(new T.IcosahedronGeometry(r,1),mat);q.position.set(x,y,z);q.castShadow=true;return q}function cy(r,h,mat,x=0,y=0,z=0){let q=new T.Mesh(new T.CylinderGeometry(r,r,h,8),mat);q.position.set(x,y,z);q.castShadow=true;return q}
 const types=['FORÊT','MONTAGNE','EXCAVATION','DÉSERT','CHAMPS'],raw=['Bois','Pierre','Minerai','Sable','Blé'],processed=['Planches','Pierre taillée','Lingots','Verre','Farine'],tools=EQUIPMENT_FR,worksites=['Cabane de bûcheron','Carrière','Mine','Camp de terrassiers','Ferme'],factories=['Scierie','Atelier de taille','Fonderie','Verrerie','Moulin'],values=[12,12,12,12,12],colors=['#488756','#87938b','#b88f6b','#e3c67c','#c8b64e'];
 const vault=await openSaveVault();
-let defaultState={gold:100,bag:8,bicycle:false,inv:[0,0,0,0,0],products:[0,0,0,0,0],tools:[-1,-1,-1,-1,-1],talents:[0,0,0,0,0],buildings:[],stock:[],bicycle:false,staminaLevel:0,gameMinutes:0,x:0,z:9,seed:Math.floor(Math.random()*2000000000)+10000,worldVersion:2,exhausted:{},explored:[],autoLevel:0,avatar:null};let st={...defaultState};
+let defaultState={gold:100,bag:8,bicycle:false,inv:[0,0,0,0,0],products:[0,0,0,0,0],tools:[-1,-1,-1,-1,-1],talents:[0,0,0,0,0],buildings:[],stock:[],bicycle:false,staminaLevel:0,gameMinutes:0,x:0,z:9,seed:Math.floor(Math.random()*2000000000)+10000,worldVersion:2,exhausted:{},explored:[],autoLevel:0,roads:{},avatar:null};let st={...defaultState};
 const settings=loadSettings();await detectKeyboardLayout();let awaitingBinding=null;let observedGold=st.gold,goldHideAt=0;try{
  const a=vault.state||{};
  for(const k in defaultState)if(a[k]!==undefined)st[k]=a[k];
@@ -45,7 +46,9 @@ observedGold=st.gold;
 const save=()=>{st.x=player.position.x;st.z=player.position.z;
 const cleanBuildings=st.buildings.map(b=>({
 id:b.id,kind:b.kind,type:b.type,x:b.x,z:b.z,rotation:b.rotation||0,workers:b.workers,carryLevel:b.carryLevel,
-stock:b.stock,stockRaw:b.stockRaw,inputRaw:b.inputRaw,stockProcessed:b.stockProcessed,progress:b.progress
+stock:b.stock,stockRaw:b.stockRaw,inputRaw:b.inputRaw,stockProcessed:b.stockProcessed,progress:b.progress,
+warehouseRaw:Array.isArray(b.warehouseRaw)?b.warehouseRaw.slice():undefined,
+warehouseProcessed:Array.isArray(b.warehouseProcessed)?b.warehouseProcessed.slice():undefined
 }));
 vault.save({...st,buildings:cleanBuildings}).catch(e=>console.warn('Encrypted storage unavailable',e));
 };
@@ -197,7 +200,8 @@ saleLabel.position.set(SALE.x,6.3,SALE.z);scene.add(saleLabel);
 
 const world=new Map(),resources=[],CH=32;
 const resourceLife=createResourceLifecycle(st);
-const trails=createTrails(T,st,world);
+const roads=createRoadNetwork(st);
+const trails=createTrails(T,st,world,{roadLevel:(x,z)=>roads.levelAt(x,z)});
 let R=Math.max(2,Math.min(8,Math.ceil(settings.viewDistance/CH)));const hash=(x,z,s=0)=>{let n=Math.sin(x*127.1+z*311.7+s*51.6+((st.seed||7331)-7331)*.7919)*43758.5453;return n-Math.floor(n)},blend=t=>t*t*(3-2*t);function noise(x,z,k,s){let a=Math.floor(x/k),b=Math.floor(z/k),u=blend(x/k-a),v=blend(z/k-b);return T.MathUtils.lerp(T.MathUtils.lerp(hash(a,b,s),hash(a+1,b,s),u),T.MathUtils.lerp(hash(a,b+1,s),hash(a+1,b+1,s),u),v)}
 function biome(x,z){
 if(st.worldVersion===1){
@@ -776,7 +780,7 @@ function beginPlacement(kind,type,cost){
   document.body.classList.add('touch-placement');
   panel=null;renderPanel();
   $('placementName').textContent=tr(kind==='worker'?worksites[type]:kind==='factory'?factories[type]:
-    kind==='transport'?'Dépôt de transport':'Comptoir vendeur',settings.language);
+    kind==='transport'?'Dépôt de transport':kind==='road'?'Atelier de voirie':'Comptoir vendeur',settings.language);
   $('placementHud').classList.remove('hidden');
   buildPlacementPreview();
   pop('Choisissez un emplacement puis appuyez sur F');
@@ -962,16 +966,16 @@ function updateAutoIndicator(){
     '</small>';
 }
 const facilityNames={
-  fr:{worker:worksites,factory:factories,transport:['Dépôt de transport'],seller:['Comptoir vendeur']},
+  fr:{worker:worksites,factory:factories,transport:['Dépôt de transport'],seller:['Comptoir vendeur'],road:['Atelier de voirie']},
   en:{worker:['Logging hut','Quarry','Mine','Earthworkers camp','Farm'],
     factory:['Sawmill','Stone workshop','Foundry','Glassworks','Mill'],
-    transport:['Freight depot'],seller:['Trade house']}
+    transport:['Freight depot'],seller:['Trade house'],road:['Roadworks depot']}
 };
 const employeeNames={
-  fr:{worker:['bûcheron','carrier','mineur','terrassier','agriculteur'],
+  fr:{worker:['bûcheron','carrier','mineur','terrassier','agriculteur'],road:['cantonnier'],
     factory:['scieur','tailleur de pierre','fondeur','verrier','meunier'],
     transport:['logisticien'],seller:['vendeur']},
-  en:{worker:['logger','quarry worker','miner','earthworker','farmer'],
+  en:{worker:['logger','quarry worker','miner','earthworker','farmer'],road:['road builder'],
     factory:['sawyer','stonemason','smelter','glassmaker','miller'],
     transport:['logistics operator'],seller:['salesperson']}
 };
@@ -1032,7 +1036,7 @@ out+=section('Équipement','CONSERVATION & MOBILITÉ',utility||'<p class="catalo
 
 }
 if(panel==='build'){
-out+=section('Logistique','TRANSPORT & COMMERCE',add('Dépôt de transport','Déplacements des ressources',buildingCost('transport')+' OR','transport:0')+add('Comptoir vendeur','Vente automatisée',buildingCost('seller')+' OR','seller:0'));for(let i=0;i<5;i++){
+out+=section('Logistique','TRANSPORT & COMMERCE',add('Dépôt de transport','Récolte → usine → entrepôt vendeur',buildingCost('transport')+' OR','transport:0')+add('Comptoir vendeur','Vend uniquement son propre stock',buildingCost('seller')+' OR','seller:0')+add('Atelier de voirie','Chantiers de chemins et routes, jusqu’à +50 % de vitesse',buildingCost('road')+' OR','road:0'));for(let i=0;i<5;i++){
 out+=section(types[i]+' · '+raw[i].toUpperCase(),'CHAÎNE DE PRODUCTION',add(worksites[i],'Collecte automatique · stockage',buildingCost('worker',i)+' OR','worker:'+i,false,i)+add(factories[i],raw[i]+' → '+processed[i],buildingCost('factory',i)+' OR','factory:'+i,false,i));
 }
 
@@ -1124,7 +1128,7 @@ function resetEntireGame(){
     buildings:[],stock:[],bicycle:false,staminaLevel:0,
     gameMinutes:0,x:0,z:9,
     seed:Math.floor(Math.random()*2000000000)+10000,worldVersion:2,
-    avatar:null,exhausted:{},explored:[],autoLevel:0,trails:{}
+    avatar:null,exhausted:{},explored:[],autoLevel:0,trails:{},roads:{}
   };
   vault.save(fresh).then(()=>location.reload()).catch(e=>{
     console.error('Cannot reset encrypted progress',e);pop('Save unavailable');
@@ -1213,7 +1217,7 @@ if(kind==='talent'){
   if(tier>=MAX_EXPERTISE)return;
   return buy(expertiseCost(i,tier),()=>st.talents[i]++);
 }
-if(['factory','worker','transport','seller'].includes(kind)){
+if(['factory','worker','transport','seller','road'].includes(kind)){
   const price=buildingCost(kind,i);
   return buy(price,()=>beginPlacement(kind,i,price));
 }
