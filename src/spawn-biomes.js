@@ -2,11 +2,13 @@
 // The zone in the forward (+Z) direction is random, and both neighboring
 // biomes can be reached by heading left or right from the first camp.
 export function startingBiomes(seed){
-  const base=(Math.abs((Number(seed)||7331)|0)%5);
-  const advance=1+Math.abs(Math.imul(base+3,(Number(seed)||7331)|0)%4);
-  const other=(base+advance)%5;
-  const final=(other+1+Math.abs(Math.imul(base+17,(Number(seed)||7331)|0)%3))%5;
-  return [base,other,final===base||final===other?(other+1+(other+1===base?1:0))%5:final];
+  const n=Math.abs(Number(seed)||7331);
+  const base=Math.floor(n)%5;
+  const candidates=[0,1,2,3,4].filter(v=>v!==base);
+  const second=candidates[Math.floor(n/7)%4];
+  const remaining=candidates.filter(v=>v!==second);
+  const third=remaining[Math.floor(n/31)%3];
+  return [base,second,third];
 }
 export function openingBiome(x,z,seed){
   const r=Math.hypot(x,z);
