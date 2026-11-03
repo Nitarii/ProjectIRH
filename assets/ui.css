@@ -659,3 +659,18 @@ body.touch-placement .touch-action-pad{grid-template-columns:repeat(3,minmax(0,1
  #hud #map{display:block!important;width:min(var(--minimap-size,168px),20dvh)!important;
  height:min(var(--minimap-size,168px),20dvh)!important}
 }
+
+/* Same visual vocabulary on both navigation maps. */
+.map-legend{display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
+.map-legend i{display:inline-block;width:8px;height:8px;border:1px solid #142c2d;border-radius:50%}
+.map-building-dot{background:#ffe0a1}
+.map-worker-dot{background:#80f2f3;margin-left:7px}
+@media(max-width:680px){
+ .map-legend{font-size:9px;gap:4px}
+ .map-legend i{width:7px;height:7px}
+ .world-map-footer{row-gap:8px}
+}
+@media(orientation:landscape) and (max-height:520px){
+ .map-legend{font-size:8px}
+ .world-map-footer{flex-wrap:wrap}
+}
