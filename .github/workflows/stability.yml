@@ -22,6 +22,10 @@ jobs:
       - run: node tools/sound.test.mjs
       - run: node tools/music.test.mjs
       - run: node tools/resource-life.test.mjs
+      - run: node tools/spawn-biomes.test.mjs
+      - run: node tools/stock-interaction.test.mjs
+      - run: node tools/avatar-style.test.mjs
+      - run: node tools/save-vault.test.mjs
       - run: node tools/controls.test.mjs
       - run: node tools/auto-pilot.test.mjs
       - run: node tools/trails.test.mjs
