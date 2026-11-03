@@ -345,7 +345,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     const remaining=distance(a,endpoint);
     if(remaining<.39){a.route=null;a.wait=0;a.blockedAge=0;return true}
     if(a.abstract){
-      const step=Math.min(remaining,dt*speed);
+      const step=Math.min(remaining,dt*speed*(hooks.roads?.speedAt(a.x,a.z)||1));
       a.x+=(endpoint.x-a.x)/remaining*step;
       a.z+=(endpoint.z-a.z)/remaining*step;
       return remaining<=step+.38;
@@ -377,7 +377,8 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
           if((x-other.x)**2+(z-other.z)**2<.77*.77)return true;
         return false;
       };
-      const router=createRouter(blockedForPlan,{cell:1.15,maxVisits:1420});
+      const router=createRouter(blockedForPlan,{cell:1.15,maxVisits:1420,
+        speedAt:hooks.roads?.built?(x,z)=>hooks.roads.speedAt(x,z):null});
       const path=router.route(a,goal,{allowNearby:true,arrivalRadius:.80});
       navReplans++;a.routeEpoch++;
       if(!path){
@@ -411,14 +412,15 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       wp=a.route[++a.waypoint];
     const dx=wp.x-a.x,dz=wp.z-a.z,len=Math.hypot(dx,dz);
     if(len<.001){a.waypoint++;return false}
-    const step=Math.min(len,dt*speed),nx=a.x+dx/len*step,nz=a.z+dz/len*step;
+    const roadBonus=hooks.roads?.speedAt(a.x,a.z)||1;
+    const step=Math.min(len,dt*speed*roadBonus),nx=a.x+dx/len*step,nz=a.z+dz/len*step;
     const wall=staticBlocked(nx,nz,.36),person=!wall&&humanBlocked(nx,nz,a);
     if(wall||person){
       a.blockedAge+=dt;
       if(a.blockedAge>.75){
         a.route=null;a.routeCooldown=Math.max(.15,Math.min(.65,a.blockedAge*.10));
       }
-      if(!moveAside(a,goal,dt,speed))a.wait+=dt;
+      if(!moveAside(a,goal,dt,speed*roadBonus))a.wait+=dt;
       return false;
     }
     a.blockedAge=Math.max(0,a.blockedAge-dt*2.8);
@@ -748,13 +750,13 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     if(!inView(a.x,a.z,145)){removeView(a);return false}
     if(!a.view)a.view=createView(a);
     const v=a.view,g=v.group;
-    const walking=a.state.startsWith('to')||a.state.startsWith('factoryTo')||a.state==='factoryPickup'||a.state==='returnHome';
+    const walking=a.state.startsWith('to')||a.state.startsWith('factoryTo')||a.state==='factoryPickup'||a.state==='returnHome'||a.state==='roadToSite';
     g.position.set(a.x,Math.sin(a.walkPhase*2)*.022*(walking?1:0),a.z);
     const diff=Math.atan2(Math.sin(a.angle-g.rotation.y),Math.cos(a.angle-g.rotation.y));
     g.rotation.y+=diff*Math.min(1,dt*12);
     const stride=walking?Math.sin(a.walkPhase)*.56:0;
     v.leftLeg.rotation.x=stride;v.rightLeg.rotation.x=-stride;
-    const work=a.state==='factoryWork',gather=a.state==='gather';
+    const work=a.state==='factoryWork'||a.state==='roadWork',gather=a.state==='gather';
     const transfer=['factoryCollect','factoryOutput','pickupStock','dropTransport','dropHarvest'].includes(a.state);
     const beat=Math.sin(time*(work?4.5:gather?5.5:3.0)+a.slot*.6);
     v.leftArm.rotation.y=0;v.rightArm.rotation.y=0;
@@ -781,7 +783,8 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       if(a.workMotion==='sift')v.leftArm.rotation.y=beat*.38;
       if(a.workMotion==='crank')v.rightArm.rotation.y=Math.sin(time*5)*.86;
       // Workstations are behind their operator in each facility's local -Z.
-      a.angle=normalizeRotation(a.home.rotation)+Math.PI;
+      if(a.state==='roadWork')a.angle=Math.atan2((a.roadTask?.x||a.x)-a.x,(a.roadTask?.z||a.z)-a.z);
+      else a.angle=normalizeRotation(a.home.rotation)+Math.PI;
     }else if(gather){
       const type=a.home.type;
       if(a.target){
@@ -823,7 +826,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       forward.x=cameraDirection.x/length;forward.z=cameraDirection.z/length;
       cullOrigin.x=camera.position.x;cullOrigin.z=camera.position.z;
     }else camera=null;
-    if(planningClock>=.33){reconcile();planningClock=0}
+    if(planningClock>=.33){reconcile();hooks.roads?.rebuild(buildings,sale);planningClock=0}
     refreshAgentIndex();
 
     let shown=0,transporting=0,carrying=0;abstractCount=0;
