@@ -1,6 +1,26 @@
 import {chromium} from 'playwright-core';
 import {spawn} from 'node:child_process';
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+async function startGame(page){
+  await page.locator('#play').click({timeout:15000});
+  if(await page.locator('#creator').isVisible()){
+    await page.locator('#creatorPreview canvas').waitFor({timeout:20000});
+    await page.locator('[data-avatar="hairStyle"]').selectOption('4');
+    await page.locator('[data-avatar="topStyle"]').selectOption('2');
+    await page.locator('[data-avatar="bottomStyle"]').selectOption('1');
+    await page.locator('[data-avatar="glasses"]').check();
+    await page.locator('[data-avatar="hairColor"]').fill('#a17436');
+    await page.locator('#creatorFinish').click({timeout:20000});
+  }
+  await page.waitForFunction(()=>!document.querySelector('#hud').classList.contains('hidden'),null,{timeout:20000});
+}
+async function decryptedSave(page){
+  return page.evaluate(async()=>{
+    const {openSaveVault}=await import('./src/save-vault.js');
+    return (await openSaveVault()).state||{};
+  });
+}
+
 const server=spawn('python3',['-m','http.server','8765','--bind','127.0.0.1'],{stdio:'ignore'});
 let browser;
 const errors=[];
@@ -17,7 +37,7 @@ try{
   page.on('requestfailed',r=>errors.push('NETWORK '+r.url()+' '+r.failure()?.errorText));
   await page.goto('http://127.0.0.1:8765/',{waitUntil:'domcontentloaded',timeout:30000});
   await page.waitForSelector('#play',{timeout:30000});
-  await page.locator('#play').click({timeout:10000});
+  await startGame(page);
   const progress=[];
   for(let i=0;i<6;i++){
     if(i%2===1)await page.keyboard.down('w');
@@ -60,16 +80,17 @@ try{
     }));
   });
   await salePage.goto('http://127.0.0.1:8765/',{waitUntil:'domcontentloaded',timeout:30000});
-  await salePage.locator('#play').click({timeout:15000});
+  await startGame(salePage);
   await salePage.waitForFunction(()=>document.querySelector('#coins')?.textContent==='240',null,{timeout:35000});
   const gainText=await salePage.locator('#goldGain').textContent();
   if(gainText?.trim()!=='+140')throw new Error('Currency gain indicator missing: '+gainText);
   const saleState=await salePage.evaluate(()=>({
     gold:document.querySelector('#coins')?.textContent,
     capacity:document.querySelector('#inventoryCapacity')?.textContent,
-    saved:JSON.parse(localStorage.getItem('irh-state')||'{}'),
+    saved:null,
     topBagCount:document.querySelectorAll('#bag').length
   }));
+  saleState.saved=await decryptedSave(salePage);
   if(saleState.gold!=='240'||saleState.capacity?.trim()!=='0 / 8'||
      saleState.topBagCount!==0||saleState.saved.stock?.length!==0)
     throw new Error('Automatic sale failed: '+JSON.stringify(saleState));
@@ -81,7 +102,7 @@ try{
     localStorage.setItem('irh-state',JSON.stringify({x:0,z:5,gold:100}));
   });
   await marketPage.goto('http://127.0.0.1:8765/',{waitUntil:'domcontentloaded',timeout:30000});
-  await marketPage.locator('#play').click({timeout:15000});
+  await startGame(marketPage);
   await marketPage.waitForFunction(()=>window.__irhMonitor?.frames>8,null,{timeout:30000});
   const contextHint=await marketPage.evaluate(()=>({
     label:document.querySelector('#prompt')?.textContent,
@@ -112,7 +133,7 @@ try{
     }));
   });
   await workforce.goto('http://127.0.0.1:8765/',{waitUntil:'domcontentloaded',timeout:30000});
-  await workforce.locator('#play').click({timeout:15000});
+  await startGame(workforce);
   await workforce.waitForFunction(()=>window.__irhMonitor?.employees>=4&&window.__irhMonitor?.frames>18,null,{timeout:25000});
   const workerStats=await workforce.evaluate(()=>({...window.__irhMonitor}));
   if(workerStats.lastError||workerStats.contextLost||workerStats.employees<4||
@@ -130,10 +151,10 @@ try{
     }));
   });
   await tradePage.goto('http://127.0.0.1:8765/',{waitUntil:'domcontentloaded',timeout:30000});
-  await tradePage.locator('#play').click({timeout:15000});
+  await startGame(tradePage);
   await tradePage.waitForFunction(()=>window.__irhMonitor?.frames>14,null,{timeout:30000});
   const beforeVendor=await tradePage.evaluate(()=>({
-    gold:JSON.parse(localStorage.getItem('irh-state')).gold,
+    gold:Number(document.querySelector('#coins').textContent),
     count:window.__irhMonitor.inventoryCount,
     clock:document.querySelector('#clock').textContent
   }));
@@ -169,7 +190,7 @@ try{
   await tradePage.keyboard.press('Tab');
   await tradePage.waitForFunction(()=>!!document.querySelector('button[data-system="unstuck"]'),null,{timeout:15000});
   await tradePage.locator('button[data-system="unstuck"]').click();
-  const recovered=await tradePage.evaluate(()=>JSON.parse(localStorage.getItem('irh-state')||'{}'));
+  const recovered=await decryptedSave(tradePage);
   if(recovered.x!==0||recovered.z!==9||recovered.inv?.some(Boolean)||
      recovered.products?.some(Boolean)||recovered.buildings?.length!==1)
     throw new Error('Unstuck failed to move safely and forfeit carried goods: '+JSON.stringify(recovered));
@@ -186,7 +207,7 @@ try{
     }
   });
   await optionsPage.goto('http://127.0.0.1:8765/',{waitUntil:'domcontentloaded',timeout:30000});
-  await optionsPage.locator('#play').click({timeout:15000});
+  await startGame(optionsPage);
   await optionsPage.waitForFunction(()=>window.__irhMonitor?.frames>10,null,{timeout:30000});
   const initialLanguage=await optionsPage.evaluate(()=>document.documentElement.lang);
   if(initialLanguage!=='en')throw new Error('English locale should be default for non-French visitors');
@@ -258,8 +279,8 @@ try{
   await optionsPage.waitForFunction(()=>!!document.querySelector('#welcome')&&
     !document.querySelector('#welcome').classList.contains('hidden'),
     null,{timeout:30000});
-  const freshState=await optionsPage.evaluate(()=>JSON.parse(localStorage.getItem('irh-state')||'{}'));
-  if(freshState.gold!==100||freshState.buildings?.length!==0||freshState.seed===7331||
+  const freshState=await decryptedSave(optionsPage);
+  if(freshState.gold!==100||freshState.buildings?.length!==0||freshState.avatar!==null||
       freshState.tools?.some(n=>n!==-1)||Object.keys(freshState.trails||{}).length)
     throw new Error('Reset did not produce a fresh procedural world: '+JSON.stringify(freshState));
   console.log(JSON.stringify({options:optionsState,remappedBuild:true,resetSeed:freshState.seed,jump:true,signs:true},null,2));
