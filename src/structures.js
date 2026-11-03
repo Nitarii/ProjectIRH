@@ -180,7 +180,7 @@ export function makeStructure(T, scene, building) {
   group.position.set(building.x,0,building.z);
   scene.add(group);
   return {
-    group,setLanguage,colliders:facility.colliders,workstations:facility.workstations,
+    group,setLanguage,get labelText(){return currentLabel},colliders:facility.colliders,workstations:facility.workstations,
     stockPoints:facility.stockPoints,
     update(time,active){
       facility.updateStock();
