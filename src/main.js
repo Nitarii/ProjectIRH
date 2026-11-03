@@ -3,7 +3,7 @@ import {createSound} from './sound.js?v=20261103r2';
 import {createAtmosphere} from './atmosphere.js?v=20261103r';
 import {createIndustry} from './industry.js?v=20261103r2';
 import {inventoryIcon} from './item-icons.js?v=20261103k';
-import {createResourceGraphics} from './resource-visuals.js?v=20261103n';
+import {createResourceGraphics} from './resource-visuals.js?v=20261103ab';
 import {createFieldBuilder} from './wheat-fields.js?v=20261103k';
 import {makeStructure} from './structures.js?v=20261103r2';
 import {EQUIPMENT,EQUIPMENT_FR,TOOL_SPEED,TOOL_YIELD,ECONOMY,toolCost,buildingCost,workerCarryCost} from './balance.js';
@@ -261,7 +261,10 @@ scene.remove(c.root);
 c.root.traverse(o=>{if(o.isInstancedMesh)o.dispose();else if(o===c.root.children[0]&&o.geometry)o.geometry.dispose()});
 for(const n of c.nodes){
 scene.remove(n.mesh);
-n.mesh.traverse(o=>{if(o.isMesh)o.geometry?.dispose()});
+n.mesh.traverse(o=>{
+  if(o.isInstancedMesh)o.dispose?.();
+  if(o.isMesh&&!o.geometry?.userData?.sharedWorldGeometry)o.geometry?.dispose();
+});
 const index=resources.indexOf(n);if(index>=0)resources.splice(index,1);
 }
 world.delete(key)
@@ -269,11 +272,22 @@ world.delete(key)
 }
 }
 }
+const resourceFrustum=new T.Frustum(),resourceProjection=new T.Matrix4(),
+  resourceBoundingSphere=new T.Sphere(new T.Vector3(),5.6);
 function updateResourceVisibility(){
-const px=player.position.x,pz=player.position.z;
-const range=settings.viewDistance;
-const maximum=range*range;
-for(const o of resources)o.mesh.visible=!o.dead&&(o.x-px)**2+(o.z-pz)**2<maximum;
+  const px=player.position.x,pz=player.position.z;
+  const range=settings.viewDistance+5.5,maximum=range*range;
+  cam.updateMatrixWorld();
+  resourceProjection.multiplyMatrices(cam.projectionMatrix,cam.matrixWorldInverse);
+  resourceFrustum.setFromProjectionMatrix(resourceProjection);
+  for(const o of resources){
+    if(o.dead){o.mesh.visible=false;continue}
+    const dx=o.x-px,dz=o.z-pz;
+    if(dx*dx+dz*dz>maximum){o.mesh.visible=false;continue}
+    if(dx*dx+dz*dz<14*14){o.mesh.visible=true;continue}
+    resourceBoundingSphere.center.set(o.x,2.1,o.z);
+    o.mesh.visible=resourceFrustum.intersectsSphere(resourceBoundingSphere);
+  }
 }
 const count=()=>st.inv.reduce((a,b)=>a+b,0)+st.products.reduce((a,b)=>a+b,0);
 let heading=0,pitch=.38,dist=10,active=0,keys={},current=null,placing=null,carried=null,elapsed=0,workerClock=0;
@@ -315,6 +329,13 @@ if(!blocked(player.position.x,z+dz))player.position.z=z+dz;
 }
 const stopHarvest=()=>{harvesting=null;harvestProgress=0};
 const harvestInterval=type=>([1.00,1.10,1.08,.94,.86][type])*TOOL_SPEED[Math.max(0,Math.min(5,st.tools[type]+1))];
+const TOOL_STROKES=[
+  [[.55,1.15,.16],[.7,1.34,.19],[.92,1.58,.23],[.27,.6,.11],[.12,.3,.08]],
+  [[.67,.9,.13],[.82,1.1,.16],[.94,1.3,.20],[.21,.4,.08],[.11,.24,.07]],
+  [[.6,.83,.12],[.76,1.05,.16],[.32,.44,.11],[.16,.24,.08],[.09,.12,.05]],
+  [[.52,.7,.15],[.72,.95,.18],[.78,1.08,.20],[.25,.44,.10],[.12,.21,.06]],
+  [[.64,.80,.18],[.86,.95,.2],[.99,1.12,.22],[.30,.51,.12],[.16,.25,.08]]
+];
 function animatePlayer(dt,moving){
 stepPhase+=dt*(moving?12:2.1);
 const stride=moving?Math.sin(stepPhase)*.63:0;
@@ -327,13 +348,7 @@ const type=harvesting.type,tier=st.tools[type],interval=harvestInterval(type);
 const phase=Math.min(1,harvestProgress/Math.max(.15,interval));
 const lift=Math.sin(phase*Math.PI)**2,impact=Math.sin(phase*Math.PI*2);
 const heavy=tier>=3,mechanical=tier>=2&&(type===2||type===3||type===4);
-const toolPattern=[
-  [[.55,1.15,.16],[.7,1.34,.19],[.92,1.58,.23],[.27,.6,.11],[.12,.3,.08]],
-  [[.67,.9,.13],[.82,1.1,.16],[.94,1.3,.20],[.21,.4,.08],[.11,.24,.07]],
-  [[.6,.83,.12],[.76,1.05,.16],[.32,.44,.11],[.16,.24,.08],[.09,.12,.05]],
-  [[.52,.7,.15],[.72,.95,.18],[.78,1.08,.20],[.25,.44,.10],[.12,.21,.06]],
-  [[.64,.80,.18],[.86,.95,.2],[.99,1.12,.22],[.30,.51,.12],[.16,.25,.08]]
-][type][Math.max(0,Math.min(4,tier))];
+const toolPattern=TOOL_STROKES[type][Math.max(0,Math.min(4,tier))];
 const effort=toolPattern[0],reach=toolPattern[1],shake=toolPattern[2];
 const stroke=Math.sin(phase*Math.PI*2)*shake;
 const swing=lift*effort;
@@ -923,6 +938,7 @@ console.warn('Reduced graphics load for stable rendering');
 }
 }
 applyLocale();
+const cameraTarget=new T.Vector3(),cameraOffset=new T.Vector3();
 function frame(){
 requestAnimationFrame(frame);
 const dt=Math.min(clock.getDelta(),.05);elapsed+=dt;st.gameMinutes=(Number(st.gameMinutes)||0)+dt;
@@ -986,10 +1002,10 @@ try{atmosphere.update(dt,elapsed,resources)}
 catch(err){atmosphereActive=false;console.warn('Environment effects stopped',err)}
 }
 if(carried){carried.position.set(player.position.x,2.2,player.position.z);carried.rotation.z=Math.PI/2}
-const target=new T.Vector3(player.position.x,1.5+player.position.y,player.position.z);
-const offset=new T.Vector3(Math.sin(heading)*Math.cos(pitch),Math.sin(pitch),Math.cos(heading)*Math.cos(pitch));
-cam.position.copy(target.clone().addScaledVector(offset,dist));
-cam.lookAt(target);
+cameraTarget.set(player.position.x,1.5+player.position.y,player.position.z);
+cameraOffset.set(Math.sin(heading)*Math.cos(pitch),Math.sin(pitch),Math.cos(heading)*Math.cos(pitch));
+cam.position.copy(cameraTarget).addScaledVector(cameraOffset,dist);
+cam.lookAt(cameraTarget);
 positionInteractionTooltip();
 sun.position.set(player.position.x+70,95,player.position.z+40);
 sun.target.position.set(player.position.x,0,player.position.z);sun.target.updateMatrixWorld();
