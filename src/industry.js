@@ -118,48 +118,76 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     return {x:target.x+dx/len*approach,z:target.z+dz/len*approach};
   }
 
-  function blockers(x,z,agent,goal){
-    const radius=.33;
+  function staticBlocked(x,z,radius=.35,target=null){
     for(const b of buildings){
-      const dx=Math.abs(x-b.x),dz=Math.abs(z-b.z);
-      if(dx<2.04+radius&&dz<1.95+radius)return true;
+      if(Math.abs(x-b.x)>14||Math.abs(z-b.z)>14)continue;
+      const view=models.get(b.id);
+      if(view?.colliders?.length){
+        for(const c of view.colliders)
+          if(Math.abs(x-c.x)<c.w/2+radius&&Math.abs(z-c.z)<c.d/2+radius)return true;
+      }else if(Math.abs(x-b.x)<2.45+radius&&Math.abs(z-b.z)<2.3+radius)return true;
     }
     for(const r of resources){
-      if(r.dead||r===agent.target)continue;
-      const rad=[.7,1.05,1,.78,.5][r.type]+radius;
-      if((x-r.x)**2+(z-r.z)**2<rad*rad)return true;
+      if(r.dead||r===target)continue;
+      const d=[.75,1.05,1,.8,.48][r.type]+radius;
+      if(Math.abs(r.x-x)<d&&Math.abs(r.z-z)<d&&(r.x-x)**2+(r.z-z)**2<d*d)return true;
+    }
+    return false;
+  }
+  function humanBlocked(x,z,self){
+    for(const other of agents){
+      if(other===self)continue;
+      const dx=x-other.x,dz=z-other.z;
+      if(Math.abs(dx)<.6&&Math.abs(dz)<.6&&dx*dx+dz*dz<.36)return true;
+    }
+    return false;
+  }
+  function moveAside(a,goal,dt,speed){
+    const dx=goal.x-a.x,dz=goal.z-a.z,len=Math.max(.01,Math.hypot(dx,dz));
+    const fx=dx/len,fz=dz/len,step=Math.min(.32,dt*speed);
+    for(const [sx,sz] of [[-fz,fx],[fz,-fx],[-fx,-fz],
+      [fx*.5-fz*.866,fz*.5+fx*.866],[fx*.5+fz*.866,fz*.5-fx*.866]]){
+      const x=a.x+sx*step,z=a.z+sz*step;
+      if(!staticBlocked(x,z,.35,a.target)&&!humanBlocked(x,z,a)){
+        a.x=x;a.z=z;a.angle=Math.atan2(sx,sz);a.walkPhase+=dt*9;
+        a.wait=0;separations++;return true;
+      }
     }
     return false;
   }
   function walk(a,goal,dt,speed=2.65){
     if(!goal)return false;
+    const remaining=distance(a,goal);
+    if(remaining<.37){a.route=null;a.wait=0;return true}
+    if(a.abstract){
+      const step=Math.min(remaining,dt*speed);
+      a.x+=(goal.x-a.x)/remaining*step;
+      a.z+=(goal.z-a.z)/remaining*step;
+      return remaining<=step+.35;
+    }
     a.routeCooldown=Math.max(0,(a.routeCooldown||0)-dt);
-    const distanceToGoal=distance(a,goal);
-    if(distanceToGoal<.37){a.route=null;a.wait=0;return true}
-    const key=goal.x.toFixed(1)+':'+goal.z.toFixed(1);
+    const key=goal.x.toFixed(2)+':'+goal.z.toFixed(2);
     if(!a.route||a.goalKey!==key||a.waypoint>=a.route.length){
-      if(a.routeCooldown>0)return false;
-      const router=createRouter((x,z)=>blockers(x,z,a,goal),{cell:1.2,maxVisits:1600});
-      a.route=router.route(a,goal);
-      a.waypoint=0;a.goalKey=key;a.routeCooldown=1.1;
+      if(a.routeCooldown>0){a.wait+=dt;return false}
+      const router=createRouter((x,z)=>staticBlocked(x,z,.35,a.target),{cell:1.2,maxVisits:1550});
+      a.route=router.route(a,goal);a.waypoint=0;a.goalKey=key;
+      a.routeCooldown=.75;navReplans++;
       if(!a.route){a.wait+=dt;return false}
     }
-    let waypoint=a.route[a.waypoint];
-    if(!waypoint){a.route=null;return false}
-    if(distance(a,waypoint)<.30&&a.waypoint<a.route.length-1){
-      a.waypoint++;waypoint=a.route[a.waypoint];
-    }
-    const dx=waypoint.x-a.x,dz=waypoint.z-a.z,len=Math.hypot(dx,dz);
+    let wp=a.route[a.waypoint];
+    if(Math.hypot(a.x-wp.x,a.z-wp.z)<.33&&a.waypoint<a.route.length-1)
+      wp=a.route[++a.waypoint];
+    const dx=wp.x-a.x,dz=wp.z-a.z,len=Math.hypot(dx,dz);
     if(len<.001){a.waypoint++;return false}
     const step=Math.min(len,dt*speed);
     const nx=a.x+dx/len*step,nz=a.z+dz/len*step;
-    if(blockers(nx,nz,a,goal)){
-      a.route=null;a.routeCooldown=.4;a.wait+=dt;
+    if(staticBlocked(nx,nz,.35,a.target)||humanBlocked(nx,nz,a)){
+      if(!moveAside(a,goal,dt,speed))a.wait+=dt;
+      if(a.wait>.95){a.route=null;a.routeCooldown=.15}
       return false;
     }
-    a.wait=0;a.x=nx;a.z=nz;
-    a.angle=Math.atan2(dx,dz);a.walkPhase+=dt*11;
-    return distance(a,goal)<.38;
+    a.wait=0;a.x=nx;a.z=nz;a.angle=Math.atan2(dx,dz);a.walkPhase+=dt*10;
+    return distance(a,goal)<.37;
   }
   function reserveResource(a){
     const b=a.home;
