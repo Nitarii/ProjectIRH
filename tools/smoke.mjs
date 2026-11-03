@@ -155,7 +155,7 @@ try{
   tradePage.on('pageerror',e=>errors.push('TRADE SCRIPT '+e.message));
   await tradePage.addInitScript(()=>{
     localStorage.setItem('irh-state',JSON.stringify({
-      x:26,z:15,gold:20000,inv:[3,0,0,0,0],products:[0,1,0,0,0],bag:8,
+      x:26,z:15,gold:50000,inv:[3,0,0,0,0],products:[0,1,0,0,0],bag:8,
       gameMinutes:102,buildings:[{id:'b70',kind:'seller',type:0,x:27,z:17,workers:0}]
     }));
   });
@@ -206,6 +206,54 @@ try{
   if(recovered.x!==0||recovered.z!==9||recovered.inv?.some(Boolean)||
      recovered.products?.some(Boolean)||recovered.buildings?.length!==1)
     throw new Error('Unstuck failed to move safely and forfeit carried goods: '+JSON.stringify(recovered));
+  await tradePage.keyboard.press('c');
+  await tradePage.waitForFunction(()=>document.querySelector('#panelTitle')?.textContent==='MARKET',null,{timeout:16000});
+  await tradePage.locator('button[data-action="bag"]').click({timeout:16000});
+  await tradePage.locator('button[data-action="bag24"]').click({timeout:16000});
+  await tradePage.locator('button[data-action="bicycle"]').click({timeout:16000});
+  if(await tradePage.locator('#inventoryGrid .inventory-slot').count()!==24)
+    throw new Error('24-slot backpack UI did not render all slots');
+  await tradePage.keyboard.press('Tab');
+  await tradePage.keyboard.press('v');
+  await tradePage.waitForFunction(()=>window.__irhMonitor?.bikeRiding===true,null,{timeout:16000});
+  await tradePage.keyboard.down('w');await sleep(2100);await tradePage.keyboard.up('w');
+  const bikeMetric=await tradePage.evaluate(()=>({...window.__irhMonitor}));
+  if(!bikeMetric.bikeRiding||bikeMetric.bagCapacity!==24)
+    throw new Error('Purchased bicycle or enlarged backpack did not activate');
+  await tradePage.keyboard.press('v');
+  await tradePage.waitForFunction(()=>window.__irhMonitor?.bikeRiding===false,null,{timeout:16000});
+  await tradePage.keyboard.press('r');
+  await tradePage.waitForFunction(()=>window.__irhMonitor?.autoMode===true,null,{timeout:16000});
+  const layouts=[];
+  for(const viewport of [{width:320,height:400},{width:375,height:667},
+     {width:640,height:480},{width:900,height:600},{width:1280,height:800}]){
+    await tradePage.setViewportSize(viewport);
+    await sleep(130);
+    const result=await tradePage.evaluate(()=>{
+      const rect=id=>{
+        const element=document.querySelector(id);
+        if(!element||getComputedStyle(element).display==='none')return null;
+        const r=element.getBoundingClientRect();
+        return {x:r.x,y:r.y,right:r.right,bottom:r.bottom,w:r.width,h:r.height};
+      };
+      const rects={inventory:rect('#miniInventory'),auto:rect('#autoState'),
+        stamina:rect('#staminaHud'),target:rect('#target'),
+        brand:rect('.brand'),gold:rect('.gold'),mission:rect('.mission'),
+        map:rect('.rightcol')};
+      const intersect=(a,b)=>a&&b&&a.x<b.right-2&&a.right>b.x+2&&a.y<b.bottom-2&&a.bottom>b.y+2;
+      const conflicts=[];
+      for(const [a,b] of [['inventory','auto'],['inventory','stamina'],
+        ['inventory','target'],['brand','gold'],['mission','map']])
+        if(intersect(rects[a],rects[b]))conflicts.push(a+' / '+b);
+      const outside=Object.entries(rects).filter(([key,r])=>r&&(r.x<-3||r.right>innerWidth+3||r.y<-3||r.bottom>innerHeight+3)).map(([key])=>key);
+      return {conflicts,outside,rects};
+    });
+    if(result.conflicts.length||result.outside.length)
+      throw new Error('HUD overlaps at '+JSON.stringify(viewport)+': '+JSON.stringify(result));
+    layouts.push({viewport,ok:true});
+  }
+  console.log(JSON.stringify({backpack:24,bicycle:bikeMetric.bikeRiding,
+    testedLayouts:layouts},null,2));
   console.log(JSON.stringify({trade:afterVendor,clock:beforeVendor.clock,zoomUnchanged:zoomBefore,placement,recovered:true},null,2));
   await tradeContext.close();
 
@@ -232,11 +280,19 @@ try{
     throw new Error('Old HUD shortcuts or sound toggle remain: '+JSON.stringify(initialState));
   if(initialState.labels?.[0]?.label!=='LOGGING HUT')
     throw new Error('English building signage missing: '+JSON.stringify(initialState));
-  await optionsPage.keyboard.press('a');
+  await optionsPage.keyboard.press('r');
   await optionsPage.waitForFunction(()=>window.__irhMonitor?.autoMode===true,null,{timeout:16000});
   const autoLabel=await optionsPage.locator('#autoState').textContent();
-  if(autoLabel!=='AUTO MODE')throw new Error('Auto-mode label missing: '+autoLabel);
-  await optionsPage.keyboard.press('a');
+  if(!autoLabel.startsWith('AUTO MODE')||!autoLabel.includes('20%'))throw new Error('Auto-mode label or slowdown missing: '+autoLabel);
+  await optionsPage.keyboard.press('c');
+  await optionsPage.waitForFunction(()=>document.querySelector('#panelTitle')?.textContent==='MARKET',null,{timeout:16000});
+  const autoBefore=await optionsPage.evaluate(()=>window.__irhMonitor?.gameMinutes);
+  await sleep(1300);
+  const autoDuring=await optionsPage.evaluate(()=>({gameMinutes:window.__irhMonitor?.gameMinutes,auto:window.__irhMonitor?.autoMode}));
+  if(!autoDuring.auto||autoDuring.gameMinutes<=autoBefore)
+    throw new Error('Automatic mode must continue behind ordinary menus: '+JSON.stringify(autoDuring));
+  await optionsPage.keyboard.press('Tab');
+  await optionsPage.keyboard.press('r');
   await optionsPage.waitForFunction(()=>window.__irhMonitor?.autoMode===false,null,{timeout:16000});
   await optionsPage.keyboard.press('c');
   await optionsPage.waitForFunction(()=>document.querySelector('#panelTitle')?.textContent==='MARKET',null,{timeout:16000});
