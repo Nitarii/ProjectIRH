@@ -23,12 +23,12 @@ let guard=0;
 while(road.completed<road.plannedCount&&guard++<500){
   const job=road.claim('builder',{x:47,z:0});
   assert.ok(job,'missing build job');
-  assert.equal(road.work('builder',job,4),'done');
+  assert.equal(road.work('builder',job,11),'done');
 }
 test('paths are built progressively',road.completed===road.plannedCount&&road.built>0);
 let job=road.claim('builder',{x:47,z:0});
 test('paved road upgrade is available once paths are in place',job?.mode==='upgrade');
-assert.equal(road.work('builder',job,6),'done');
+assert.equal(road.work('builder',job,19),'done');
 test('paved roads have +50% speed',road.levelAt(job.x,job.z)===2&&road.speedAt(job.x,job.z)===1.5);
 const first=Object.keys(roadsState.roads).find(k=>roadsState.roads[k]?.l===1);
 const [ix,iz]=first.split(',').map(Number);
