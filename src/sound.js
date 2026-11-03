@@ -1,5 +1,5 @@
 export function createSound(){
-  let ctx=null, master=null, ambient=null, wind=null, windGain=null, nextMusic=0, nextBird=0, nextWind=0, notes=0, enabled=true,volume=.65;
+  let ctx=null, master=null, ambient=null, wind=null, windGain=null, nextMusic=0, nextBird=0, nextWind=0, notes=0, enabled=true,volume=.5;
   const AC=window.AudioContext||window.webkitAudioContext;
   const gain=(v)=>{const g=ctx.createGain();g.gain.value=v;g.connect(master);return g};
   function note(freq,start,len,volume=.06,wave='sine',out=master){
@@ -24,7 +24,7 @@ export function createSound(){
     if(ctx){if(ctx.state==='suspended')ctx.resume();return}
     try{
       ctx=new AC();
-      master=ctx.createGain();master.gain.value=enabled?volume*.5:0;master.connect(ctx.destination);
+      master=ctx.createGain();master.gain.value=enabled?volume*.975:0;master.connect(ctx.destination);
       ambient=ctx.createGain();ambient.gain.value=.1;ambient.connect(master);
       wind=ctx.createBufferSource();
       const len=ctx.sampleRate*3,buf=ctx.createBuffer(1,len,ctx.sampleRate),d=buf.getChannelData(0);
@@ -75,11 +75,11 @@ export function createSound(){
   }
   function toggle(){
     enabled=!enabled;
-    if(ctx){master.gain.setTargetAtTime(enabled?volume*.5:0,ctx.currentTime,.1);if(enabled&&ctx.state==='suspended')ctx.resume()}
+    if(ctx){master.gain.setTargetAtTime(enabled?volume*.975:0,ctx.currentTime,.1);if(enabled&&ctx.state==='suspended')ctx.resume()}
     else if(enabled)boot();
     return enabled;
   }
-  function setVolume(value){volume=Math.max(0,Math.min(1,Number(value)||0));if(ctx)master.gain.setTargetAtTime(enabled?volume*.5:0,ctx.currentTime,.08)}
+  function setVolume(value){volume=Math.max(0,Math.min(1,Number(value)||0));if(ctx)master.gain.setTargetAtTime(enabled?volume*.975:0,ctx.currentTime,.08)}
   function setEnabled(value){if(enabled!==!!value)toggle();return enabled}
   return {boot,effect,update,toggle,setVolume,setEnabled,get enabled(){return enabled},get volume(){return volume}};
 }
