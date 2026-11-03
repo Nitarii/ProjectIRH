@@ -62,14 +62,19 @@ sellPad.add(cube(SALE.w,.12,.14,trim,0,.10,edge*SALE.d/2));
 sellPad.add(cube(.14,.12,SALE.d,trim,edge*SALE.w/2,.10,0));
 }
 sellPad.position.set(SALE.x,0,SALE.z);scene.add(sellPad);
-const signCanvas=document.createElement('canvas');signCanvas.width=640;signCanvas.height=196;
+
+const signCanvas=document.createElement('canvas');
+signCanvas.width=640;signCanvas.height=180;
 const signCtx=signCanvas.getContext('2d');
-signCtx.fillStyle='rgba(13,40,32,.88)';signCtx.beginPath();signCtx.roundRect(8,8,624,178,30);signCtx.fill();
-signCtx.strokeStyle='#f0cb83';signCtx.lineWidth=6;signCtx.stroke();
-signCtx.fillStyle='#f7e8c8';signCtx.font='800 100px system-ui';signCtx.textAlign='center';signCtx.textBaseline='middle';
-signCtx.fillText('VENDRE',320,97);
-const saleLabel=new T.Sprite(new T.SpriteMaterial({map:new T.CanvasTexture(signCanvas),transparent:true,depthWrite:false}));
-saleLabel.scale.set(6.3,1.93,1);saleLabel.position.set(SALE.x,3,SALE.z);scene.add(saleLabel);
+signCtx.clearRect(0,0,640,180);
+signCtx.font='900 106px system-ui';
+signCtx.textAlign='center';signCtx.textBaseline='middle';
+signCtx.lineJoin='round';signCtx.lineWidth=11;signCtx.strokeStyle='rgba(10,28,25,.78)';
+signCtx.strokeText('VENDRE',320,93);
+signCtx.fillStyle='#f5d88a';signCtx.fillText('VENDRE',320,93);
+const saleLabel=new T.Sprite(new T.SpriteMaterial({map:new T.CanvasTexture(signCanvas),transparent:true,depthWrite:false,alphaTest:.03}));
+saleLabel.scale.set(7.2,2.03,1);
+saleLabel.position.set(SALE.x,6.3,SALE.z);scene.add(saleLabel);
 
 
 const world=new Map(),resources=[],CH=32,R=2;const hash=(x,z,s=0)=>{let n=Math.sin(x*127.1+z*311.7+s*51.6)*43758.5453;return n-Math.floor(n)},blend=t=>t*t*(3-2*t);function noise(x,z,k,s){let a=Math.floor(x/k),b=Math.floor(z/k),u=blend(x/k-a),v=blend(z/k-b);return T.MathUtils.lerp(T.MathUtils.lerp(hash(a,b,s),hash(a+1,b,s),u),T.MathUtils.lerp(hash(a,b+1,s),hash(a+1,b+1,s),u),v)}
@@ -303,7 +308,29 @@ if(d<3.9&&d<score){score=d;best=b}
 }
 return best
 }
-function sell(){stopHarvest();let amount=st.inv.reduce((a,n,i)=>a+n*values[i],0)+st.products.reduce((a,n,i)=>a+n*values[i]*3,0)+st.stock.reduce((a,i)=>a+(i===0?65:values[i]*4),0);if(!amount)return pop('Rien à vendre');st.inv.fill(0);st.products.fill(0);st.stock=[];st.gold+=amount;sound.effect('sale');pop('Vente : +'+amount+' or');updateInventory();save();renderPanel()}
+
+function sell({notifyEmpty=true,includeCarried=isSelling(player.position.x,player.position.z)}={}){
+  stopHarvest();
+  const bagValue=st.inv.reduce((sum,n,i)=>sum+n*values[i],0);
+  const productValue=st.products.reduce((sum,n,i)=>sum+n*values[i]*3,0);
+  const oldStorage=st.stock.reduce((sum,i)=>sum+(i===0?65:values[i]*4),0);
+  const logValue=includeCarried&&carried?65:0;
+  const amount=bagValue+productValue+oldStorage+logValue;
+  if(amount<=0){if(notifyEmpty)pop('Aucune marchandise à vendre');return 0}
+  st.inv.fill(0);st.products.fill(0);st.stock=[];
+  if(logValue){scene.remove(carried);carried=null}
+  st.gold+=amount;sound.effect('sale');
+  pop('Vendu · +'+amount+' or');
+  updateInventory();save();
+  if(panel)renderPanel();
+  return amount;
+}
+function collectSaleZone(){
+  if(!isSelling(player.position.x,player.position.z))return;
+  const available=st.inv.some(Boolean)||st.products.some(Boolean)||st.stock.length>0||!!carried;
+  if(available)sell({notifyEmpty:false,includeCarried:true});
+}
+
 
 function strikeHarvest(){
 const o=harvesting;
@@ -351,11 +378,40 @@ if(harvesting===o){stopHarvest();return}
 harvesting=o;harvestProgress=0;player.rotation.y=Math.atan2(o.x-player.position.x,o.z-player.position.z);pop('Récolte en cours · Déplacez-vous pour arrêter')
 }
 
-function drop(){sound.effect('step');let inPad=isSelling(player.position.x,player.position.z);if(inPad){st.stock.push(0);scene.remove(carried);pop('Tronc déposé dans la zone de vente')}else{scene.remove(carried);pop('Tronc déposé')}carried=null;save()}
-function interact(){if(panel)return;if(isSelling(player.position.x,player.position.z)){if(carried)return drop();return sell()}
-const fallen=resources.find(n=>n.log&&n.dead&&Math.hypot(n.x-player.position.x,n.z-player.position.z)<3);
-if(fallen&&!carried){stopHarvest();sound.effect('ui');carried=fallen.log;fallen.log=null;return pop('Transportez le tronc vers la zone verte')}
-harvest()}
+
+function drop(){
+  if(!carried)return;
+  if(isSelling(player.position.x,player.position.z)){
+    sell({notifyEmpty:false,includeCarried:true});return;
+  }
+  sound.effect('step');
+  carried.position.set(player.position.x,0.47,player.position.z);
+  const item=carried;
+  const src=resources.find(o=>o.dead&&!o.log&&Math.hypot(o.x-player.position.x,o.z-player.position.z)<20);
+  if(src)src.log=item;
+  else scene.remove(item);
+  carried=null;
+  pop('Tronc déposé');save();
+}
+function interact(){
+  if(panel)return;
+  if(placing)return harvest();
+  if(isSelling(player.position.x,player.position.z)){
+    collectSaleZone();return;
+  }
+  const px=player.position.x,pz=player.position.z;
+  const fallen=resources.find(n=>n.log&&n.dead&&Math.hypot(n.log.position.x-px,n.log.position.z-pz)<3.2);
+  if(!carried&&fallen){
+    stopHarvest();sound.effect('ui');
+    carried=fallen.log;fallen.log=null;
+    pop('Transportez le tronc vers la zone VENDRE');return;
+  }
+  if(carried)return drop();
+  if(Math.hypot(px,pz)<7)return openPanel('market');
+  harvest();
+}
+
+
 function buy(cost,fn){if(st.gold<cost){sound.effect('exhausted');return pop('Or insuffisant')}st.gold-=cost;sound.effect('buy');fn();updateInventory();save();renderPanel()}
 function addBuilding(b){let g=new T.Group();g.add(cube(3.5,2.2,3.3,m.wood,0,1.1,0),cube(4.1,.65,3.9,b.kind==='factory'?m.roof:m.leaf,0,2.52,0),cube(.85,1.4,.12,m.shirt,0,.7,1.7));g.position.set(b.x,0,b.z);scene.add(g);b.mesh=g}
 st.buildings.forEach(addBuilding);
@@ -409,7 +465,7 @@ out+=section('Stock en dépôt','ZONE DE VENTE',add('Marchandises à vendre',st.
 $('shopbody').innerHTML=out;$('panelhint').textContent=st.gold.toLocaleString('fr-FR')+' pièces d’or';
 }
 $('panel').onclick=e=>{let b=e.target.closest('button');if(!b)return;if(b.dataset.tab){sound.effect('ui');panel=b.dataset.tab;return renderPanel()}let a=b.dataset.action;if(!a)return;if(a==='sell')return sell();if(a==='bag')return buy(450,()=>st.bag=16);if(a==='stamina')return buy([500,1250,2600,5500][st.staminaLevel||0]||99999,()=>{st.staminaLevel=(st.staminaLevel||0)+1;stamina=maxStamina()});if(a==='cart')return buy(1200,()=>st.cart=true);if(a==='truck')return buy(4500,()=>st.truck=true);let [kind,id]=a.split(':'),i=+id;if(kind==='tool'){let tier=st.tools[i]+1;return buy(tier===0?prices[i]:tier===1?650:2900,()=>st.tools[i]=tier)}if(kind==='hire')return buy(300,()=>st.buildings[i].workers++);if(kind==='talent')return buy(500,()=>st.talents[i]++);if(['factory','worker','transport','seller'].includes(kind))return buy(kind==='factory'?480+i*150:kind==='worker'?550+i*160:kind==='transport'?1400:1800,()=>{placing={kind,type:i};panel=null;renderPanel();pop('Allez à l’emplacement, F pour construire')})};const close=()=>{stopHarvest();panel=null;renderPanel()};$('close').onclick=close;$('resume').onclick=close;
-addEventListener('keydown',e=>{keys[e.code]=true;if(['KeyW','KeyZ','KeyA','KeyQ','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))stopHarvest();if(e.repeat)return;if(e.code==='KeyF')interact();if(e.code==='KeyE'&&Math.hypot(player.position.x,player.position.z)<7)openPanel('market');if(e.code==='KeyG'&&carried){sound.effect('ui');drop()}if(e.code==='KeyB')openPanel('build');if(e.code==='KeyU')openPanel('talents');if(e.code==='KeyI')openPanel('inventory');if(e.code==='KeyR')pop(st.truck?'Camion possédé':'Achetez un camion au comptoir');if(e.code==='Escape'){if(placing){placing=null;pop('Placement annulé')}close()}});addEventListener('keyup',e=>keys[e.code]=false);addEventListener('mousemove',e=>{if(document.pointerLockElement===renderer.domElement){heading-=e.movementX*.0025;pitch=T.MathUtils.clamp(pitch+e.movementY*.002,-.1,1.15)}});addEventListener('wheel',e=>dist=T.MathUtils.clamp(dist+Math.sign(e.deltaY),5,18),{passive:true});addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});renderer.domElement.onclick=()=>{if(!panel)renderer.domElement.requestPointerLock?.()};$('play').onclick=()=>{sound.boot();$('welcome').classList.add('hidden');$('hud').classList.remove('hidden');renderer.domElement.requestPointerLock?.()};
+addEventListener('keydown',e=>{keys[e.code]=true;if(['KeyW','KeyZ','KeyA','KeyQ','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))stopHarvest();if(e.repeat)return;if(e.code==='KeyF')interact();if(e.code==='KeyG'&&carried){sound.effect('ui');drop()}if(e.code==='KeyB')openPanel('build');if(e.code==='KeyU')openPanel('talents');if(e.code==='KeyI')openPanel('inventory');if(e.code==='KeyR')pop(st.truck?'Camion possédé':'Achetez un camion au comptoir');if(e.code==='Escape'){if(placing){placing=null;pop('Placement annulé')}close()}});addEventListener('keyup',e=>keys[e.code]=false);addEventListener('mousemove',e=>{if(document.pointerLockElement===renderer.domElement){heading-=e.movementX*.0025;pitch=T.MathUtils.clamp(pitch+e.movementY*.002,-.1,1.15)}});addEventListener('wheel',e=>dist=T.MathUtils.clamp(dist+Math.sign(e.deltaY),5,18),{passive:true});addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});renderer.domElement.onclick=()=>{if(!panel)renderer.domElement.requestPointerLock?.()};$('play').onclick=()=>{sound.boot();$('welcome').classList.add('hidden');$('hud').classList.remove('hidden');renderer.domElement.requestPointerLock?.()};
 $('soundToggle').onclick=()=>{sound.boot();audioActive=true;const enabled=sound.toggle();$('soundToggle').classList.toggle('muted',!enabled);$('soundToggle').innerHTML=enabled?'♪ <span>SON</span>':'♪ <span>MUET</span>'};
 const minimap=$('map').getContext('2d');function map(){minimap.clearRect(0,0,168,168);minimap.save();minimap.beginPath();minimap.arc(84,84,82,0,7);minimap.clip();for(let x=0;x<24;x++)for(let z=0;z<24;z++){let b=biome(player.position.x+(x-12)*9,player.position.z+(z-12)*9);minimap.fillStyle=b<0?'#598654':colors[b];minimap.fillRect(x*7,z*7,8,8)}minimap.fillStyle='white';minimap.beginPath();minimap.arc(84,84,4,0,7);minimap.fill();minimap.restore()}
 
@@ -442,6 +498,7 @@ function frame(){
 requestAnimationFrame(frame);
 const dt=Math.min(clock.getDelta(),.05);elapsed+=dt;
 pumpWorld();
+collectSaleZone();
 const side=Number(!!(keys.KeyD||keys.ArrowRight))-Number(!!(keys.KeyA||keys.KeyQ||keys.ArrowLeft));
 const front=Number(!!(keys.KeyW||keys.KeyZ||keys.ArrowUp))-Number(!!(keys.KeyS||keys.ArrowDown));
 const moving=!panel&&(side!==0||front!==0);
@@ -512,13 +569,13 @@ updateInventory();save()
 }
 if(ticks++%12===0){
 stream();updateResourceVisibility();updateInventory();
-$('coins').textContent=st.gold;$('bag').textContent=count()+'/'+st.bag;
+$('coins').textContent=st.gold;
 $('coordinates').textContent=Math.round(player.position.x)+' / '+Math.round(player.position.z);
 const biomeId=biome(player.position.x,player.position.z);
 $('biomeName').textContent=biomeId<0?'CAMP CENTRAL':types[biomeId];
 $('clock').textContent='JOUR '+String(1+Math.floor(elapsed/600)).padStart(2,'0')+' · '+String(8+Math.floor(elapsed/60)%16).padStart(2,'0')+':00';
 $('objective').textContent=st.tools.every(t=>t<0)?'ACHETEZ VOTRE PREMIER OUTIL':'DÉVELOPPEZ VOTRE EMPIRE';
-$('detail').textContent=st.tools.every(t=>t<0)?'Approchez du comptoir et appuyez sur E':'Récoltez, transformez et automatisez';
+$('detail').textContent=st.tools.every(t=>t<0)?'Approchez du comptoir et appuyez sur F':'Récoltez, transformez et automatisez';
 const o=closest(),saleNearby=isSelling(player.position.x,player.position.z);
 const hasLog=resources.some(n=>n.log&&n.dead&&Math.hypot(n.x-player.position.x,n.z-player.position.z)<3);
 const nearMarket=Math.hypot(player.position.x,player.position.z)<7;
