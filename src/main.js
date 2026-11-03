@@ -2,6 +2,9 @@ import * as T from 'three';
 import {createSound} from './sound.js?v=20261102c';
 import {createAtmosphere} from './atmosphere.js?v=20261102c';
 import {createIndustry} from './industry.js?v=20261103j';
+import {inventoryIcon} from './item-icons.js?v=20261103k';
+import {createResourceGraphics} from './resource-visuals.js?v=20261103k';
+import {createFieldBuilder} from './wheat-fields.js?v=20261103k';
 const $=id=>document.getElementById(id), scene=new T.Scene();scene.background=new T.Color('#a6cbd1');scene.fog=new T.FogExp2('#a6cbd1',.007);
 const cam=new T.PerspectiveCamera(65,innerWidth/innerHeight,.1,450),renderer=new T.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.25));renderer.shadowMap.enabled=true;$('game').append(renderer.domElement);
 scene.add(new T.HemisphereLight(0xffffff,0x657449,2.4));const sun=new T.DirectionalLight(0xffe7bc,2.3);sun.position.set(70,95,40);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.bias=-.0004;sun.shadow.normalBias=.024;sun.shadow.radius=2;sun.shadow.camera.left=-60;sun.shadow.camera.right=60;sun.shadow.camera.top=60;sun.shadow.camera.bottom=-60;scene.add(sun);
@@ -96,9 +99,17 @@ if(d<nearest){nearest=d;selected=Math.floor(hash(gx,gz,35)*5)}
 }
 return selected;
 }
-function node(type,x,z,key){const g=new T.Group();g.position.set(x,0,z);let hp=[40,50,60,30,30][type];if(type===0){g.add(cy(.31,3,m.tree,0,1.5,0));for(let i=0;i<3;i++)g.add(orb(1.2,m.leaf,(i-1)*.3,3+i*.34,(i-1)*.13))}if(type===1)g.add(orb(1.1,m.rock,0,.9,0));if(type===2){g.add(orb(1,m.rock,0,.8,0));for(let i=0;i<3;i++)g.add(orb(.3,m.ore,(i-1)*.5,1.3,(i%2)*.3))}if(type===3)g.add(orb(1,m.desert,0,.6,0));if(type===4)for(let i=0;i<9;i++){let a=i*2.3;g.add(cy(.045,1.1,m.wheat,Math.sin(a)*.43,.55,Math.cos(a)*.43),orb(.16,m.wheat,Math.sin(a)*.43,1.1,Math.cos(a)*.43))}if(type===0){for(let i=1;i<g.children.length;i++)g.children[i].castShadow=false}
-if(type===4)g.traverse(o=>{if(o.isMesh)o.castShadow=false});
-scene.add(g);let o={type,x,z,mesh:g,hp,max:hp,key,dead:false};resources.push(o);return o}
+const resourceGraphics=createResourceGraphics(T);
+const buildWheatField=createFieldBuilder(T,biome,hash);
+function node(type,x,z,key){
+const variant=Math.floor(hash(Math.floor(x*3),Math.floor(z*3),66)*4);
+const g=resourceGraphics.createNode(type,variant,x+z*3);
+g.position.set(x,0,z);
+scene.add(g);
+const hp=[40,50,60,30,30][type];
+const obj={type,x,z,mesh:g,hp,max:hp,key,dead:false,variant};
+resources.push(obj);return obj;
+}
 
 const floorGeometry=new T.BoxGeometry(4.08,.16,4.08);
 const accentGeometry=new T.IcosahedronGeometry(.19,0);
@@ -150,7 +161,7 @@ group.forEach(([x,z],j)=>{dummy.position.set(x,-.12,z);dummy.rotation.set(0,0,0)
 const shade=.91+hash(cx*17+j,cz*13+j,57)*.16;mesh.setColorAt(j,new T.Color(shade,shade,shade))});
 mesh.instanceMatrix.needsUpdate=true;mesh.instanceColor.needsUpdate=true;root.add(mesh);
 });
-decorations(cx,cz,root);scene.add(root);
+decorations(cx,cz,root);buildWheatField(cx,cz,root);scene.add(root);
 world.set(key,{root,nodes,hasNodes:false})
 }
 function populate(cx,cz,c){
@@ -290,9 +301,11 @@ const grid=$('inventoryGrid');if(!grid)return;
 const items=[];for(let i=0;i<5;i++)for(let j=0;j<st.inv[i];j++)items.push(i);
 for(let i=0;i<5;i++)for(let j=0;j<st.products[i];j++)items.push(i+5);
 const signature=st.bag+':'+items.join(',');if(grid.dataset.signature===signature)return;grid.dataset.signature=signature;
-const labels=['▰','◆','◈','⬟','✦'];
-grid.innerHTML=Array.from({length:st.bag},(_,i)=>{const type=items[i];
-return '<div class="inventory-slot'+(type===undefined?' empty':'')+'"'+(type===undefined?'':' title="'+(type<5?raw[type]:processed[type-5])+'"')+'>'+(type===undefined?'':'<span class="inventory-symbol resource-'+type%5+'">'+labels[type%5]+'</span>')+'</div>'}).join('');
+grid.innerHTML=Array.from({length:st.bag},(_,i)=>{
+const type=items[i],title=type===undefined?'':(type<5?raw[type]:processed[type-5]);
+return '<div class="inventory-slot'+(type===undefined?' empty':'')+'"'+(type===undefined?'':' title="'+title+'"')+'>'+
+(type===undefined?'':'<span class="inventory-symbol resource-'+(type%5)+'">'+inventoryIcon(type)+'</span>')+'</div>';
+}).join('');
 $('inventoryCapacity').textContent=count()+' / '+st.bag;updateCargo()
 }function pop(s){let e=$('notice');e.textContent=s;e.classList.add('show');clearTimeout(pop.t);pop.t=setTimeout(()=>e.classList.remove('show'),2200)}
 function closest(){
