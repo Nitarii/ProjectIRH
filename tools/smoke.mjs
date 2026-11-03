@@ -25,7 +25,7 @@ try{
     if(i%2===1)await page.keyboard.up('w');
     progress.push(await page.evaluate(()=>({
       hudVisible:!document.querySelector('#hud').classList.contains('hidden'),
-      coords:document.querySelector('#coordinates')?.textContent,
+      coords:[window.__irhMonitor?.playerX?.toFixed(2),window.__irhMonitor?.playerZ?.toFixed(2)].join(','),
       alert:document.querySelector('#notice')?.textContent,
       ui:document.querySelector('#coins')?.textContent,
       canvases:document.querySelectorAll('#game canvas').length,
