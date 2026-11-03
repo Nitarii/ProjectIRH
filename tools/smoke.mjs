@@ -180,7 +180,7 @@ try{
   if(workerStats.lastError||workerStats.contextLost||workerStats.employees<4||
      workerStats.visibleEmployees>workerStats.employees)throw new Error('Employee scene failed: '+JSON.stringify(workerStats));
   await workforce.keyboard.press('f');
-  await workforce.waitForFunction(()=>document.querySelector('#panelTitle')?.textContent==='EMPLOYEES',null,{timeout:20000});
+  await workforce.waitForFunction(()=>document.querySelector('#panelTag')?.textContent==='STAFF'&&document.querySelector('#panelTitle')?.textContent==='Logging hut',null,{timeout:20000});
   if(await workforce.locator('button[data-action="hire:0"]').count()!==1||
      await workforce.locator('button[data-action="carry:0"]').count()!==1)
     throw new Error('F at harvesting facility did not focus its hiring and equipment upgrades');
