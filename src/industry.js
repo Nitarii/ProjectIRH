@@ -217,6 +217,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       const x=a.x+sx*step,z=a.z+sz*step;
       if(!staticBlocked(x,z,.35,a.target)&&!humanBlocked(x,z,a)){
         a.x=x;a.z=z;a.angle=Math.atan2(sx,sz);a.walkPhase+=dt*9;
+        if(!a.abstract)hooks.onMove?.(a.id,a.x,a.z);
         a.wait=0;separations++;return true;
       }
     }
@@ -254,6 +255,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       return false;
     }
     a.wait=0;a.x=nx;a.z=nz;a.angle=Math.atan2(dx,dz);a.walkPhase+=dt*10;
+    hooks.onMove?.(a.id,a.x,a.z);
     return distance(a,goal)<.37;
   }
   function reserveResource(a){
