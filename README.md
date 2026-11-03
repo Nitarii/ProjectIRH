@@ -106,3 +106,15 @@ node tests/ui-regressions.mjs
 node tests/industry-logistics-roads.mjs
 ```
 The industry suite simulates harvesting, refinery deliveries, vendor sales, full-stock fallback, simultaneous delivery reservations and construction/demolition/upgrade of roads. These automated tests do not replace real browser or hardware performance QA.
+
+## Persistent ecology, navigation and atmospheric lighting
+
+- **Resources never respawn after reaching zero HP.** Depletion is recorded under the existing encrypted `exhausted` save field by stable world coordinates. Previously saved positive respawn timestamps are now treated as permanent depletion. Damaged-but-not-exhausted nodes can still regain HP. The world remains procedurally explorable; exhausted nodes cannot be farmed repeatedly.
+- **NPC workers are non-solid relative to other workers**, so employees may overlap/pass through one another without crowd collision probes or per-worker avoidance routes. Paths instead require extra clearance around actual solid buildings, scenery and resource obstacles; detours use geometry-only A* and emergency wall-safe recovery.
+- **View-distance fog** is linear and starts at 71% of the configured viewing distance, becoming opaque at 96%, before terrain-chunk draw distance. Fog hue changes smoothly with the time of day and covers geometry streaming transitions.
+- **Fauna:** 15 terrestrial species (three for each forest, mountain, excavation, desert and field biome) and five biome-specific bird species. Population and range are bounded by the view distance and graphics setting; candidates are deterministically anchored to world cells and the persisted world clock. Gaits, pauses, nocturnal activity, flight, gliding and temporary roosting vary by species. Small distant details use hysteretic LOD.
+- **Atmosphere:** a shader sky with sunrise/sunset glow, moon, stars and world-anchored subtle zenith detail; six-sample bounded procedural cloud-volume impostors with wind drift, spatial variation and horizon fade; continuously interpolated hemisphere/directional lighting and dusk-colored fog. Background ambient particles share four instanced render batches instead of dozens of unique meshes.
+- **Soft terrain microshading** keeps original vertex colors and shadow/fog support, adding stationary world-space detail directly within the standard Lambert material (no extra fullscreen render pass).
+- The optimized world keeps the existing graphics-quality options and mobile controls. This is a lightweight stylized atmospheric implementation, not a claim of true cinematic path tracing or high-end volumetric simulation on every phone.
+
+Run `node tests/nature-rendering.mjs` and `node tests/ai-clearance.mjs` alongside the existing UI and industry tests. These are regression/simulation checks, **not real GPU performance benchmarks**.
