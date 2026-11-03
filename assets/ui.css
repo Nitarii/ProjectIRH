@@ -599,3 +599,10 @@ body:has(.creator:not(.hidden)) .mobile-controls{display:none!important}
 /* Touch construction: always provide explicit cancel and rotation actions. */
 body.touch-placement .touch-action-pad{grid-template-columns:repeat(3,minmax(0,1fr))}
 @media(orientation:landscape) and (max-height:520px){body.touch-placement .touch-action-pad button{min-height:36px}}
+
+/* Portrait safe zones: keep quick-menu, location and compass from colliding. */
+@media (orientation:portrait) and (max-width:760px){
+ html.touch-enabled #hud .rightcol{top:calc(119px + env(safe-area-inset-top,0px))!important}
+ html.touch-enabled #hud .location{top:calc(117px + env(safe-area-inset-top,0px))!important}
+ html.touch-enabled #hud .mission{top:calc(152px + env(safe-area-inset-top,0px))!important}
+}
