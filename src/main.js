@@ -563,7 +563,7 @@ function safeResourceRespawn(o){
   if(Math.hypot(player.position.x-o.x,player.position.z-o.z)<1.7)return false;
   if(Math.hypot(o.x,o.z)<7)return false;
   for(const b of st.buildings)
-    if(Math.abs(o.x-b.x)<5.2&&Math.abs(o.z-b.z)<5.2)return false;
+    if(pointInOrientedRect(o.x,o.z,facilityFootprint(b),1))return false;
   if(Math.abs(o.x-SALE.x)<SALE.w/2+1.4&&
      Math.abs(o.z-SALE.z)<SALE.d/2+1.4)return false;
   if(sceneryBlocked(o.x,o.z,1.05))return false;
@@ -624,10 +624,17 @@ function placementPoint(){
   };
 }
 function placementAllowed(x,z){
-  if(Math.hypot(x,z)<12)return false;
-  if(Math.abs(x-SALE.x)<SALE.w/2+3&&Math.abs(z-SALE.z)<SALE.d/2+3)return false;
-  if(st.buildings.some(b=>Math.abs(b.x-x)<5.5&&Math.abs(b.z-z)<5.3))return false;
-  for(const o of nearbyResourceNodes())if(!o.dead&&Math.hypot(o.x-x,o.z-z)<4)return false;
+  if(!placing)return false;
+  const proposed=facilityFootprint({kind:placing.kind,rotation:placing.rotation,x,z});
+  const camp={x:0,z:0,w:13,d:14,angle:0};
+  const sale={x:SALE.x,z:SALE.z,w:SALE.w+2,d:SALE.d+2,angle:0};
+  if(footprintsOverlap(proposed,camp,1.1)||footprintsOverlap(proposed,sale,1.4))return false;
+  if(st.buildings.some(b=>footprintsOverlap(proposed,facilityFootprint(b),1.15)))return false;
+  if(pointInOrientedRect(player.position.x,player.position.z,proposed,1.5))return false;
+  for(const o of nearbyResourceNodes()){
+    if(o.dead&&!o.log)continue;
+    if(pointInOrientedRect(o.x,o.z,proposed,o.type===0?1.1:.60))return false;
+  }
   return true;
 }
 function clearPlacementPreview(){
@@ -643,7 +650,7 @@ function clearPlacementPreview(){
 function buildPlacementPreview(){
   clearPlacementPreview();
   if(!placing)return;
-  const info={kind:placing.kind,type:placing.type,x:0,z:0};
+  const info={kind:placing.kind,type:placing.type,x:0,z:0,rotation:placing.rotation};
   buildingPreview=makeStructure(T,scene,info);
   buildingPreview.group.traverse(o=>{
     if(!o.isMesh)return;
@@ -657,13 +664,20 @@ function buildPlacementPreview(){
 function beginPlacement(kind,type,cost){
   if(placing)cancelPlacement();
   const biomeType=['worker','factory'].includes(kind)?type:Math.max(0,biome(player.position.x,player.position.z));
-  placing={kind,type:biomeType,cost};
+  placing={kind,type:biomeType,cost,rotation:0};
   panel=null;renderPanel();
   $('placementName').textContent=tr(kind==='worker'?worksites[type]:kind==='factory'?factories[type]:
     kind==='transport'?'Dépôt de transport':'Comptoir vendeur',settings.language);
   $('placementHud').classList.remove('hidden');
   buildPlacementPreview();
   pop('Choisissez un emplacement puis appuyez sur F');
+}
+function rotatePlacement(steps=1){
+  if(!placing)return;
+  placing.rotation=normalizeRotation(placing.rotation+steps*Math.PI/2);
+  if(buildingPreview)buildingPreview.group.rotation.y=placing.rotation;
+  lastPlacementValid=null;
+  placementFrame();
 }
 function cancelPlacement(refund=true){
   if(!placing)return;
@@ -682,6 +696,7 @@ function placementFrame(){
   }
   placing.x=point.x;placing.z=point.z;
   buildingPreview.group.position.set(point.x,0,point.z);
+  buildingPreview.group.rotation.y=placing.rotation;
   buildingPreview.group.visible=!panel;
   const valid=placementAllowed(point.x,point.z);
   if(valid!==lastPlacementValid){
@@ -697,7 +712,7 @@ if(panel)return;
 if(placing){
 const {x,z}=placementPoint();
 if(!placementAllowed(x,z))return pop('Emplacement indisponible');
-st.buildings.push({kind:placing.kind,type:placing.type,x,z,workers:0,stock:0,stockRaw:0,inputRaw:0,stockProcessed:0});
+st.buildings.push({kind:placing.kind,type:placing.type,x,z,rotation:placing.rotation,workers:0,stock:0,stockRaw:0,inputRaw:0,stockProcessed:0});
 addBuilding(st.buildings.at(-1));
 cancelPlacement(false);
 sound.effect('build');pop('Bâtiment construit');save();return;
@@ -1129,6 +1144,9 @@ addEventListener('keydown',e=>{
     else openPanel('settings');
     return;
   }
+  if(placing&&(e.code==='KeyQ'||e.code==='KeyE')){
+    e.preventDefault();rotatePlacement(e.code==='KeyE'?1:-1);return;
+  }
   if(panel)return;
   if(e.code===settings.bindings.auto){if(bikeRiding){bikeRiding=false;bicycle.group.visible=false}autoPilot.toggle();return}
   if(e.code===settings.bindings.jump&&player.position.y<.01){
@@ -1152,8 +1170,10 @@ addEventListener('mousemove',e=>{
   }
 });addEventListener('wheel',e=>{
   if(panel||!$('welcome').classList.contains('hidden'))return;
+  e.preventDefault();
+  if(placing){rotatePlacement(Math.sign(e.deltaY));return}
   dist=T.MathUtils.clamp(dist+Math.sign(e.deltaY),5,18);
-},{passive:true});addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});renderer.domElement.onclick=()=>{if(!panel)renderer.domElement.requestPointerLock?.()};let creatorPreview=null;
+},{passive:false});addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});renderer.domElement.onclick=()=>{if(!panel)renderer.domElement.requestPointerLock?.()};let creatorPreview=null;
 function finishWelcome(){
   sound.boot();
   $('creator').classList.add('hidden');
