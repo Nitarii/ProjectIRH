@@ -310,7 +310,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       const step=Math.min(remaining,dt*speed*(hooks.roads?.speedAt(a.x,a.z)||1));
       a.x+=(endpoint.x-a.x)/remaining*step;
       a.z+=(endpoint.z-a.z)/remaining*step;
-      return remaining<=step+.38;
+      return distance(a,goal)<.82;
     }
     a.routeCooldown=Math.max(0,(a.routeCooldown||0)-dt);
     // Side-steps are not progress: detect repeated shuffling inside a tight gap.
