@@ -1542,6 +1542,8 @@ const exploration=createExplorationMap({
 });
 exploration.load(st.explored);
 const minimap=$('map').getContext('2d');
+// Maintain 168 logical map units while rendering at 2× resolution.
+minimap.setTransform(2,0,0,2,0,0);
 // Cache the biome raster independently of rotation; heading updates are cheap.
 const minimapTiles=document.createElement('canvas');
 minimapTiles.width=minimapTiles.height=252;
