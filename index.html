@@ -1,20 +1,20 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="theme-color" content="#0b1516">
 <meta name="author" content="Nitarii">
 <meta name="copyright" content="Copyright 2026 Nitarii. All rights reserved.">
 <meta name="description" content="Nitari's Industrial Madness, an original procedural game by Nitarii.">
 <title>Nitari's Industrial Madness (NIM)</title>
-<link rel="stylesheet" href="./assets/ui.css?v=20261104n">
+<link rel="icon" href="./assets/nim-logo.svg" type="image/svg+xml"><link rel="stylesheet" href="./assets/ui.css?v=20261105a">
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js"}}</script>
 </head>
 <body>
 <div id="game"></div>
 <div id="hud" class="hidden">
   <div class="hudhead">
-    <div class="brand"><span class="sigil">◆</span><span>NIM <small>INDUSTRIAL MADNESS</small></span></div>
+    <div class="brand"><img class="brand-icon" src="./assets/nim-logo.svg" alt=""><span>N.I.M <small>NITARI’S INDUSTRIAL MADNESS</small></span></div>
     <div class="hudstats"><div class="gold"><span id="goldGain" class="gold-gain" aria-live="polite"></span><span>✦</span> <b id="coins">100</b> <small id="goldUnit">OR</small></div></div>
   </div>
   <div id="location" class="location"><span class="locator">◈</span><span id="biomeName">FORÊT</span></div>
@@ -28,17 +28,30 @@
     <div id="placementStatus" class="placement-status">PLACE DISPONIBLE</div>
     <div class="placement-actions"><span><kbd>F</kbd> PLACER</span><span id="rotationHint"><kbd>Q / E</kbd> TOURNER</span><span><kbd>ÉCHAP</kbd> ANNULER</span></div>
   </div>
-  <div class="bottom"><div class="keyline"><span><kbd>F</kbd> INTERAGIR</span><span><kbd>C</kbd> COMPTOIR</span><span><kbd>B</kbd> CONSTRUIRE</span><span><kbd>T</kbd> PROGRESSER</span><span><kbd id="mapShortcut">M</kbd> CARTE</span><span id="autoShortcut"><kbd>R</kbd> AUTO</span><span><kbd>TAB</kbd> MENU</span></div></div><div id="autoState" class="auto-state hidden" aria-live="polite"><span class="auto-title">MODE AUTO</span><small class="auto-penalty">−20 % vitesse de déplacement et de récolte</small></div>
+  <div class="bottom"><nav class="keyline" aria-label="Actions rapides">
+<button type="button" data-hud-action="interact"><kbd id="interactShortcut">F</kbd> INTERAGIR</button>
+<button type="button" data-hud-action="market"><kbd id="marketShortcut">C</kbd> COMPTOIR</button>
+<button type="button" data-hud-action="build"><kbd id="buildShortcut">B</kbd> CONSTRUIRE</button>
+<button type="button" data-hud-action="talents"><kbd id="talentShortcut">T</kbd> PROGRESSER</button>
+<button type="button" data-hud-action="map"><kbd id="mapShortcut">M</kbd> CARTE</button>
+<button type="button" data-hud-action="auto" id="autoShortcut"><kbd>R</kbd> AUTO</button>
+<button type="button" data-hud-action="settings"><kbd>TAB</kbd> MENU</button>
+</nav></div><div id="autoState" class="auto-state hidden" aria-live="polite"><span class="auto-title">MODE AUTO</span><small class="auto-penalty">−20 % vitesse de déplacement et de récolte</small></div>
   <aside id="miniInventory" class="inventory-mini" aria-label="Inventaire"><div class="inventory-title"><span>INVENTAIRE</span><span id="inventoryCapacity">0 / 8</span></div><div id="inventoryGrid" class="inventory-grid"></div></aside>
 </div>
 <div id="notice" class="notice"></div>
+<div id="mobileControls" class="mobile-controls hidden" aria-label="Commandes tactiles du jeu">
+<div class="touch-top-nav"><button type="button" data-touch-action="market" aria-label="Comptoir">🪙</button><button type="button" data-touch-action="build" aria-label="Construction">▦</button><button type="button" data-touch-action="talents" aria-label="Progression">★</button><button type="button" data-touch-action="map" aria-label="Carte">▤</button><button type="button" data-touch-action="settings" aria-label="Paramètres">☰</button></div>
+<div class="touch-pad" id="touchPad" aria-label="Joystick de déplacement"><div class="touch-knob" id="touchKnob"></div></div>
+<div class="touch-action-pad"><button type="button" class="touch-action-primary" data-touch-action="interact">AGIR</button><button type="button" data-touch-action="jump">SAUT</button><button type="button" data-touch-action="auto">AUTO</button><button type="button" data-touch-action="sprint" data-touch-hold="true">COURIR</button><button type="button" data-touch-action="drop">POSER</button><button type="button" data-touch-action="vehicle">VÉLO</button><button type="button" class="touch-placing" data-touch-action="rotateLeft">↶</button><button type="button" class="touch-placing" data-touch-action="rotateRight">↷</button></div>
+</div>
 <div id="worldMap" class="world-map hidden" role="dialog" aria-modal="true" aria-label="Carte du monde"><div class="world-map-sheet"><header class="world-map-heading"><div><small>EXPLORATION</small><h2 id="worldMapTitle">CARTE DU MONDE</h2></div><button id="worldMapClose" type="button" aria-label="Fermer la carte">×</button></header><canvas id="worldMapCanvas" width="800" height="520" aria-label="Carte explorée, glisser pour déplacer"></canvas><footer class="world-map-footer"><span id="worldMapCoords">X 0 · Z 0</span><span id="worldMapHelp">Glisser pour déplacer · molette pour zoomer · zones sombres inexplorées</span><div class="world-map-zoom"><button id="worldMapZoomOut" type="button" aria-label="Dézoomer">−</button><button id="worldMapCenter" type="button" aria-label="Centrer sur le joueur">⌖</button><button id="worldMapZoomIn" type="button" aria-label="Zoomer">+</button></div></footer></div></div>
 <div id="panel" class="panel hidden"><div class="sheet"><header><div><div class="eyebrow" id="panelTag">COMPTOIR</div><h2 id="panelTitle">Marché</h2></div><button id="close" class="close" title="Fermer">×</button></header><nav id="tabs"></nav><div id="shopbody" class="shopbody"></div><footer><span id="panelhint"></span><button id="resume" class="cta small">REPRENDRE ↗</button></footer></div></div>
-<div id="welcome" class="welcome"><div class="welcomeinner"><div class="mark">◇</div><p class="eyebrow">UN MONDE, CINQ INDUSTRIES, AUCUNE FRONTIÈRE</p><h1>NIM<span>INDUSTRIAL<br>MADNESS</span></h1><p class="intro">Partez de rien. Récoltez la terre. Construisez un empire.</p><button id="play" class="cta">ENTRER DANS LE MONDE <span>→</span></button><div class="welcomefoot">MONDE PROCÉDURAL INFINI · SAUVEGARDE AUTOMATIQUE · VERSION ALPHA · © 2026 NITARII</div></div></div>
+<div id="welcome" class="welcome"><div class="welcomeinner"><img class="welcome-logo" src="./assets/nim-logo.svg" alt="N.I.M — Nitari’s Industrial Madness, pelle, pioche et hache"><p class="eyebrow">UN MONDE, CINQ INDUSTRIES, AUCUNE FRONTIÈRE</p><h1 class="welcome-name">N.I.M<span>Nitari’s Industrial Madness</span></h1><p class="intro">Partez de rien. Récoltez la terre. Construisez un empire.</p><button id="play" class="cta">ENTRER DANS LE MONDE <span>→</span></button><div class="welcomefoot">MONDE PROCÉDURAL INFINI · SAUVEGARDE AUTOMATIQUE · VERSION ALPHA · © 2026 NITARII</div></div></div>
 <div id="creator" class="creator hidden" role="dialog" aria-modal="true" aria-label="Character customization">
   <div id="creatorBody" class="creator-body"></div>
 </div>
 <div id="reticle" class="hidden"></div>
-<script type="module" src="./src/main.js?v=20261104n"></script>
+<script type="module" src="./src/main.js?v=20261105a"></script>
 </body>
 </html>
