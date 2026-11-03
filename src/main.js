@@ -1169,6 +1169,7 @@ addEventListener('keydown',e=>{
   if(e.repeat)return;
   if(e.code==='Escape'||e.code==='Tab'){
     e.preventDefault();
+    if(exploration.visible){exploration.setVisible(false);return}
     if(placing){cancelPlacement();if(e.code==='Tab')openPanel('settings');}
     else if(panel)close();
     else openPanel('settings');
@@ -1177,7 +1178,9 @@ addEventListener('keydown',e=>{
   if(placing&&(e.code==='KeyQ'||e.code==='KeyE')){
     e.preventDefault();rotatePlacement(e.code==='KeyE'?1:-1);return;
   }
+  if(exploration.visible)return;
   if(panel)return;
+  if(e.code===settings.bindings.map){e.preventDefault();exploration.setVisible(true);document.exitPointerLock?.();return}
   if(e.code===settings.bindings.auto){if(bikeRiding){bikeRiding=false;bicycle.group.visible=false}autoPilot.toggle();return}
   if(e.code===settings.bindings.jump&&player.position.y<.01){
     autoPilot.setEnabled(false);
@@ -1199,11 +1202,11 @@ addEventListener('mousemove',e=>{
     pitch=T.MathUtils.clamp(pitch+e.movementY*.002*settings.mouseSensitivity,-.1,1.15)
   }
 });addEventListener('wheel',e=>{
-  if(panel||!$('welcome').classList.contains('hidden'))return;
+  if(panel||exploration.visible||!$('welcome').classList.contains('hidden'))return;
   e.preventDefault();
   if(placing){rotatePlacement(Math.sign(e.deltaY));return}
   dist=T.MathUtils.clamp(dist+Math.sign(e.deltaY),5,18);
-},{passive:false});addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);syncHudDimensions()});renderer.domElement.onclick=()=>{if(!panel)renderer.domElement.requestPointerLock?.()};let creatorPreview=null;
+},{passive:false});addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);syncHudDimensions()});renderer.domElement.onclick=()=>{if(!panel&&!exploration.visible)renderer.domElement.requestPointerLock?.()};let creatorPreview=null;
 function finishWelcome(){
   sound.boot();
   $('creator').classList.add('hidden');
@@ -1270,13 +1273,22 @@ $('play').onclick=()=>{
   if(!st.avatar)openAvatarBuilder();
   else finishWelcome();
 };
+const exploration=createExplorationMap({canvas:$('worldMapCanvas'),overlay:$('worldMap'),player,biome,buildings:()=>st.buildings,settings,onDiscover:cells=>{st.explored=cells;}});
+exploration.load(st.explored);
 const minimap=$('map').getContext('2d');
 let lastMapX=Infinity,lastMapZ=Infinity,lastMapAt=-Infinity;
 function map(){
 const px=player.position.x,pz=player.position.z;
 if(Math.hypot(px-lastMapX,pz-lastMapZ)<.65&&elapsed-lastMapAt<1.8)return;
 lastMapX=px;lastMapZ=pz;lastMapAt=elapsed;
-minimap.clearRect(0,0,168,168);minimap.save();minimap.beginPath();minimap.arc(84,84,82,0,7);minimap.clip();for(let x=0;x<24;x++)for(let z=0;z<24;z++){let b=biome(player.position.x+(x-12)*9,player.position.z+(z-12)*9);minimap.fillStyle=b<0?'#598654':colors[b];minimap.fillRect(x*7,z*7,8,8)}minimap.fillStyle='white';minimap.beginPath();minimap.arc(84,84,4,0,7);minimap.fill();minimap.restore()}
+exploration.visit(px,pz);
+minimap.clearRect(0,0,168,168);minimap.save();minimap.beginPath();minimap.arc(84,84,82,0,7);minimap.clip();for(let x=0;x<24;x++)for(let z=0;z<24;z++){let b=biome(player.position.x+(x-12)*9,player.position.z+(z-12)*9);minimap.fillStyle=b<0?'#598654':colors[b];minimap.fillRect(x*7,z*7,8,8)}minimap.fillStyle='white';minimap.beginPath();minimap.arc(84,84,4,0,7);minimap.fill();
+const vx=-px,vz=-pz,vl=Math.hypot(vx,vz);
+if(vl>14){const ax=84+vx/vl*73,az=84+vz/vl*73,angle=Math.atan2(vz,vx);
+minimap.save();minimap.translate(ax,az);minimap.rotate(angle);
+minimap.fillStyle='#ffd27b';minimap.strokeStyle='#192621';minimap.lineWidth=2;
+minimap.beginPath();minimap.moveTo(9,0);minimap.lineTo(-5,-5);minimap.lineTo(-3,0);minimap.lineTo(-5,5);minimap.closePath();minimap.fill();minimap.stroke();minimap.restore()}
+minimap.restore()}
 
 const monitor={frames:0,drawCalls:0,chunks:0,resources:0,lastError:'',contextLost:false};
 Object.defineProperty(window,'__irhMonitor',{value:monitor,configurable:false});
@@ -1357,7 +1369,7 @@ const cameraTarget=new T.Vector3(),cameraOffset=new T.Vector3();
 function frame(){
 requestAnimationFrame(frame);
 const frameDelta=Math.min(clock.getDelta(),.05);
-const paused=panel==='settings'||!$('creator').classList.contains('hidden')||
+const paused=panel==='settings'||exploration.visible||!$('creator').classList.contains('hidden')||
   !$('welcome').classList.contains('hidden');
 const dt=paused?0:frameDelta;
 elapsed+=dt;st.gameMinutes=(Number(st.gameMinutes)||0)+dt;
