@@ -84,3 +84,25 @@ Right mouse button toggles pointer lock/free cursor. The bottom-left keyboard sh
 ## UI regression checks
 
 Run `node tests/ui-regressions.mjs` in a local checkout to verify persistent slider bounds, AZERTY labels, resource transfers, map unpause, chromatic auto-mode wiring and visible worker/building dots. These smoke tests do not replace in-browser or real-device checks.
+
+## N.I.M — logistics, roads and 2026-11 changes
+
+- A normal left click anywhere on the gameplay surface restores the hidden mouse cursor and camera control after right-click free-cursor mode. Menus, inputs and buttons retain their own clicks.
+- All unprocessed material units (wood, stone, ore, sand and wheat) have the same baseline sale value: **12 gold each**, before expertise bonuses. Refined products retain their processing premium.
+- Freight depots now cost **4,800** gold (previously 10,500); trade houses cost **5,500** gold (previously 13,500).
+- **Harvesters** continue to gather until the building's raw stock reaches its 100-unit capacity, then physically take goods to the central sale area, even if no freight depot exists.
+- **Transporters** move raw goods from harvest buildings to refineries, or surplus raw goods and processed products to the closest useful trade house. They reserve capacity for goods already in transit to avoid overbooking a warehouse.
+- **Sellers** do not take goods directly from production buildings. They wait for deliveries to their own warehouse (120 units total across resource types), then carry stored goods to the central sale area and return for another batch. Warehouses display goods actually stocked.
+- **Atelier de voirie / Roadworks depot** costs **6,200** gold. Its employees lay a persistent network between facilities and the market, one segment at a time, then upgrade frequently travelled completed paths. Initial paths increase movement speed by **20%**, paved roads by **50%**. When the building network changes, obsolete segments are dismantled progressively.
+- AI pathfinding evaluates *travel time*, not just geometric distance, and preserves a detour along roads when that detour is faster. Long trips use bounded navigation legs. Both player movement and autopilot receive the same surface bonus.
+- Road surfaces reuse existing terrain vertex colors and dirty-chunk repainting, avoiding new road meshes/draw calls. Network re-planning only occurs when facilities change; upgrade eligibility checks are throttled.
+- Saves remain in the established encrypted local format. Old saves load without road or seller inventory fields; new road and warehouse data persist in subsequent saves.
+
+## Regression suites
+
+Run locally with Node:
+```bash
+node tests/ui-regressions.mjs
+node tests/industry-logistics-roads.mjs
+```
+The industry suite simulates harvesting, refinery deliveries, vendor sales, full-stock fallback, simultaneous delivery reservations and construction/demolition/upgrade of roads. These automated tests do not replace real browser or hardware performance QA.
