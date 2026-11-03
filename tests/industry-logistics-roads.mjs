@@ -129,4 +129,25 @@ test('vendor sold processed stock delivered by haulers',chainStats.soldProcessed
 test('sales and production remain finite',chain.gold>0&&Number.isFinite(chain.gold));
 test('warehouse capacity remains bounded',chain.buildings[2].warehouseRaw.reduce((a,b)=>a+b,0)+
   chain.buildings[2].warehouseProcessed.reduce((a,b)=>a+b,0)<=120);
+// Three concurrent haulers must not overbook an almost-full warehouse.
+const congested={gold:0,roads:{},buildings:[
+  {kind:'worker',type:0,x:40,z:25,workers:0,stockRaw:100,rotation:0},
+  {kind:'transport',type:0,x:46,z:30,workers:3,rotation:0},
+  {kind:'seller',type:0,x:63,z:25,workers:0,rotation:0,
+    warehouseRaw:[110,0,0,0,0],warehouseProcessed:[0,0,0,0,0]}
+]};
+const busyRoads=roadsApi.createRoadNetwork(congested);
+busyRoads.setProbes({blocked:()=>false,traffic:()=>0,invalidate:()=>{}});
+const busyEngine=industryApi.createIndustry(T,new Obj(),congested,[],()=>0,
+  {x:23,z:0,w:8,d:9},[12,12,12,12,12],
+  {roads:busyRoads,blocked:()=>false,priceMultiplier:()=>1});
+for(const b of congested.buildings)busyEngine.register(b);
+for(let tick=0;tick<1050;tick++)busyEngine.update(.22,45,25,null);
+const warehouse=congested.buildings[2].warehouseRaw.reduce((a,b)=>a+b,0)+
+  congested.buildings[2].warehouseProcessed.reduce((a,b)=>a+b,0);
+const cargo=busyEngine.snapshot().reduce((a,b)=>a+b.carry,0);
+test('multiple haulers never overfill one warehouse',warehouse<=120);
+test('goods conserved across simultaneous deliveries',
+  congested.buildings[0].stockRaw+warehouse+cargo===210);
+test('haulers continue after capacity fills',busyEngine.snapshot().every(a=>a.state!=='toDelivery'||a.carry>=0));
 console.log('\nPassed '+checks+' industry, road and economy tests.');
