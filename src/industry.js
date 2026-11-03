@@ -385,7 +385,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
         if(a.target&&a.state==='toResource'&&a.noPathAge>1.4){
           a.approachAttempts++;
           const targetPos=a.targetLog&&a.target.log?
-            {x:a.target.log.position.x,z:a.target.log.position.z,type:0}:a.target;
+            {x:a.target.log?.position?.x??a.target.x,z:a.target.log?.position?.z??a.target.z,type:0}:a.target;
           const alternative=a.approachAttempts<6?approachNode(a,targetPos,a.approachAttempts):null;
           if(alternative){
             a.goal=alternative;a.route=null;a.goalKey='';
@@ -433,8 +433,8 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
         const recoverable=b.type===0&&hooks.canBreakLog?.(r);
         if((r.dead&&!recoverable)||r.type!==b.type||(r.unreachableUntil||0)>time||
           r.workerClaim&&r.workerClaim!==a.id)continue;
-        const rx=recoverable?r.log.position.x:r.x;
-        const rz=recoverable?r.log.position.z:r.z;
+        const rx=recoverable?(r.log?.position?.x??r.x):r.x;
+        const rz=recoverable?(r.log?.position?.z??r.z):r.z;
         const dx=rx-b.x,dz=rz-b.z,d2=(dx*dx+dz*dz)*(recoverable?.76:1);
         if(d2<6.25||d2>=score)continue;
         best=r;score=d2;
@@ -470,7 +470,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     if(!target){if(distance(a.home,viewer)>80){a.state='remoteGather';a.timer=0}return}
     a.target=target;a.targetLog=!!target.log;a.approachAttempts=0;
     const approachTarget=a.targetLog?
-      {x:target.log.position.x,z:target.log.position.z,type:0}:target;
+      {x:target.log?.position?.x??target.x,z:target.log?.position?.z??target.z,type:0}:target;
     a.goal=approachNode(a,approachTarget,0);
     if(!a.goal){
       target.unreachableUntil=time+25;release(a);a.selectionCooldown=1.5;return;
@@ -623,8 +623,8 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     }
     if(a.state==='gather'){
       if(a.target){
-        const rx=a.targetLog&&a.target.log?a.target.log.position.x:a.target.x;
-        const rz=a.targetLog&&a.target.log?a.target.log.position.z:a.target.z;
+        const rx=a.targetLog&&a.target.log?(a.target.log.position?.x??a.target.x):a.target.x;
+        const rz=a.targetLog&&a.target.log?(a.target.log.position?.z??a.target.z):a.target.z;
         a.angle=Math.atan2(rx-a.x,rz-a.z);
       }
       gather(a,dt);return;
@@ -761,8 +761,8 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     }else if(gather){
       const type=a.home.type;
       if(a.target){
-        const rx=a.targetLog&&a.target.log?a.target.log.position.x:a.target.x;
-        const rz=a.targetLog&&a.target.log?a.target.log.position.z:a.target.z;
+        const rx=a.targetLog&&a.target.log?(a.target.log.position?.x??a.target.x):a.target.x;
+        const rz=a.targetLog&&a.target.log?(a.target.log.position?.z??a.target.z):a.target.z;
         a.angle=Math.atan2(rx-a.x,rz-a.z);
       }
       v.leftArm.rotation.x=type===2?-1.05:-.55+beat*.23;
