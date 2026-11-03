@@ -282,11 +282,12 @@ const baseCamp=createBaseCamp(T,scene);
 atmosphere.setEnabled(settings.effects&&settings.quality!=='low');
 sound.setVolume(settings.volume);
 sound.setEnabled(!settings.muted);
-applyQuality(renderer,sun,settings.quality);
+applyQuality(renderer,sun,settings.quality,settings.renderScale);
+scene.fog.density=.60/settings.viewDistance;
 let audioActive=true,atmosphereActive=true;
 const maxStamina=()=>100+Math.max(0,st.staminaLevel||0)*32;
 const staminaRegen=()=>16+Math.max(0,st.staminaLevel||0)*4;
-let stamina=maxStamina(),sprintLocked=false,footstepTimer=0;
+let stamina=maxStamina(),sprintLocked=false,footstepTimer=0,jumpVelocity=0;
 const PLAYER_RADIUS=.43;
 function sceneryBlocked(x,z,radius=.35){
   const cx=Math.floor(x/CH),cz=Math.floor(z/CH);
@@ -729,7 +730,7 @@ if(id==='settingAudio')settings.muted=!e.target.checked;
 else if(id==='settingQuality'){
   settings.quality=e.target.value;
   R=settings.quality==='low'?2:settings.quality==='high'?4:3;streamingCenter='';
-  applyQuality(renderer,sun,settings.quality);
+  applyQuality(renderer,sun,settings.quality,settings.renderScale);
   atmosphere.setEnabled(settings.effects&&settings.quality!=='low');
 }else if(id==='settingEffects'){
   settings.effects=e.target.checked;atmosphere.setEnabled(settings.effects&&settings.quality!=='low');
@@ -752,17 +753,20 @@ translateTree(document.querySelector('.bottom'),settings.language);
 translateTree(document.querySelector('.stamina'),settings.language);
 translateTree(document.querySelector('.inventory-mini'),settings.language);
 translateTree(document.querySelector('.placement-hud'),settings.language);
+translateTree(document.querySelector('.mission'),settings.language);
+translateTree(document.querySelector('.location'),settings.language);
+translateTree(document.querySelector('.target'),settings.language);
 if(panel)renderPanel();
-const controls=[settings.bindings.forward,settings.bindings.left,settings.bindings.backward,settings.bindings.right];
-const hints=document.querySelectorAll('.keyline kbd');
-controls.forEach((code,i)=>{if(hints[i])hints[i].textContent=keyLabel(code)});
+industry.setLanguage(settings.language);
+$('inventoryGrid').dataset.signature='';
+updateInventory();
 const prompt=$('prompt');if(!prompt.classList.contains('hidden'))prompt.textContent=keyLabel(settings.bindings.interact);
-$('soundToggle').textContent=settings.muted?'♪ OFF':'♪ '+(settings.language==='fr'?'SON':'SOUND');
+
 }
 addEventListener('keydown',e=>{
   if(awaitingBinding){
     e.preventDefault();
-    if(e.code==='Escape'){awaitingBinding=null;renderPanel();return}
+    if(e.code==='Escape'||e.code==='Tab'){awaitingBinding=null;renderPanel();return}
     const prior=settings.bindings[awaitingBinding];
     const collision=ACTIONS.find(name=>name!==awaitingBinding&&settings.bindings[name]===e.code);
     if(collision)settings.bindings[collision]=prior;
@@ -772,13 +776,17 @@ addEventListener('keydown',e=>{
   keys[e.code]=true;
   if(['forward','backward','left','right'].some(k=>isPressed(keys,settings,k)))stopHarvest();
   if(e.repeat)return;
-  if(e.code==='Escape'){
+  if(e.code==='Escape'||e.code==='Tab'){
+    e.preventDefault();
     if(placing)cancelPlacement();
     else if(panel)close();
     else openPanel('settings');
     return;
   }
   if(panel)return;
+  if(e.code===settings.bindings.jump&&player.position.y<.01){
+    e.preventDefault();jumpVelocity=8.3;sound.effect('step');
+  }
   if(e.code===settings.bindings.interact)interact();
   if(e.code===settings.bindings.drop&&carried){sound.effect('ui');drop()}
   if(e.code===settings.bindings.build)openPanel('build');
@@ -786,16 +794,16 @@ addEventListener('keydown',e=>{
   if(e.code===settings.bindings.inventory)openPanel('inventory');
   if(e.code===settings.bindings.vehicle)pop(st.truck?'Truck owned':'Buy a truck at the market');
 });
-addEventListener('keyup',e=>keys[e.code]=false);addEventListener('mousemove',e=>{if(document.pointerLockElement===renderer.domElement){heading-=e.movementX*.0025;pitch=T.MathUtils.clamp(pitch+e.movementY*.002,-.1,1.15)}});addEventListener('wheel',e=>{
+addEventListener('keyup',e=>keys[e.code]=false);
+addEventListener('mousemove',e=>{
+  if(document.pointerLockElement===renderer.domElement){
+    heading-=e.movementX*.0025*settings.mouseSensitivity;
+    pitch=T.MathUtils.clamp(pitch+e.movementY*.002*settings.mouseSensitivity,-.1,1.15)
+  }
+});addEventListener('wheel',e=>{
   if(panel||!$('welcome').classList.contains('hidden'))return;
   dist=T.MathUtils.clamp(dist+Math.sign(e.deltaY),5,18);
 },{passive:true});addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});renderer.domElement.onclick=()=>{if(!panel)renderer.domElement.requestPointerLock?.()};$('play').onclick=()=>{sound.boot();$('welcome').classList.add('hidden');$('hud').classList.remove('hidden');renderer.domElement.requestPointerLock?.()};
-$('soundToggle').onclick=()=>{
-sound.boot();audioActive=true;
-const enabled=sound.toggle();
-settings.muted=!enabled;
-storeSettings(settings);applyLocale();
-};
 const minimap=$('map').getContext('2d');function map(){minimap.clearRect(0,0,168,168);minimap.save();minimap.beginPath();minimap.arc(84,84,82,0,7);minimap.clip();for(let x=0;x<24;x++)for(let z=0;z<24;z++){let b=biome(player.position.x+(x-12)*9,player.position.z+(z-12)*9);minimap.fillStyle=b<0?'#598654':colors[b];minimap.fillRect(x*7,z*7,8,8)}minimap.fillStyle='white';minimap.beginPath();minimap.arc(84,84,4,0,7);minimap.fill();minimap.restore()}
 
 const monitor={frames:0,drawCalls:0,chunks:0,resources:0,lastError:'',contextLost:false};
@@ -867,6 +875,12 @@ applyLocale();
 function frame(){
 requestAnimationFrame(frame);
 const dt=Math.min(clock.getDelta(),.05);elapsed+=dt;st.gameMinutes=(Number(st.gameMinutes)||0)+dt;
+if(player.position.y>0||jumpVelocity>0){
+  jumpVelocity-=23*dt;
+  player.position.y=Math.max(0,player.position.y+jumpVelocity*dt);
+  if(player.position.y===0)jumpVelocity=0;
+}
+trails.update(dt);
 pumpWorld();
 placementFrame();
 collectSaleZone();
@@ -921,7 +935,7 @@ try{atmosphere.update(dt,elapsed,resources)}
 catch(err){atmosphereActive=false;console.warn('Environment effects stopped',err)}
 }
 if(carried){carried.position.set(player.position.x,2.2,player.position.z);carried.rotation.z=Math.PI/2}
-const target=new T.Vector3(player.position.x,1.5,player.position.z);
+const target=new T.Vector3(player.position.x,1.5+player.position.y,player.position.z);
 const offset=new T.Vector3(Math.sin(heading)*Math.cos(pitch),Math.sin(pitch),Math.cos(heading)*Math.cos(pitch));
 cam.position.copy(target.clone().addScaledVector(offset,dist));
 cam.lookAt(target);
