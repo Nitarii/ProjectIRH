@@ -40,6 +40,54 @@ try{
   const counts=progress.map(p=>p.marker?.frames??0);
   if(counts.every(n=>n>0)&&counts.slice(1).some((n,i)=>n<=counts[i]))throw new Error('Frame rendering stalled');
   if(progress.every(p=>!p.coords))throw new Error('World position did not update');
+  await context.close();
+  const checkContext=await browser.newContext({viewport:{width:1280,height:800}});
+  const salePage=await checkContext.newPage();
+  salePage.on('pageerror',e=>errors.push('SALE SCRIPT '+e.message));
+  await salePage.addInitScript(()=>{
+    localStorage.setItem('irh-state',JSON.stringify({
+      x:10,z:1,gold:100,bag:8,inv:[2,1,0,0,0],products:[1,0,0,0,0],stock:[0]
+    }));
+  });
+  await salePage.goto('http://127.0.0.1:8765/',{waitUntil:'domcontentloaded',timeout:30000});
+  await salePage.locator('#play').click({timeout:15000});
+  await salePage.waitForFunction(()=>document.querySelector('#coins')?.textContent==='240',null,{timeout:35000});
+  const saleState=await salePage.evaluate(()=>({
+    gold:document.querySelector('#coins')?.textContent,
+    capacity:document.querySelector('#inventoryCapacity')?.textContent,
+    saved:JSON.parse(localStorage.getItem('irh-state')||'{}'),
+    topBagCount:document.querySelectorAll('#bag').length
+  }));
+  if(saleState.gold!=='240'||saleState.capacity?.trim()!=='0 / 8'||
+     saleState.topBagCount!==0||saleState.saved.stock?.length!==0)
+    throw new Error('Automatic sale failed: '+JSON.stringify(saleState));
+  await checkContext.close();
+  const marketContext=await browser.newContext({viewport:{width:1280,height:800}});
+  const marketPage=await marketContext.newPage();
+  marketPage.on('pageerror',e=>errors.push('MARKET SCRIPT '+e.message));
+  await marketPage.addInitScript(()=>{
+    localStorage.setItem('irh-state',JSON.stringify({x:0,z:5,gold:100}));
+  });
+  await marketPage.goto('http://127.0.0.1:8765/',{waitUntil:'domcontentloaded',timeout:30000});
+  await marketPage.locator('#play').click({timeout:15000});
+  await marketPage.waitForFunction(()=>window.__irhMonitor?.frames>8,null,{timeout:30000});
+  const contextHint=await marketPage.evaluate(()=>({
+    label:document.querySelector('#prompt')?.textContent,
+    hidden:document.querySelector('#prompt')?.classList.contains('hidden'),
+    screenX:document.querySelector('#prompt')?.style.left,
+    screenY:document.querySelector('#prompt')?.style.top
+  }));
+  if(contextHint.label!=='F'||contextHint.hidden||!contextHint.screenX||!contextHint.screenY)
+    throw new Error('World hint invalid: '+JSON.stringify(contextHint));
+  await marketPage.keyboard.press('e');
+  const eIgnored=await marketPage.locator('#panel').evaluate(el=>el.classList.contains('hidden'));
+  if(!eIgnored)throw new Error('E still opens merchant');
+  await marketPage.keyboard.press('f');
+  await marketPage.waitForFunction(()=>!document.querySelector('#panel').classList.contains('hidden'),null,{timeout:15000});
+  console.log(JSON.stringify({sale: {gold:saleState.gold,inventory:saleState.capacity},merchant:'F',tooltip:contextHint,extraErrors:errors},null,2));
+  await marketContext.close();
+  if(errors.length)throw new Error('Browser errors after scenarios: '+errors.join(' | '));
+
 }finally{
   await browser?.close().catch(()=>{});
   server.kill('SIGTERM');
