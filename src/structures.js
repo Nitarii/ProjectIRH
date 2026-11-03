@@ -118,7 +118,19 @@ export function makeStructure(T, scene, building) {
     ['LOGGING HUT','QUARRY','MINE SHAFT','SAND YARD','FARM'],
     ['SAWMILL','STONEWORKS','SMELTERY','GLASSWORKS','WINDMILL']
   ];
-  const label=(kind==='worker'?industryName[0][t]:kind==='factory'?industryName[1][t]:kind==='transport'?'FREIGHT DEPOT':'TRADE HOUSE');
+  const industryFr=[
+  ['BÛCHERONS','CARRIÈRE','MINE','SABLIÈRE','FERME'],
+  ['SCIERIE','TAILLE DE PIERRE','FONDERIE','VERRERIE','MOULIN']
+];
+let lang='en';
+if(typeof navigator!=='undefined'){
+  try{lang=JSON.parse(localStorage.getItem('irh-options')||'{}').language||
+    ((navigator.language||'en').toLowerCase().startsWith('fr')?'fr':'en')}
+  catch{lang=(navigator.language||'en').toLowerCase().startsWith('fr')?'fr':'en'}
+}
+const names=lang==='fr'?industryFr:industryName;
+const label=(kind==='worker'?names[0][t]:kind==='factory'?names[1][t]:
+  kind==='transport'?lang==='fr'?'DÉPÔT':'FREIGHT DEPOT':lang==='fr'?'COMPTOIR':'TRADE HOUSE');
   const board=box(2.43,.52,.14,wood,0,2.19,1.72);
   board.castShadow=false;
   box(2.34,.39,.03,trim,0,2.19,1.815).castShadow=false;
