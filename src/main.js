@@ -278,6 +278,11 @@ n.mesh.traverse(o=>{
   if(o.isInstancedMesh)o.dispose?.();
   if(o.isMesh&&!o.geometry?.userData?.sharedWorldGeometry)o.geometry?.dispose();
 });
+if(n.log&&n.log!==carried){
+  scene.remove(n.log);
+  n.log.traverse(o=>{if(o.isMesh)o.geometry?.dispose()});
+  n.log=null;
+}
 const index=resources.indexOf(n);if(index>=0)resources.splice(index,1);
 }
 world.delete(key)
