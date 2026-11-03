@@ -1,6 +1,6 @@
-import {makeStructure} from './structures.js?v=20261106d';
+import {makeStructure} from './structures.js?v=20261107path2';
 import {createRouter} from './navigation.js?v=20261106d';
-import {workstation,storagePoint,yardPoint,factoryWorkPath,factoryOutputPath} from './factory-tasks.js?v=20261107aisle1';
+import {workstation,storagePoint,yardPoint,factoryWorkPath,factoryOutputPath} from './factory-tasks.js?v=20261107path2';
 import {worldPoint,rotateOffset,normalizeRotation,pointInOrientedRect} from './facility-layout.js';
 import {prepareWarehouse,warehouseRoom,chooseWarehouseSale,pickupWarehouse,selectTransportJob,transportSpace,deliverTransport} from './logistics.js?v=20261106e';
 
