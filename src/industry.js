@@ -255,7 +255,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       const x=a.x+sx*step,z=a.z+sz*step;
       if(!staticBlocked(x,z,.59,a.target)){
         a.x=x;a.z=z;a.angle=Math.atan2(sx,sz);a.walkPhase+=dt*9;
-        if(!a.abstract)hooks.onMove?.(a.id,a.x,a.z);
+        if(!a.abstract)hooks.onMove?.(a.id,a.x,a.z,a.role);
         a.wait=0;separations++;return true;
       }
     }
@@ -306,7 +306,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       a.rescueFailures=0;
       // No cloning or inventory mutation: the physical load stays attached.
       if(a.carry!==cargoBefore)throw new Error('Recovery changed employee cargo');
-      if(!a.abstract)hooks.onMove?.(a.id,a.x,a.z);
+      if(!a.abstract)hooks.onMove?.(a.id,a.x,a.z,a.role);
       return;
     }
     idle(a,2+a.slot*.32);
@@ -329,7 +329,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       a.z+=(endpoint.z-a.z)/remaining*step;
       // Offscreen employees still really use roads; count their movement
       // so a busy route is not dismantled merely because the player left.
-      hooks.onMove?.(a.id,a.x,a.z);
+      hooks.onMove?.(a.id,a.x,a.z,a.role);
       return distance(a,goal)<.82;
     }
     a.routeCooldown=Math.max(0,(a.routeCooldown||0)-dt);
@@ -416,7 +416,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     }
     a.blockedAge=Math.max(0,a.blockedAge-dt*2.8);
     a.wait=0;a.x=nx;a.z=nz;a.angle=Math.atan2(dx,dz);a.walkPhase+=dt*10;
-    hooks.onMove?.(a.id,a.x,a.z);
+    hooks.onMove?.(a.id,a.x,a.z,a.role);
     return distance(a,goal)<.82;
   }
   function reserveResource(a){
