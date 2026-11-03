@@ -18,7 +18,7 @@ function harness(){
   const source=shortcutsSource+
     'function close(){panel=null;lockRestored++}'+
     'function openPanel(k){if(panel===k){close();return} panel=k;switches++}'+
-    'function press(code,settings){const e={code,preventDefault(){}};'+keyBranch+'}'+
+    'function press(code,bindings){const settings={bindings};const e={code,preventDefault(){}};'+keyBranch+'}'+
     'return {press,setPanel:p=>panel=p,get:()=>({panel,lockRestored,switches})};';
   return new Function(source)();
 }
