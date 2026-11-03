@@ -326,3 +326,126 @@ border:1px solid #7cc9ac85;border-radius:13px;padding:15px 18px;box-shadow:0 14p
   border:1px solid #a1d3ad31;border-radius:10px;background:#17352c8c;margin-bottom:11px}
 .storage-overview strong{font:800 19px 'Barlow Condensed';letter-spacing:1px;color:#d2f1cc}
 .storage-overview span{font:600 12px 'DM Sans';color:#b9d7c4}
+
+/* Adaptive UI: reserve separate corners and columns for game telemetry. */
+#hud{--inventory-panel-height:122px;--inventory-panel-width:200px}
+#hud .hudhead{top:clamp(9px,1.8vh,25px);left:clamp(8px,2.2vw,28px);
+  right:clamp(8px,2.2vw,28px);z-index:3;gap:12px}
+#hud .brand{font-size:clamp(21px,2.65vw,34px);min-width:0;
+  text-shadow:-1px -1px 0 #05120df0,1px -1px 0 #05120df0,-1px 1px 0 #05120df0,
+    1px 1px 0 #05120df0,0 2px 8px #020904e8}
+#hud .hudstats{flex-shrink:0}
+#hud .hudstats b,#hud .location,#hud .mission,#hud .target,
+#hud .keyline,#hud .inventory-title,#hud #clock,#hud .stamina-head,
+#hud .inventory-symbol{
+  text-shadow:-.8px -.8px 0 #00100fe0,.8px -.8px 0 #00100fe0,
+    -.8px .8px 0 #00100fe0,.8px .8px 0 #00100fe0,0 2px 6px #000b!important
+}
+#hud .location{top:clamp(67px,10vh,105px);left:clamp(8px,2.2vw,29px)}
+#hud .mission{top:clamp(115px,17vh,176px);left:clamp(8px,2.2vw,29px);
+  width:min(270px,38vw);z-index:2}
+#hud .rightcol{top:clamp(66px,10.3vh,100px);right:clamp(8px,2.2vw,28px);z-index:2}
+#hud .inventory-mini{right:clamp(8px,2vw,24px);bottom:clamp(8px,2vh,23px);
+  width:204px;padding:8px!important;max-height:calc(100dvh - 65px);overflow:hidden}
+#hud .inventory-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}
+#hud .inventory-slot{height:35px}
+#hud .inventory-symbol{font-size:clamp(15px,1.9vw,24px)}
+#miniInventory[data-capacity="24"]{width:230px}
+#miniInventory[data-capacity="24"] .inventory-grid{grid-template-columns:repeat(6,minmax(0,1fr))}
+#miniInventory[data-capacity="24"] .inventory-slot{height:30px}
+#miniInventory[data-capacity="24"] .inventory-symbol{font-size:19px}
+#hud .target{right:clamp(8px,2vw,24px)!important;
+  bottom:calc(var(--inventory-panel-height,122px) + clamp(14px,3vh,27px))!important;
+  width:205px!important;min-width:0!important;max-width:calc(100vw - 16px)}
+#hud .bottom{right:calc(var(--inventory-panel-width,200px) + 30px);left:10px;bottom:clamp(9px,2vh,24px)}
+#hud .auto-state{display:flex;flex-direction:column;align-items:center;gap:6px;
+  width:max-content;max-width:245px;background:none;background-image:none;
+  color:#c9e7da;filter:drop-shadow(0 2px 5px #00170b);animation:none;
+  font-size:21px;letter-spacing:1px;line-height:1.1;text-align:center;
+  bottom:clamp(115px,15vh,152px)}
+#hud .auto-state .auto-title{display:block;white-space:nowrap;
+  font:900 22px/1 'Barlow Condensed',sans-serif;letter-spacing:4px;
+  background:linear-gradient(110deg,#8deccc,#d7a7ff,#9bddff,#ffeaa2,#93f1bc,#e2aaff);
+  background-size:350% 100%;-webkit-background-clip:text;background-clip:text;
+  color:transparent;animation:auto-chroma 6.5s ease-in-out infinite}
+#hud .auto-state .auto-penalty{display:block;max-width:228px;
+  white-space:normal;font:700 10px/1.45 'DM Sans',sans-serif;
+  letter-spacing:.1px;color:#f3ded7;text-shadow:0 1px 4px #010808,0 0 4px #010808}
+#hud .placement-actions{flex-wrap:wrap}
+#hud .placement-actions kbd{font-size:12px}
+/* Dense or short viewports reserve a left gameplay column. */
+@media(max-width:900px){
+ #hud .inventory-mini{width:182px}
+ #miniInventory[data-capacity="24"]{width:204px}
+ #hud .inventory-slot{height:32px}
+ #miniInventory[data-capacity="24"] .inventory-slot{height:27px}
+ #hud .bottom{right:calc(var(--inventory-panel-width,182px) + 12px)}
+ #hud .mission{width:min(225px,39vw)}
+ #hud .auto-state{bottom:calc(var(--inventory-panel-height,140px) + 20px);
+  left:calc((100vw - var(--inventory-panel-width,182px) - 16px)/2)}
+ #hud .stamina{left:calc((100vw - var(--inventory-panel-width,182px) - 16px)/2)!important;
+  bottom:clamp(14px,3vh,40px)!important;width:min(235px,calc(100vw - var(--inventory-panel-width,182px) - 30px))!important}
+}
+@media(max-width:650px){
+ #hud .brand{font-size:clamp(18px,5.2vw,25px);letter-spacing:1px}
+ #hud .sigil{font-size:clamp(21px,5.4vw,29px)}
+ #hud .brand small{font-size:8px;letter-spacing:.8px}
+ #hud .hudstats b{font-size:clamp(17px,4.2vw,22px)}
+ #hud .mission{top:115px;width:min(175px,44vw);font-size:10px;
+   padding-left:3px!important;padding-right:2px!important}
+ #hud .mission strong{font-size:12px}
+ #hud .mission span{font-size:10px}
+ #hud .location{top:67px;font-size:11px}
+ #hud .rightcol{top:68px}
+ #hud #map{width:clamp(74px,22vw,108px);height:clamp(74px,22vw,108px)}
+ #hud #clock{font-size:10px;letter-spacing:1px}
+ #hud .inventory-mini{width:158px!important;padding:5px!important}
+ #miniInventory[data-capacity="24"]{width:170px!important}
+ #hud .inventory-title{font-size:9px;letter-spacing:.4px;margin-bottom:5px}
+ #hud .inventory-grid{gap:3px}
+ #hud .inventory-slot{height:26px}
+ #miniInventory[data-capacity="24"] .inventory-slot{height:23px}
+ #hud .inventory-symbol,#miniInventory[data-capacity="24"] .inventory-symbol{font-size:15px}
+ #hud .target{width:153px!important;right:8px!important;
+    bottom:calc(var(--inventory-panel-height,130px) + 13px)!important;
+    padding:5px 3px!important;font-size:11px}
+ #hud .target strong{font-size:14px}
+ #hud .auto-state{max-width:calc(100vw - var(--inventory-panel-width,170px) - 20px);
+    bottom:calc(var(--inventory-panel-height,130px) + 12px)}
+ #hud .auto-state .auto-title{font-size:clamp(15px,4vw,19px);letter-spacing:2px}
+ #hud .auto-state .auto-penalty{font-size:9px}
+ #hud .stamina-head{font-size:9px}
+ #hud .stamina{padding:0 2px!important}
+ #hud .bottom{display:none}
+}
+@media(max-width:420px){
+ #hud .hudhead{left:8px;right:8px}
+ #hud .brand{font-size:18px}
+ #hud .mission{width:min(152px,44vw)}
+ #hud .inventory-mini{width:146px!important}
+ #miniInventory[data-capacity="24"]{width:154px!important}
+ #hud .target{width:139px!important}
+ #hud .auto-state{max-width:calc(100vw - var(--inventory-panel-width,146px) - 16px)}
+ #hud .auto-state .auto-penalty{font-size:8px;max-width:146px}
+ #hud .stamina{width:calc(100vw - var(--inventory-panel-width,146px) - 20px)!important}
+}
+@media(max-height:520px){
+ #hud .rightcol{top:56px}
+ #hud #map{width:min(98px,18vh);height:min(98px,18vh)}
+ #hud .location{top:58px}
+ #hud .mission{top:96px;max-height:70px;overflow:hidden}
+ #hud .auto-state{bottom:calc(var(--inventory-panel-height,120px) + 9px)}
+ #hud .auto-state .auto-penalty{font-size:9px}
+ #hud .target{bottom:calc(var(--inventory-panel-height,120px) + 8px)!important}
+ #hud .keyline{display:none}
+}
+@media(max-height:390px){
+ #hud #map{display:none}
+ #hud .mission{display:none}
+ #hud .location{top:53px}
+ #hud .rightcol{top:44px}
+ #hud .inventory-mini{max-height:calc(100dvh - 65px)}
+ #hud .inventory-slot{height:22px}
+ #miniInventory[data-capacity="24"] .inventory-slot{height:20px}
+ #hud .auto-state{bottom:calc(var(--inventory-panel-height,120px) + 8px)}
+}
