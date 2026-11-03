@@ -69,6 +69,18 @@ export function decorateFacility(T,group,b,materials){
     stock('raw',{x:-2.75,z:3.15},b.type);
     // Tree piles, ore crates and produce sacks are deliberately at the pickup point.
   }
+  const sellerDisplay={raw:[],processed:[]};
+  if(b.kind==='seller'){
+    // Five compact color-coded lots: visible only for products actually delivered.
+    // No extra animation or draw calls for empty warehouse slots.
+    for(let type=0;type<5;type++){
+      const x=(type-2)*.85;
+      const rawCrate=box(.61,.30,.50,contentMaterials[type],x,.33,2.15);
+      const finishedCrate=box(.62,.38,.50,finishedMaterials[type],x,.39,-2.08);
+      rawCrate.visible=false;finishedCrate.visible=false;
+      sellerDisplay.raw.push(rawCrate);sellerDisplay.processed.push(finishedCrate);
+    }
+  }
   if(b.kind==='factory'){
     // Four square units of clear yard in front of the workshop and five separate stations.
     box(17.8,.06,12.25,stone,0,.00,6.55);
@@ -134,8 +146,20 @@ export function decorateFacility(T,group,b,materials){
   }
   // Model bounds are broad-phase collision shapes, not rigid-body simulation.
   collision(0,0,4.25,4.10);
-  let cachedRaw=-1,cachedProcessed=-1;
+  let cachedRaw=-1,cachedProcessed=-1,cachedSeller='';
   function updateStock(){
+    if(b.kind==='seller'){
+      const raw=b.warehouseRaw||[],finished=b.warehouseProcessed||[];
+      const sig=raw.join(',')+'|'+finished.join(',');
+      if(sig!==cachedSeller){
+        cachedSeller=sig;
+        for(let i=0;i<5;i++){
+          sellerDisplay.raw[i].visible=(raw[i]||0)>0;
+          sellerDisplay.processed[i].visible=(finished[i]||0)>0;
+        }
+      }
+      return;
+    }
     const raw=b.kind==='factory'?b.inputRaw:b.kind==='worker'?b.stockRaw:0;
     const processed=b.kind==='factory'?b.stockProcessed:0;
     if(raw!==cachedRaw){
