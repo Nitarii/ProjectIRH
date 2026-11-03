@@ -13,9 +13,11 @@ export function startingBiomes(seed){
 export function openingBiome(x,z,seed){
   const r=Math.hypot(x,z);
   if(r<22)return -1;
-  if(r>=200)return null;
-  const ids=startingBiomes(seed);
   const angle=Math.atan2(x,z);
+  const outer=197+16*Math.sin(angle*5.1+seed*.00031)
+    +9*Math.sin(angle*11.7-seed*.00012);
+  if(r>=outer)return null;
+  const ids=startingBiomes(seed);
   // Gently irregular sector borders; zero angle always stays in biome 0.
   const border=Math.PI/4+Math.sin((r+seed%57)*.028)*.055;
   if(Math.abs(angle)<border)return ids[0];
