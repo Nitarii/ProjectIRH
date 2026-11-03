@@ -105,9 +105,11 @@ export function createRoadNetwork(state,{cell=3,maxTiles=5600}={}){
       const cost=d*priority;
       if(cost<score){score=cost;best={key:k,mode,x:p.x,z:p.z}}
     };
-    // After placement/removal, dismantle obsolete road before expanding.
-    for(const k of Object.keys(tiles))if(!planned.has(k)&&stage(k)>0)consider(k,'demolish');
-    if(!best)for(const k of planned)if(stage(k)===0)consider(k,'build');
+    // Keep the old network usable until replacement paths are laid,
+    // then dismantle obsolete segments. New routes take precedence.
+    for(const k of planned)if(stage(k)===0)consider(k,'build');
+    if(!best)for(const k of Object.keys(tiles))
+      if(!planned.has(k)&&stage(k)>0)consider(k,'demolish');
     if(!best&&completion>=planned.size&&upgradeKeys.length){
       // Inspect a small moving window, never thousands of traffic cells per worker.
       const checked=Math.min(180,upgradeKeys.length);
