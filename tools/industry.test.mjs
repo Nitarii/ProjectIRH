@@ -133,3 +133,27 @@ const crowdStats=crowd.readStats();
 assert.ok(crowdStats.replans<500,'routing must not run expensive searches every frame');
 console.log(JSON.stringify({minCrewSpacing,maxDelay,finishedTasks,crowdStats},null,2));
 console.log('Tight-tree congestion and worker recovery verified');
+
+
+const enclosedTree={type:0,x:6,z:29,hp:40,max:40,dead:false,mesh:{visible:true}};
+const trappedState={gold:100,buildings:[
+  {id:'b-walled',kind:'worker',type:0,x:17,z:29,workers:1,stockRaw:0}
+]};
+const unreachableCrew=createIndustry(T,scene2,trappedState,[enclosedTree],()=>0,
+  {x:70,z:70,w:9,d:9},[12,15,22,10,14],{
+    blocked(x,z,radius){
+      const distanceToTree=Math.hypot(x-enclosedTree.x,z-enclosedTree.z);
+      return distanceToTree>2.7-radius&&distanceToTree<4.3+radius;
+    }
+  });
+unreachableCrew.sync();
+for(let i=0;i<550;i++)unreachableCrew.update(.19,17,29);
+const recovered=unreachableCrew.readStats();
+assert.ok(recovered.routeFailures>0,'closed passages must produce explicit failed plans');
+assert.ok(recovered.stuckRecoveries>0,'an isolated tree must eventually be abandoned');
+assert.ok(enclosedTree.unreachableUntil>0,'unreachable nodes must be temporarily blacklisted');
+assert.ok(unreachableCrew.snapshot()[0].blockedAge<8,
+  'worker must not remain permanently locked in an unreachable route');
+assert.ok(recovered.replans<90,'unreachable targets must not trigger endless A* calculations');
+console.log(JSON.stringify({unreachableTree:recovered,blacklistedUntil:enclosedTree.unreachableUntil}));
+console.log('Impassable resource recovery verified');
