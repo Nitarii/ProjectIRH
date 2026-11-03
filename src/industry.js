@@ -163,6 +163,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     }
   }
   function staticBlocked(x,z,radius=.35,target=null){
+    if(hooks.blocked?.(x,z,radius))return true;
     for(const b of nearby(buildingCells,x,z)){
       if(Math.abs(x-b.x)>14||Math.abs(z-b.z)>14)continue;
       const view=models.get(b.id);
