@@ -3,10 +3,10 @@ import {keyLabel,ACTIONS} from './settings.js?v=20261103s6';
 const actionText={
  fr:{forward:'Avancer',backward:'Reculer',left:'Aller à gauche',right:'Aller à droite',
  sprint:'Sprint',interact:'Interagir',market:'Comptoir',auto:'Mode automatique',build:'Construction',talents:'Progression',
- drop:'Déposer',vehicle:'Véhicule',jump:'Sauter'},
+ drop:'Déposer',vehicle:'Vélo',jump:'Sauter'},
  en:{forward:'Move forward',backward:'Move backward',left:'Strafe left',right:'Strafe right',
  sprint:'Sprint',interact:'Interact',market:'Market',auto:'Auto gathering',build:'Construction',talents:'Progression',
- drop:'Drop',vehicle:'Vehicle',jump:'Jump'}
+ drop:'Drop',vehicle:'Bicycle',jump:'Jump'}
 };
 export function optionsMarkup(settings,awaiting,vaultId=''){
  const t=UI[settings.language],actions=actionText[settings.language];
