@@ -13,7 +13,7 @@ export function createRoadNetwork(state,{cell=3,maxTiles=5600}={}){
   const stage=k=>Math.max(0,Math.min(2,Number(tiles[k]?.l??tiles[k])||0));
   let built=Object.keys(tiles).filter(k=>stage(k)>0).length;
   const distance=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z);
-  const passable=(p)=>!blocked(p.x,p.z,.35);
+  const passable=(p)=>!blocked(p.x,p.z,.62);
   function setProbes({blocked:isBlocked,traffic:getTraffic,invalidate}={}){
     if(isBlocked)blocked=isBlocked;
     if(getTraffic)traffic=getTraffic;
@@ -36,7 +36,7 @@ export function createRoadNetwork(state,{cell=3,maxTiles=5600}={}){
     const waypoints=[from];
     const parts=Math.ceil(length/55);
     let current=from;
-    const router=createRouter((x,z)=>blocked(x,z,.34),{cell:1.9,maxVisits:920});
+    const router=createRouter((x,z)=>blocked(x,z,.62),{cell:1.9,maxVisits:920});
     for(let j=1;j<=parts;j++){
       const t=j/parts,dest={
         x:from.x+(to.x-from.x)*t,z:from.z+(to.z-from.z)*t
