@@ -450,10 +450,15 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
   function refundCargo(a){
     if(!a.carry)return;
     let source=isPresent(a.targetBuilding)?a.targetBuilding:a.home;
-    if(a.role==='seller'&&a.processed&&isPresent(source))
-      source.stockProcessed=limited(source.stockProcessed+a.carry);
-    else if(a.role==='transport'&&isPresent(source))
-      source.stockRaw=limited(source.stockRaw+a.carry);
+    if(a.role==='seller'&&isPresent(source)){
+      prepareWarehouse(source);
+      const items=a.processed?source.warehouseProcessed:source.warehouseRaw;
+      items[a.carryType]=Math.min(totalCapacity,items[a.carryType]+a.carry);
+    }
+    else if(a.role==='transport'&&isPresent(source)){
+      const field=a.processed?'stockProcessed':'stockRaw';
+      source[field]=limited(source[field]+a.carry);
+    }
     else if(a.role==='worker')a.home.stockRaw=limited(a.home.stockRaw+a.carry);
     else if(a.role==='factory'&&a.carry){
       if(a.processed)a.home.stockProcessed=limited(a.home.stockProcessed+a.carry);
@@ -552,6 +557,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       if(a.role==='worker')beginHarvester(a);
       else if(a.role==='transport')findTransport(a);
       else if(a.role==='seller')findSeller(a);
+      else if(a.role==='road')beginRoadwork(a);
       else if(a.role==='factory'){
         const task=workstation(a.home.type,a.slot);
         a.workMotion=task.motion;
@@ -566,6 +572,18 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     }
     if(a.wait>10||a.blockedAge>7||a.stagnationAge>8){
       abandonBlockedTask(a);return;
+    }
+    if(a.state==='roadToSite'){
+      if(!a.roadTask){idle(a,.6);return}
+      if(walk(a,a.goal,dt,2.55)){a.state='roadWork';a.timer=0}
+      return;
+    }
+    if(a.state==='roadWork'){
+      if(!a.roadTask){idle(a,.6);return}
+      a.timer+=dt;
+      const status=hooks.roads?.work(a.id,a.roadTask,dt)||'cancelled';
+      if(status==='done'||status==='cancelled')idle(a,.35);
+      return;
     }
     if(a.state==='factoryStandby'){
       // Five assigned workstations prevent workers from queuing on a single spot.
