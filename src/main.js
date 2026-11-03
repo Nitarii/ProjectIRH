@@ -25,6 +25,7 @@ import {nearestStock,transferStock} from './stock-interaction.js?v=20261103p7';
 import {worldPoint,facilityFootprint,footprintsOverlap,pointInOrientedRect,normalizeRotation} from './facility-layout.js';
 import {createBicycle} from './bicycle.js?v=20261104c';
 import {createExplorationMap} from './exploration-map.js?v=20261104n';
+import {createMobileControls} from './mobile-controls.js?v=20261105a';
 const $=id=>document.getElementById(id), scene=new T.Scene();scene.background=new T.Color('#a6cbd1');scene.fog=new T.FogExp2('#a6cbd1',.0039);
 const cam=new T.PerspectiveCamera(65,innerWidth/innerHeight,.1,450),renderer=new T.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.25));renderer.shadowMap.enabled=true;$('game').append(renderer.domElement);
 scene.add(new T.HemisphereLight(0xffffff,0x657449,2.4));const sun=new T.DirectionalLight(0xffe7bc,2.3);sun.position.set(70,95,40);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.bias=-.0004;sun.shadow.normalBias=.024;sun.shadow.radius=2;sun.shadow.camera.left=-60;sun.shadow.camera.right=60;sun.shadow.camera.top=60;sun.shadow.camera.bottom=-60;scene.add(sun);
@@ -376,6 +377,7 @@ function updateResourceVisibility(){
   }
 }
 const count=()=>st.inv.reduce((a,b)=>a+b,0)+st.products.reduce((a,b)=>a+b,0);
+let touchControls=null,mouseFree=false;
 let heading=0,pitch=.38,dist=10,active=0,keys={},current=null,placing=null,carried=null,carriedSource=null,elapsed=0,workerClock=0;
 let buildingPreview=null,previewMaterials=[],lastPlacementValid=null;
 let harvesting=null,harvestProgress=0,stepPhase=0,autoMode=false;
@@ -736,6 +738,7 @@ function beginPlacement(kind,type,cost){
   if(placing)cancelPlacement();
   const biomeType=['worker','factory'].includes(kind)?type:Math.max(0,biome(player.position.x,player.position.z));
   placing={kind,type:biomeType,cost,rotation:0};
+  document.body.classList.add('touch-placement');
   panel=null;renderPanel();
   $('placementName').textContent=tr(kind==='worker'?worksites[type]:kind==='factory'?factories[type]:
     kind==='transport'?'Dépôt de transport':'Comptoir vendeur',settings.language);
@@ -754,6 +757,7 @@ function cancelPlacement(refund=true){
   if(!placing)return;
   if(refund){st.gold+=placing.cost||0;save();pop('Construction annulée · or remboursé')}
   placing=null;
+  document.body.classList.remove('touch-placement');
   $('placementHud').classList.add('hidden');
   clearPlacementPreview();
 }
@@ -932,7 +936,7 @@ const add=(title,sub,cost,action,off=false,biomeId=-1)=>`<article class="shop-ca
 <div class="shop-card-head"><span class="item-icon">${biomeId>=0?biomeIcons[biomeId]:'✦'}</span><div><strong>${title}</strong><small>${sub}</small></div></div>
 <button data-action="${action}" ${off?'disabled':''}>${cost}</button></article>`;
 const section=(title,kicker,content)=>`<section class="catalog-section"><div class="catalog-heading"><h3>${title}</h3><span>${kicker}</span></div><div class="catalog-grid">${content}</div></section>`;
-function openPanel(k){sound.effect('ui');panel=panel===k?null:k;renderPanel();if(panel)document.exitPointerLock?.()}
+function openPanel(k){sound.effect('ui');panel=panel===k?null:k;touchControls?.clear?.();renderPanel();if(panel)document.exitPointerLock?.()}
 function renderPanel(){
 const box=$('panel');box.classList.toggle('hidden',!panel);if(!panel)return;
 $('panelTitle').textContent=panel==='settings'?UI[settings.language].settings:tr(panels[panel],settings.language);
@@ -1216,6 +1220,10 @@ $('rotationHint').innerHTML='<kbd>'+keyLabel('KeyQ')+' / '+keyLabel('KeyE')+'</k
  (settings.language==='fr'?'TOURNER':'ROTATE');
 $('autoShortcut').innerHTML='<kbd>'+keyLabel(settings.bindings.auto)+'</kbd> AUTO';
 $('mapShortcut').textContent=keyLabel(settings.bindings.map);
+$('marketShortcut').textContent=keyLabel(settings.bindings.market);
+$('buildShortcut').textContent=keyLabel(settings.bindings.build);
+$('talentShortcut').textContent=keyLabel(settings.bindings.talents);
+$('interactShortcut').textContent=keyLabel(settings.bindings.interact);
 $('worldMapTitle').textContent=settings.language==='fr'?'CARTE DU MONDE':'WORLD MAP';
 $('worldMapHelp').textContent=settings.language==='fr'?'Glisser pour déplacer · molette pour zoomer · zones sombres inexplorées':'Drag to pan · wheel to zoom · dark areas unexplored';
 updateAutoIndicator();
@@ -1274,6 +1282,19 @@ addEventListener('keydown',e=>{
   if(e.code===settings.bindings.market)openPanel('market');
   if(e.code===settings.bindings.vehicle)toggleBike();
 });
+// Desktop shortcuts are actual controls and share behavior with the keyboard.
+$('hud').querySelector('.keyline').addEventListener('click',e=>{
+  const button=e.target.closest('button[data-hud-action]');
+  if(!button||panel||exploration.visible)return;
+  const action=button.dataset.hudAction;
+  if(action==='interact')return interact();
+  if(action==='auto'){
+    if(bikeRiding){bikeRiding=false;bicycle.group.visible=false}
+    autoPilot.toggle();return;
+  }
+  if(action==='map'){exploration.setVisible(true);document.exitPointerLock?.();return}
+  if(['market','build','talents','settings'].includes(action))openPanel(action);
+});
 addEventListener('keyup',e=>keys[e.code]=false);
 addEventListener('blur',()=>{keys={}});
 addEventListener('mousemove',e=>{
@@ -1286,13 +1307,57 @@ addEventListener('mousemove',e=>{
   e.preventDefault();
   if(placing){rotatePlacement(Math.sign(e.deltaY));return}
   dist=T.MathUtils.clamp(dist+Math.sign(e.deltaY),5,18);
-},{passive:false});addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);syncHudDimensions()});renderer.domElement.onclick=()=>{if(!panel&&!exploration.visible)renderer.domElement.requestPointerLock?.()};let creatorPreview=null;
+},{passive:false});
+function resizeGame(){
+  cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);syncHudDimensions();
+}
+addEventListener('resize',resizeGame);
+if(window.visualViewport)window.visualViewport.addEventListener('resize',resizeGame);
+renderer.domElement.addEventListener('contextmenu',e=>e.preventDefault());
+renderer.domElement.addEventListener('mousedown',e=>{
+  if(e.button!==2||touchControls?.enabled||panel||exploration.visible||
+    !$('welcome').classList.contains('hidden'))return;
+  e.preventDefault();
+  mouseFree=!mouseFree;
+  if(mouseFree)document.exitPointerLock?.();
+  else renderer.domElement.requestPointerLock?.();
+  document.body.classList.toggle('mouse-free',mouseFree);
+});
+document.addEventListener('pointerlockchange',()=>{
+  if(!document.pointerLockElement&&!panel&&!exploration.visible&&
+     $('welcome').classList.contains('hidden')&&!touchControls?.enabled){
+    mouseFree=true;document.body.classList.add('mouse-free');
+  }
+});
+renderer.domElement.onclick=()=>{
+  if(!mouseFree&&!touchControls?.enabled&&!panel&&!exploration.visible)
+    renderer.domElement.requestPointerLock?.();
+};
+touchControls=createMobileControls({
+  root:$('mobileControls'),canvas:renderer.domElement,
+  isActive:()=>!panel&&!exploration.visible&&
+    $('welcome').classList.contains('hidden')&&$('creator').classList.contains('hidden'),
+  onAction:(action,pressed)=>{
+    const code=action==='settings'?'Tab':
+      action==='rotateLeft'?'KeyQ':action==='rotateRight'?'KeyE':settings.bindings[action];
+    if(!code)return;
+    dispatchEvent(new KeyboardEvent(pressed?'keydown':'keyup',
+      {code,bubbles:true,cancelable:true}));
+  },
+  onLook:(dx,dy)=>{
+    heading-=dx*.0045*settings.mouseSensitivity;
+    pitch=T.MathUtils.clamp(pitch+dy*.0034*settings.mouseSensitivity,-.1,1.15);
+  },
+  onZoom:delta=>{if(!placing)dist=T.MathUtils.clamp(dist+delta,5,18)}
+});
+let creatorPreview=null;
 function finishWelcome(){
   sound.boot();
   $('creator').classList.add('hidden');
   $('welcome').classList.add('hidden');
   $('hud').classList.remove('hidden');
-  renderer.domElement.requestPointerLock?.();
+  if(!touchControls?.enabled)renderer.domElement.requestPointerLock?.();
 }
 function closeAvatarBuilder(){
   if(creatorPreview){
