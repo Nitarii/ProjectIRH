@@ -706,11 +706,57 @@ if(id==='settingLanguage')applyLocale();
 renderPanel();
 };
 const close=()=>{stopHarvest();panel=null;renderPanel()};$('close').onclick=close;$('resume').onclick=close;
-addEventListener('keydown',e=>{keys[e.code]=true;if(['KeyW','KeyZ','KeyA','KeyQ','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))stopHarvest();if(e.repeat)return;if(e.code==='KeyF')interact();if(e.code==='KeyG'&&carried){sound.effect('ui');drop()}if(e.code==='KeyB')openPanel('build');if(e.code==='KeyU')openPanel('talents');if(e.code==='KeyI')openPanel('inventory');if(e.code==='KeyR')pop(st.truck?'Camion possédé':'Achetez un camion au comptoir');if(e.code==='Escape'){if(placing)cancelPlacement();close()}});addEventListener('keyup',e=>keys[e.code]=false);addEventListener('mousemove',e=>{if(document.pointerLockElement===renderer.domElement){heading-=e.movementX*.0025;pitch=T.MathUtils.clamp(pitch+e.movementY*.002,-.1,1.15)}});addEventListener('wheel',e=>{
+function applyLocale(){
+document.documentElement.lang=settings.language;
+translateTree($('welcome'),settings.language);
+translateTree(document.querySelector('.bottom'),settings.language);
+translateTree(document.querySelector('.stamina'),settings.language);
+translateTree(document.querySelector('.inventory-mini'),settings.language);
+translateTree(document.querySelector('.placement-hud'),settings.language);
+if(panel)renderPanel();
+const controls=[settings.bindings.forward,settings.bindings.left,settings.bindings.backward,settings.bindings.right];
+const hints=document.querySelectorAll('.keyline kbd');
+controls.forEach((code,i)=>{if(hints[i])hints[i].textContent=keyLabel(code)});
+const prompt=$('prompt');if(!prompt.classList.contains('hidden'))prompt.textContent=keyLabel(settings.bindings.interact);
+$('soundToggle').textContent=settings.muted?'♪ OFF':'♪ '+(settings.language==='fr'?'SON':'SOUND');
+}
+addEventListener('keydown',e=>{
+  if(awaitingBinding){
+    e.preventDefault();
+    if(e.code==='Escape'){awaitingBinding=null;renderPanel();return}
+    const prior=settings.bindings[awaitingBinding];
+    const collision=ACTIONS.find(name=>name!==awaitingBinding&&settings.bindings[name]===e.code);
+    if(collision)settings.bindings[collision]=prior;
+    settings.bindings[awaitingBinding]=e.code;
+    awaitingBinding=null;storeSettings(settings);renderPanel();applyLocale();return;
+  }
+  keys[e.code]=true;
+  if(['forward','backward','left','right'].some(k=>isPressed(keys,settings,k)))stopHarvest();
+  if(e.repeat)return;
+  if(e.code==='Escape'){
+    if(placing)cancelPlacement();
+    else if(panel)close();
+    else openPanel('settings');
+    return;
+  }
+  if(panel)return;
+  if(e.code===settings.bindings.interact)interact();
+  if(e.code===settings.bindings.drop&&carried){sound.effect('ui');drop()}
+  if(e.code===settings.bindings.build)openPanel('build');
+  if(e.code===settings.bindings.talents)openPanel('talents');
+  if(e.code===settings.bindings.inventory)openPanel('inventory');
+  if(e.code===settings.bindings.vehicle)pop(st.truck?'Truck owned':'Buy a truck at the market');
+});
+addEventListener('keyup',e=>keys[e.code]=false);addEventListener('mousemove',e=>{if(document.pointerLockElement===renderer.domElement){heading-=e.movementX*.0025;pitch=T.MathUtils.clamp(pitch+e.movementY*.002,-.1,1.15)}});addEventListener('wheel',e=>{
   if(panel||!$('welcome').classList.contains('hidden'))return;
   dist=T.MathUtils.clamp(dist+Math.sign(e.deltaY),5,18);
 },{passive:true});addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});renderer.domElement.onclick=()=>{if(!panel)renderer.domElement.requestPointerLock?.()};$('play').onclick=()=>{sound.boot();$('welcome').classList.add('hidden');$('hud').classList.remove('hidden');renderer.domElement.requestPointerLock?.()};
-$('soundToggle').onclick=()=>{sound.boot();audioActive=true;const enabled=sound.toggle();$('soundToggle').classList.toggle('muted',!enabled);$('soundToggle').innerHTML=enabled?'♪ <span>SON</span>':'♪ <span>MUET</span>'};
+$('soundToggle').onclick=()=>{
+sound.boot();audioActive=true;
+const enabled=sound.toggle();
+settings.muted=!enabled;
+storeSettings(settings);applyLocale();
+};
 const minimap=$('map').getContext('2d');function map(){minimap.clearRect(0,0,168,168);minimap.save();minimap.beginPath();minimap.arc(84,84,82,0,7);minimap.clip();for(let x=0;x<24;x++)for(let z=0;z<24;z++){let b=biome(player.position.x+(x-12)*9,player.position.z+(z-12)*9);minimap.fillStyle=b<0?'#598654':colors[b];minimap.fillRect(x*7,z*7,8,8)}minimap.fillStyle='white';minimap.beginPath();minimap.arc(84,84,4,0,7);minimap.fill();minimap.restore()}
 
 const monitor={frames:0,drawCalls:0,chunks:0,resources:0,lastError:'',contextLost:false};
@@ -756,7 +802,7 @@ function positionInteractionTooltip(){
   }
   prompt.style.left=Math.round((tooltipPosition.x+1)*.5*window.innerWidth)+'px';
   prompt.style.top=Math.round((1-tooltipPosition.y)*.5*window.innerHeight)+'px';
-  if(prompt.textContent!=='F')prompt.textContent='F';
+  const key=keyLabel(settings.bindings.interact);if(prompt.textContent!==key)prompt.textContent=key;
   prompt.classList.remove('hidden');
   prompt.classList.toggle('sale',isSelling(player.position.x,player.position.z));
 }
@@ -776,16 +822,17 @@ monitor.lowPowerMode=true;
 console.warn('Reduced graphics load for stable rendering');
 }
 }
+applyLocale();
 function frame(){
 requestAnimationFrame(frame);
 const dt=Math.min(clock.getDelta(),.05);elapsed+=dt;st.gameMinutes=(Number(st.gameMinutes)||0)+dt;
 pumpWorld();
 placementFrame();
 collectSaleZone();
-const side=Number(!!(keys.KeyD||keys.ArrowRight))-Number(!!(keys.KeyA||keys.KeyQ||keys.ArrowLeft));
-const front=Number(!!(keys.KeyW||keys.KeyZ||keys.ArrowUp))-Number(!!(keys.KeyS||keys.ArrowDown));
+const side=Number(isPressed(keys,settings,'right'))-Number(isPressed(keys,settings,'left'));
+const front=Number(isPressed(keys,settings,'forward'))-Number(isPressed(keys,settings,'backward'));
 const moving=!panel&&(side!==0||front!==0);
-const wantsSprint=keys.ShiftLeft||keys.ShiftRight;
+const wantsSprint=isPressed(keys,settings,'sprint');
 if(stamina<.01)sprintLocked=true;
 if(stamina>=maxStamina()*.27)sprintLocked=false;
 const sprinting=moving&&wantsSprint&&!sprintLocked&&stamina>.01;
@@ -828,7 +875,7 @@ if(audioActive){
 try{sound.update(biome(player.position.x,player.position.z),dt)}
 catch(err){audioActive=false;console.warn('Audio subsystem stopped',err)}
 }
-if(atmosphereActive){
+if(atmosphereActive&&settings.effects&&settings.quality!=='low'){
 try{atmosphere.update(dt,elapsed,resources)}
 catch(err){atmosphereActive=false;console.warn('Environment effects stopped',err)}
 }
@@ -857,9 +904,9 @@ stream();updateResourceVisibility();updateInventory();
 $('coins').textContent=st.gold;
 $('coordinates').textContent=Math.round(player.position.x)+' / '+Math.round(player.position.z);
 const biomeId=biome(player.position.x,player.position.z);
-$('biomeName').textContent=biomeId<0?'CAMP CENTRAL':types[biomeId];
+$('biomeName').textContent=tr(biomeId<0?'CAMP CENTRAL':types[biomeId],settings.language);
 const gameClock=Math.floor(st.gameMinutes||0)+8*60;
-$('clock').textContent='JOUR '+String(1+Math.floor(gameClock/1440)).padStart(2,'0')+' · '+String(Math.floor(gameClock/60)%24).padStart(2,'0')+':'+String(gameClock%60).padStart(2,'0');
+$('clock').textContent=tr('JOUR',settings.language)+' '+String(1+Math.floor(gameClock/1440)).padStart(2,'0')+' · '+String(Math.floor(gameClock/60)%24).padStart(2,'0')+':'+String(gameClock%60).padStart(2,'0');
 $('objective').textContent=tr(st.tools.every(t=>t<0)?'COMMENCEZ AVEC VOS POINGS':'DÉVELOPPEZ VOTRE EMPIRE',settings.language);
 $('detail').textContent=tr(st.tools.every(t=>t<0)?'Récoltez lentement avec vos poings, puis améliorez votre équipement':'Récoltez, transformez et automatisez',settings.language);
 const highlighted=harvesting;
