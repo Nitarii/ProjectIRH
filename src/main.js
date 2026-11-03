@@ -10,7 +10,7 @@ import {EQUIPMENT,EQUIPMENT_FR,TOOL_SPEED,TOOL_YIELD,ECONOMY,toolCost,buildingCo
 import {loadSettings,storeSettings,keyLabel,isPressed,applyQuality,ACTIONS,detectKeyboardLayout} from './settings.js?v=20261105d';
 import {tr,translateTree,UI} from './language.js?v=20261106c';
 import {createBaseCamp} from './basecamp.js';
-import {optionsMarkup} from './options-ui.js?v=20261105e';
+import {optionsMarkup} from './options-ui.js?v=20261106c';
 import {createTrails} from './trails.js?v=20261106c';
 import {createRoadNetwork} from './road-network.js?v=20261106c';
 import {decorationCollider} from './decor-collision.js?v=20261103p4';
@@ -1062,7 +1062,7 @@ if(panel==='employees'){
       :b.kind==='factory'?(fr?'Entrée : ':'Input: ')+b.inputRaw+' · '+(fr?'Transformé : ':'Processed: ')+b.stockProcessed
       :b.kind==='seller'?(fr?'Stock à vendre : ':'Goods awaiting sale: ')+
         ((b.warehouseRaw||[]).reduce((n,v)=>n+v,0)+(b.warehouseProcessed||[]).reduce((n,v)=>n+v,0))
-      :b.kind==='road'?(fr?'Chemins tracés : ':'Road tiles: ')+roads.built+'/'+roads.plannedCount
+      :b.kind==='road'?(fr?'Chemins construits : ':'Completed paths: ')+roads.completed+'/'+roads.plannedCount
       :(fr?'Livraisons inter-bâtiments':'Inter-building deliveries');
     return add(title,
       (focus?'':(fr?'Recruter un ':'Hire a ')+recruitName(b)+' · ')+b.workers+'/'+industry.limit+' '+(fr?'employés':'staff')+' · '+stock,
