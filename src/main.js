@@ -17,6 +17,7 @@ import {batchResourceNodes,setDistantResource} from './resource-batches.js?v=202
 import {createResourceLifecycle} from './resource-life.js';
 import {createHarvestEffects} from './harvest-fx.js';
 import {createRouter} from './navigation.js?v=20261103aa';
+import {createAutoPilot} from './auto-pilot.js';
 const $=id=>document.getElementById(id), scene=new T.Scene();scene.background=new T.Color('#a6cbd1');scene.fog=new T.FogExp2('#a6cbd1',.0039);
 const cam=new T.PerspectiveCamera(65,innerWidth/innerHeight,.1,450),renderer=new T.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.25));renderer.shadowMap.enabled=true;$('game').append(renderer.domElement);
 scene.add(new T.HemisphereLight(0xffffff,0x657449,2.4));const sun=new T.DirectionalLight(0xffe7bc,2.3);sun.position.set(70,95,40);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.bias=-.0004;sun.shadow.normalBias=.024;sun.shadow.radius=2;sun.shadow.camera.left=-60;sun.shadow.camera.right=60;sun.shadow.camera.top=60;sun.shadow.camera.bottom=-60;scene.add(sun);
@@ -308,7 +309,7 @@ function updateResourceVisibility(){
 const count=()=>st.inv.reduce((a,b)=>a+b,0)+st.products.reduce((a,b)=>a+b,0);
 let heading=0,pitch=.38,dist=10,active=0,keys={},current=null,placing=null,carried=null,elapsed=0,workerClock=0;
 let buildingPreview=null,previewMaterials=[],lastPlacementValid=null;
-let harvesting=null,harvestProgress=0,stepPhase=0;
+let harvesting=null,harvestProgress=0,stepPhase=0,autoMode=false;
 function* nearbyResourceNodes(){
   const cx=Math.floor(player.position.x/CH),cz=Math.floor(player.position.z/CH);
   for(let x=cx-2;x<=cx+2;x++)for(let z=cz-2;z<=cz+2;z++){
@@ -707,6 +708,23 @@ onMove(id,x,z){trails.recordMovement(id,x,z)}
 });
 function addBuilding(b){return industry.register(b)}
 st.buildings.forEach(addBuilding);
+const autoPilot=createAutoPilot({
+  player,blocked,move:movePlayer,resources:()=>resources,
+  count,capacity:()=>st.bag,isSelling,sale:SALE,
+  isHarvesting:()=>!!harvesting,
+  harvest:o=>{
+    if(o.dead||count()>=st.bag)return;
+    harvesting=o;harvestProgress=0;
+    player.rotation.y=Math.atan2(o.x-player.position.x,o.z-player.position.z);
+  },
+  sell:()=>sell({notifyEmpty:false,includeCarried:true}),
+  onChange:on=>{
+    autoMode=on;
+    $('autoState').classList.toggle('hidden',!on);
+    $('autoShortcut').classList.toggle('active',on);
+    $('autoState').textContent=settings.language==='fr'?'MODE AUTO':'AUTO MODE';
+  }
+});
 
 const panels={market:'COMPTOIR',build:'CONSTRUCTION',talents:'PROGRESSION',settings:'PARAMÈTRES'};
 let panel=null;
@@ -782,6 +800,7 @@ function clearCarriedInventory(){
 }
 function safeRespawn(){
   if(placing)cancelPlacement();
+  autoPilot.setEnabled(false);
   clearCarriedInventory();
   player.position.set(0,0,9);
   player.rotation.y=Math.PI;
@@ -907,6 +926,8 @@ industry.setLanguage(settings.language);
 $('inventoryGrid').dataset.signature='';
 updateInventory();
 const prompt=$('prompt');if(!prompt.classList.contains('hidden'))prompt.textContent=keyLabel(settings.bindings.interact);
+$('autoShortcut').innerHTML='<kbd>'+keyLabel(settings.bindings.auto)+'</kbd> AUTO';
+$('autoState').textContent=settings.language==='fr'?'MODE AUTO':'AUTO MODE';
 
 }
 addEventListener('keydown',e=>{
@@ -920,7 +941,9 @@ addEventListener('keydown',e=>{
     awaitingBinding=null;storeSettings(settings);renderPanel();applyLocale();return;
   }
   keys[e.code]=true;
-  if(!panel&&['forward','backward','left','right'].some(k=>isPressed(keys,settings,k)))stopHarvest();
+  if(!panel&&['forward','backward','left','right'].some(k=>isPressed(keys,settings,k))){
+    autoPilot.setEnabled(false);stopHarvest();
+  }
   if(e.repeat)return;
   if(e.code==='Escape'||e.code==='Tab'){
     e.preventDefault();
@@ -930,9 +953,12 @@ addEventListener('keydown',e=>{
     return;
   }
   if(panel)return;
+  if(e.code===settings.bindings.auto){autoPilot.toggle();return}
   if(e.code===settings.bindings.jump&&player.position.y<.01){
+    autoPilot.setEnabled(false);
     e.preventDefault();jumpVelocity=8.3;sound.effect('step');
   }
+  if(e.code===settings.bindings.sprint)autoPilot.setEnabled(false);
   if(e.code===settings.bindings.interact)interact();
   if(e.code===settings.bindings.drop&&carried){sound.effect('ui');drop()}
   if(e.code===settings.bindings.build)openPanel('build');
@@ -1069,6 +1095,11 @@ const targetAngle=Math.atan2(vx,vz);
 const difference=Math.atan2(Math.sin(targetAngle-player.rotation.y),Math.cos(targetAngle-player.rotation.y));
 player.rotation.y+=difference*Math.min(1,dt*16);
 }
+const autoWalking=!panel&&autoPilot.update(dt);
+if(autoWalking){
+  footstepTimer+=dt;
+  if(footstepTimer>.42){footstepTimer=0;sound.effect('step')}
+}
 if(harvesting){
 if(harvesting.dead||Math.hypot(player.position.x-harvesting.x,player.position.z-harvesting.z)>3.5)stopHarvest();
 else{
@@ -1080,7 +1111,7 @@ const interval=harvestInterval(harvesting.type);
 if(harvestProgress>=interval){harvestProgress-=interval;strikeHarvest()}
 }
 }
-animatePlayer(dt,moving);
+animatePlayer(dt,moving||autoWalking);
 baseCamp.update(elapsed);
 if(audioActive){
 try{sound.update(biome(player.position.x,player.position.z),dt)}
