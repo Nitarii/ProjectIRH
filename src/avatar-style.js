@@ -123,7 +123,11 @@ export function attachAvatarDesigner(T,avatar,parts){
       for(const sign of [-1,1]){
         const rim=mesh(new T.TorusGeometry(.135,.026,6,12),glasses,sign*.165,2.18,.350);
         rim.scale.y=.8;
-        box(.24,.035,.05,glasses,sign*.31,2.19,.30);
+        // The temples extend backward along Z, from the hinges to the ears.
+        // They must not point sideways through the character's face.
+        box(.032,.030,.47,glasses,sign*.303,2.19,.105);
+        box(.047,.046,.092,glasses,sign*.315,2.157,-.151);
+        sphere(.028,glasses,sign*.306,2.19,.340);
       }
       box(.10,.025,.055,glasses,0,2.18,.385);
     }
