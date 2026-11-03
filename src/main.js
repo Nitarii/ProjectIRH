@@ -11,6 +11,7 @@ import {loadSettings,storeSettings,keyLabel,isPressed,applyQuality,ACTIONS} from
 import {tr,translateTree,UI} from './language.js?v=20261103t';
 import {createBaseCamp} from './basecamp.js';
 import {optionsMarkup} from './options-ui.js';
+import {createTrails} from './trails.js?v=20261103r1';
 const $=id=>document.getElementById(id), scene=new T.Scene();scene.background=new T.Color('#a6cbd1');scene.fog=new T.FogExp2('#a6cbd1',.0039);
 const cam=new T.PerspectiveCamera(65,innerWidth/innerHeight,.1,450),renderer=new T.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.25));renderer.shadowMap.enabled=true;$('game').append(renderer.domElement);
 scene.add(new T.HemisphereLight(0xffffff,0x657449,2.4));const sun=new T.DirectionalLight(0xffe7bc,2.3);sun.position.set(70,95,40);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.bias=-.0004;sun.shadow.normalBias=.024;sun.shadow.radius=2;sun.shadow.camera.left=-60;sun.shadow.camera.right=60;sun.shadow.camera.top=60;sun.shadow.camera.bottom=-60;scene.add(sun);
@@ -85,7 +86,7 @@ scene.add(player);player.position.set(st.x,0,st.z);player.rotation.y=Math.PI;upd
 
 const market=new T.Group();market.add(cube(5,2.5,4,m.wood,0,1.25,0),cube(5.6,.7,4.7,m.roof,0,2.8,0),cube(1.1,1.6,.1,m.shirt,0,.85,2.05));market.position.set(0,0,0);scene.add(market);
 
-const SALE={x:10,z:1,w:10,d:9};
+const SALE={x:23,z:0,w:8,d:9};
 const isSelling=(x,z)=>Math.abs(x-SALE.x)<=SALE.w/2&&Math.abs(z-SALE.z)<=SALE.d/2;
 const sellPad=new T.Group();
 sellPad.add(cube(SALE.w,.1,SALE.d,M(0x497e5e),0,.035,0));
@@ -110,7 +111,9 @@ saleLabel.scale.set(7.2,2.03,1);
 saleLabel.position.set(SALE.x,6.3,SALE.z);scene.add(saleLabel);
 
 
-const world=new Map(),resources=[],CH=32;let R=settings.quality==='low'?2:settings.quality==='high'?4:3;const hash=(x,z,s=0)=>{let n=Math.sin(x*127.1+z*311.7+s*51.6)*43758.5453;return n-Math.floor(n)},blend=t=>t*t*(3-2*t);function noise(x,z,k,s){let a=Math.floor(x/k),b=Math.floor(z/k),u=blend(x/k-a),v=blend(z/k-b);return T.MathUtils.lerp(T.MathUtils.lerp(hash(a,b,s),hash(a+1,b,s),u),T.MathUtils.lerp(hash(a,b+1,s),hash(a+1,b+1,s),u),v)}
+const world=new Map(),resources=[],CH=32;
+const trails=createTrails(T,st,world);
+let R=Math.max(2,Math.min(8,Math.ceil(settings.viewDistance/CH)));const hash=(x,z,s=0)=>{let n=Math.sin(x*127.1+z*311.7+s*51.6+((st.seed||7331)-7331)*.7919)*43758.5453;return n-Math.floor(n)},blend=t=>t*t*(3-2*t);function noise(x,z,k,s){let a=Math.floor(x/k),b=Math.floor(z/k),u=blend(x/k-a),v=blend(z/k-b);return T.MathUtils.lerp(T.MathUtils.lerp(hash(a,b,s),hash(a+1,b,s),u),T.MathUtils.lerp(hash(a,b+1,s),hash(a+1,b+1,s),u),v)}
 function biome(x,z){
 if(Math.hypot(x,z)<22)return -1;
 if(Math.hypot(x-34,z)<76)return 0;
@@ -148,7 +151,7 @@ function decorations(cx,cz,root){
 const items=[[],[],[],[],[],[]],colliders=[],x0=cx*CH,z0=cz*CH;
 for(let n=0;n<38;n++){
 const x=x0+.7+hash(cx*71+n,cz,44)*30.6,z=z0+.7+hash(cx,cz*73+n,45)*30.6;
-if(Math.hypot(x,z)<23||isSelling(x,z))continue;
+if(Math.hypot(x,z)<23||(Math.abs(x-SALE.x)<SALE.w/2+5&&Math.abs(z-SALE.z)<SALE.d/2+5))continue;
 const b=biome(x,z),h=hash(cx+n,cz-n,46);
 let kind=0;
 if(b===0)kind=h<.58?1:h<.83?5:0;
@@ -179,7 +182,7 @@ const key=cx+','+cz;if(world.has(key))return;
 const root=new T.Group(),nodes=[];
 const x0=cx*CH,z0=cz*CH;
 // Smooth vertex-colored terrain, continuous across streaming chunk borders.
-const groundGeometry=new T.PlaneGeometry(CH,CH,8,8);
+const groundGeometry=new T.PlaneGeometry(CH,CH,16,16);
 groundGeometry.rotateX(-Math.PI/2);
 const vertexColors=[];
 const basePalette=['#527751','#477c55','#858b84','#826e59','#dec28b','#adb66a'];
@@ -201,14 +204,14 @@ floor.position.set(x0+CH/2,-.025,z0+CH/2);
 floor.rotation.y=0;floor.receiveShadow=true;
 root.add(floor);
 decorations(cx,cz,root);buildWheatField(cx,cz,root);scene.add(root);
-world.set(key,{root,nodes,hasNodes:false})
+const c={root,nodes,hasNodes:false};world.set(key,c);trails.initChunk(c,cx,cz)
 }
 function populate(cx,cz,c){
 if(c.hasNodes)return;c.hasNodes=true;
 const x0=cx*CH,z0=cz*CH,key=cx+','+cz;
 for(let i=0;i<13;i++){
 const x=x0+2+hash(cx*17+i,cz,2)*28,z=z0+2+hash(cx,cz*17+i,3)*28;
-if(Math.hypot(x,z)<23||isSelling(x,z)||Math.hypot(x-10,z-1)<8)continue;
+if(Math.hypot(x,z)<23||(Math.abs(x-SALE.x)<SALE.w/2+6&&Math.abs(z-SALE.z)<SALE.d/2+6)||Math.hypot(x-10,z-1)<8)continue;
 const b=biome(x,z);if(b<0)continue;
 const o=node(b,x,z,key);c.nodes.push(o);
 }
@@ -240,11 +243,12 @@ const next=generationQueue.shift();queuedGeneration.delete(next.key);
 if(Math.abs(next.x-cx)<=R&&Math.abs(next.z-cz)<=R&&!world.has(next.key))chunk(next.x,next.z);
 }
 let populated=0;
-for(let radius=0;radius<=1&&populated<1;radius++){
-for(let x=cx-radius;x<=cx+radius&&populated<1;x++)for(let z=cz-radius;z<=cz+radius&&populated<1;z++){
-const c=world.get(x+','+z);
-if(c&&!c.hasNodes){populate(x,z,c);populated++}
-}
+for(const [key,c] of world){
+  if(populated>=2)break;
+  if(!c.hasNodes){
+    const [x,z]=key.split(',').map(Number);
+    if(Math.abs(x-cx)<=R&&Math.abs(z-cz)<=R){populate(x,z,c);populated++}
+  }
 }
 if(unloadQueue.length){
 const key=unloadQueue.shift(),c=world.get(key);
@@ -265,7 +269,7 @@ world.delete(key)
 }
 function updateResourceVisibility(){
 const px=player.position.x,pz=player.position.z;
-const range=settings.quality==='low'?100:settings.quality==='high'?216:164;
+const range=settings.viewDistance;
 const maximum=range*range;
 for(const o of resources)o.mesh.visible=!o.dead&&(o.x-px)**2+(o.z-pz)**2<maximum;
 }
@@ -611,7 +615,8 @@ function interact(){
 
 function buy(cost,fn){if(st.gold<cost){sound.effect('exhausted');return pop('Or insuffisant')}st.gold-=cost;sound.effect('buy');fn();updateInventory();save();renderPanel()}
 const industry=createIndustry(T,scene,st,resources,biome,SALE,values,{
-onSale(amount){save()},blocked:sceneryBlocked
+onSale(amount){save()},blocked:sceneryBlocked,
+onMove(id,x,z){trails.recordMovement(id,x,z)}
 });
 function addBuilding(b){return industry.register(b)}
 st.buildings.forEach(addBuilding);
