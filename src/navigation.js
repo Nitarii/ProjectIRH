@@ -43,10 +43,21 @@ export function createRouter(isBlocked,{cell=1.2,maxVisits=1900,speedAt=null}={}
     };
     const direct=clear(from.x,from.z)&&clear(to.x,to.z)&&
       corridor(from.x,from.z,to.x,to.z);
-    // Road-aware navigation compares travel time instead of plain distance.
-    // Skip A* in very short/long empty corridors; capped search retains fallback.
-    if(direct&&(!speedAt||Math.hypot(from.x-to.x,from.z-to.z)<7.5||
-      Math.hypot(from.x-to.x,from.z-to.z)>110))
+    // A corridor with no nearby roads is already optimal: avoid A*
+    // entirely instead of searching the map because a road exists elsewhere.
+    const directLength=Math.hypot(from.x-to.x,from.z-to.z);
+    let roadOpportunity=false;
+    if(direct&&speedAt&&directLength>=7.5&&directLength<=110){
+      const nx=-(to.z-from.z)/directLength,nz=(to.x-from.x)/directLength;
+      const samples=Math.min(16,Math.ceil(directLength/8));
+      for(let i=0;i<=samples&&!roadOpportunity;i++){
+        const t=i/samples,px=from.x+(to.x-from.x)*t,pz=from.z+(to.z-from.z)*t;
+        for(const offset of [0,4,-4,9,-9,18,-18]){
+          if(speedAt(px+nx*offset,pz+nz*offset)>1.001){roadOpportunity=true;break}
+        }
+      }
+    }
+    if(direct&&(!speedAt||directLength<7.5||directLength>110||!roadOpportunity))
       return [{x:to.x,z:to.z}];
     const walkable=(x,z)=>{
       const k=id(x,z);
