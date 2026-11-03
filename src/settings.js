@@ -42,7 +42,7 @@ export function isPressed(keys,settings,action){
   const code=settings.bindings[action];
   if(keys[code])return true;
   if(action==='forward')return !!(code==='KeyW'&&keys.KeyZ||code==='KeyZ'&&keys.KeyW||keys.ArrowUp);
-  if(action==='left')return !!(code==='KeyA'&&keys.KeyQ||code==='KeyQ'&&keys.KeyA||keys.ArrowLeft);
+  if(action==='left')return !!keys.ArrowLeft;
   if(action==='backward')return !!keys.ArrowDown;
   if(action==='right')return !!keys.ArrowRight;
   if(action==='sprint')return !!keys.ShiftRight;
