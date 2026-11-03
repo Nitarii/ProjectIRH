@@ -107,4 +107,26 @@ test('all base resource units have the same sale price',script.includes('values=
 test('left click outside menus restores pointer lock',
   script.includes("document.addEventListener('pointerdown'")&&
   script.includes("if(e.button!==0||e.pointerType==='touch'"));
+// Full factory chain: gatherer -> refining warehouse -> output -> seller warehouse.
+const chain={gold:0,roads:{},buildings:[
+  {kind:'worker',type:0,x:40,z:25,workers:1,stockRaw:100,rotation:0,carryLevel:0},
+  {kind:'factory',type:0,x:65,z:26,workers:1,inputRaw:0,stockProcessed:0,rotation:0,carryLevel:0},
+  {kind:'seller',type:0,x:96,z:26,workers:1,rotation:0,carryLevel:0},
+  {kind:'transport',type:0,x:53,z:39,workers:2,rotation:0,carryLevel:0},
+  {kind:'road',type:0,x:77,z:46,workers:1,rotation:0,carryLevel:0}
+]};
+const chainRoads=roadsApi.createRoadNetwork(chain);
+chainRoads.setProbes({blocked:()=>false,traffic:()=>16,invalidate:()=>{}});
+const chainEngine=industryApi.createIndustry(T,new Obj(),chain,[],()=>0,
+  {x:23,z:0,w:8,d:9},[12,12,12,12,12],
+  {roads:chainRoads,blocked:()=>false,priceMultiplier:()=>1});
+for(const b of chain.buildings)chainEngine.register(b);
+for(let tick=0;tick<2100;tick++)chainEngine.update(.22,45,25,null);
+const chainStats=chainEngine.readStats();
+test('transporters supplied the refinery',chainStats.delivered>0);
+test('refinery produced processed materials',chainStats.processed>0);
+test('vendor sold processed stock delivered by haulers',chainStats.soldProcessed>0);
+test('sales and production remain finite',chain.gold>0&&Number.isFinite(chain.gold));
+test('warehouse capacity remains bounded',chain.buildings[2].warehouseRaw.reduce((a,b)=>a+b,0)+
+  chain.buildings[2].warehouseProcessed.reduce((a,b)=>a+b,0)<=120);
 console.log('\nPassed '+checks+' industry, road and economy tests.');
