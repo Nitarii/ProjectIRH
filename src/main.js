@@ -238,6 +238,26 @@ resourceLife.spawn(obj);resources.push(obj);return obj;
 }
 
 const terrainMaterial=new T.MeshLambertMaterial({vertexColors:true});
+// World-anchored soft microvariation: retain Three.js lighting, shadows and fog.
+// The hash is evaluated in object world space so motion never creates shimmer.
+terrainMaterial.onBeforeCompile=shader=>{
+  shader.vertexShader=shader.vertexShader.replace('#include <common>',
+    '#include <common>\nvarying vec2 nimWorldXZ;');
+  shader.vertexShader=shader.vertexShader.replace('#include <worldpos_vertex>',
+    '#include <worldpos_vertex>\nnimWorldXZ=(modelMatrix*vec4(transformed,1.0)).xz;');
+  shader.fragmentShader=shader.fragmentShader.replace('#include <common>',
+    '#include <common>\nvarying vec2 nimWorldXZ;\nfloat nimNoise(vec2 p){'+
+    'vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);'+
+    'float a=fract(sin(dot(i,vec2(127.1,311.7)))*43758.5453);'+
+    'float b=fract(sin(dot(i+vec2(1,0),vec2(127.1,311.7)))*43758.5453);'+
+    'float c=fract(sin(dot(i+vec2(0,1),vec2(127.1,311.7)))*43758.5453);'+
+    'float d=fract(sin(dot(i+vec2(1,1),vec2(127.1,311.7)))*43758.5453);'+
+    'return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);}');
+  shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',
+    '#include <color_fragment>\nfloat earth=nimNoise(nimWorldXZ*.17);'+
+    'diffuseColor.rgb*=.954+.084*earth;');
+};
+terrainMaterial.customProgramCacheKey=()=> 'nim-soft-terrain-v1';
 const accentGeometry=new T.IcosahedronGeometry(.19,0);
 const weedGeometry=new T.ConeGeometry(.16,.62,3);
 const stalkGeometry=new T.CylinderGeometry(.04,.055,.75,4);
