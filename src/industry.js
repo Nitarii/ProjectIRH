@@ -890,17 +890,17 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
         if(!occupied){occupied=[];localOccupancy.set(a.home.id,occupied)}
         for(const other of occupied){
           const dx=a.x-other.x,dz=a.z-other.z;
-          if(dx*dx+dz*dz>=.46*.46)continue;
+          if(dx*dx+dz*dz>=.56*.56)continue;
           const bearing=dx*dx+dz*dz>.0001?Math.atan2(dz,dx):
             (a.slot+1)*2.399963229728653;
           for(const angleOffset of [0,.65,-.65,1.3,-1.3,Math.PI]){
             const angle=bearing+angleOffset;
-            const x=other.x+Math.cos(angle)*.64;
-            const z=other.z+Math.sin(angle)*.64;
+            const x=other.x+Math.cos(angle)*.72;
+            const z=other.z+Math.sin(angle)*.72;
             if(staticBlocked(x,z,.43,a.target))continue;
-            if(occupied.some(p=>(p.x-x)**2+(p.z-z)**2<.46*.46))continue;
+            if(occupied.some(p=>(p.x-x)**2+(p.z-z)**2<.56*.56))continue;
             a.x=x;a.z=z;
-            a.route=null;a.routeGoal=null;a.goalKey='';
+            // Keep the existing route: minor avoidance should not force A*.
             break;
           }
         }
