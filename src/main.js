@@ -597,8 +597,15 @@ const section=(title,kicker,content)=>`<section class="catalog-section"><div cla
 function openPanel(k){stopHarvest();sound.effect('ui');panel=panel===k?null:k;renderPanel();if(panel)document.exitPointerLock?.()}
 function renderPanel(){
 const box=$('panel');box.classList.toggle('hidden',!panel);if(!panel)return;
-$('panelTitle').textContent=panels[panel];$('panelTag').textContent='FRONTIER CAPITAL';
-$('tabs').innerHTML=['market','build','talents','inventory'].map(k=>'<button data-tab="'+k+'" '+(panel===k?'class="active"':'')+'>'+panels[k]+'</button>').join(' ');
+$('panelTitle').textContent=panel==='settings'?UI[settings.language].settings:tr(panels[panel],settings.language);
+$('panelTag').textContent='FRONTIER CAPITAL';
+$('tabs').innerHTML=(panel==='settings'?['settings']:['market','build','talents','inventory']).map(k=>'<button data-tab="'+k+'" '+(panel===k?'class="active"':'')+'>'+tr(panels[k],settings.language)+'</button>').join(' ');
+$('resume').textContent=UI[settings.language].back;
+if(panel==='settings'){
+  $('shopbody').innerHTML=optionsMarkup(settings,awaitingBinding);
+  $('panelhint').textContent=UI[settings.language].lowHint;
+  return;
+}
 let out='';
 if(panel==='market'){
 let group='';for(let i=0;i<5;i++){
@@ -640,15 +647,65 @@ if(panel==='inventory'){
 out+=section('Contenu transporté',count()+' / '+st.bag+' EMPLACEMENTS',types.map((name,i)=>add(raw[i],st.inv[i]+' unité(s) · '+processed[i]+' : '+st.products[i],values[i]+' / unité','noop',true,i)).join(''));
 out+=section('Stock en dépôt','ZONE DE VENTE',add('Marchandises à vendre',st.stock.length+' tronc(s) enregistré(s)','VENDRE','sell'));
 }
-$('shopbody').innerHTML=out;$('panelhint').textContent=st.gold.toLocaleString('fr-FR')+' pièces d’or';
+$('shopbody').innerHTML=out;translateTree($('shopbody'),settings.language);
+$('panelhint').textContent=tr(st.gold.toLocaleString(settings.language==='fr'?'fr-FR':'en-US')+' pièces d’or',settings.language);
 }
-$('panel').onclick=e=>{let b=e.target.closest('button');if(!b)return;if(b.dataset.tab){sound.effect('ui');panel=b.dataset.tab;return renderPanel()}let a=b.dataset.action;if(!a)return;if(a==='sell')return sell();if(a==='bag')return buy(450,()=>st.bag=16);if(a==='stamina')return buy([500,1250,2600,5500][st.staminaLevel||0]||99999,()=>{st.staminaLevel=(st.staminaLevel||0)+1;stamina=maxStamina()});if(a==='cart')return buy(1200,()=>st.cart=true);if(a==='truck')return buy(4500,()=>st.truck=true);let [kind,id]=a.split(':'),i=+id;if(kind==='tool'){let tier=st.tools[i]+1;return buy(tier===0?prices[i]:tier===1?650:2900,()=>st.tools[i]=tier)}if(kind==='hire'){
-if(st.buildings[i].workers>=industry.limit)return pop('Capacité de recrutement atteinte');
-return buy(300,()=>{st.buildings[i].workers++;industry.sync()})
-}if(kind==='talent')return buy(500,()=>st.talents[i]++);if(['factory','worker','transport','seller'].includes(kind)){
-const price=kind==='factory'?480+i*150:kind==='worker'?550+i*160:kind==='transport'?1400:1800;
-return buy(price,()=>beginPlacement(kind,i,price));
-}};const close=()=>{stopHarvest();panel=null;renderPanel()};$('close').onclick=close;$('resume').onclick=close;
+$('panel').onclick=e=>{
+const button=e.target.closest('button');if(!button)return;
+if(button.dataset.bind){awaitingBinding=button.dataset.bind;renderPanel();return}
+if(button.dataset.tab){sound.effect('ui');panel=button.dataset.tab;return renderPanel()}
+const a=button.dataset.action;if(!a)return;
+if(a==='sell')return sell();
+if(a==='bag')return buy(ECONOMY.bag,()=>st.bag=16);
+if(a==='stamina')return buy(ECONOMY.stamina[st.staminaLevel||0]||Infinity,()=>{st.staminaLevel=(st.staminaLevel||0)+1;stamina=maxStamina()});
+if(a==='cart')return buy(ECONOMY.cart,()=>st.cart=true);
+if(a==='truck')return buy(ECONOMY.truck,()=>st.truck=true);
+const [kind,id]=a.split(':'),i=+id;
+if(kind==='tool'){
+  const tier=st.tools[i]+1;
+  if(tier>=5)return;
+  return buy(toolCost(i,tier),()=>st.tools[i]=tier);
+}
+if(kind==='hire'){
+  if(st.buildings[i].workers>=industry.limit)return pop('Maximum employees reached');
+  return buy(ECONOMY.hire,()=>{st.buildings[i].workers++;industry.sync()});
+}
+if(kind==='carry'){
+  const building=st.buildings[i];
+  if(!building||(building.carryLevel||0)>=5)return;
+  return buy(workerCarryCost(building.carryLevel||0),()=>{building.carryLevel=(building.carryLevel||0)+1;industry.sync()});
+}
+if(kind==='talent')return buy(ECONOMY.talent,()=>st.talents[i]++);
+if(['factory','worker','transport','seller'].includes(kind)){
+  const price=buildingCost(kind,i);
+  return buy(price,()=>beginPlacement(kind,i,price));
+}
+};
+$('panel').oninput=e=>{
+if(e.target.id==='settingVolume'){
+  settings.volume=Number(e.target.value)/100;
+  sound.setVolume(settings.volume);
+  $('volumeLabel').textContent=Math.round(settings.volume*100)+'%';
+  storeSettings(settings);
+}};
+$('panel').onchange=e=>{
+const id=e.target.id;
+if(id==='settingAudio')settings.muted=!e.target.checked;
+else if(id==='settingQuality'){
+  settings.quality=e.target.value;
+  R=settings.quality==='low'?1:2;streamingCenter='';
+  applyQuality(renderer,sun,settings.quality);
+  atmosphere.setEnabled(settings.effects&&settings.quality!=='low');
+}else if(id==='settingEffects'){
+  settings.effects=e.target.checked;atmosphere.setEnabled(settings.effects&&settings.quality!=='low');
+}else if(id==='settingLanguage')settings.language=e.target.value;
+else return;
+sound.setEnabled(!settings.muted);
+storeSettings(settings);
+if(id==='settingLanguage')applyLocale();
+renderPanel();
+};
+const close=()=>{stopHarvest();panel=null;renderPanel()};$('close').onclick=close;$('resume').onclick=close;
 addEventListener('keydown',e=>{keys[e.code]=true;if(['KeyW','KeyZ','KeyA','KeyQ','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))stopHarvest();if(e.repeat)return;if(e.code==='KeyF')interact();if(e.code==='KeyG'&&carried){sound.effect('ui');drop()}if(e.code==='KeyB')openPanel('build');if(e.code==='KeyU')openPanel('talents');if(e.code==='KeyI')openPanel('inventory');if(e.code==='KeyR')pop(st.truck?'Camion possédé':'Achetez un camion au comptoir');if(e.code==='Escape'){if(placing)cancelPlacement();close()}});addEventListener('keyup',e=>keys[e.code]=false);addEventListener('mousemove',e=>{if(document.pointerLockElement===renderer.domElement){heading-=e.movementX*.0025;pitch=T.MathUtils.clamp(pitch+e.movementY*.002,-.1,1.15)}});addEventListener('wheel',e=>{
   if(panel||!$('welcome').classList.contains('hidden'))return;
   dist=T.MathUtils.clamp(dist+Math.sign(e.deltaY),5,18);
