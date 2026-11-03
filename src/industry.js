@@ -1,4 +1,4 @@
-import {makeStructure} from './structures.js?v=20261103a1';
+import {makeStructure} from './structures.js?v=20261103r2';
 import {createRouter} from './navigation.js?v=20261103w';
 import {workstation,storagePoint} from './factory-tasks.js?v=20261103v';
 
