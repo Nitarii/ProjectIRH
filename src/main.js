@@ -417,6 +417,11 @@ function* nearbyResourceNodes(){
   }
 }
 const sound=createSound();const atmosphere=createAtmosphere(T,scene,player,biome,nearbyResourceNodes);
+const skyWeather=createSkyWeather(T,scene,player,cam,sun,hemisphere,{
+  viewDistance:()=>settings.viewDistance,
+  quality:()=>settings.effects?settings.quality:'low',
+  seed:st.seed
+});
 const baseCamp=createBaseCamp(T,scene);
 atmosphere.setEnabled(settings.effects&&settings.quality!=='low');
 sound.setVolume(settings.volume);
@@ -929,6 +934,13 @@ roads.setProbes({
 });
 function addBuilding(b){const result=industry.register(b);roads.invalidatePlan();return result}
 st.buildings.forEach(addBuilding);
+const wildlife=createWildlife(T,scene,{
+  biomeAt:biome,seed:st.seed,
+  blocked:(x,z,r)=>industry.blocked(x,z,r),
+  quality:()=>settings.quality,
+  viewDistance:()=>settings.viewDistance,
+  playerPosition:()=>player.position
+});
 const autoPilot=createAutoPilot({
   player,blocked,move:movePlayer,resources:()=>resources,
   count,capacity:()=>st.bag,isSelling,sale:SALE,
@@ -1776,9 +1788,8 @@ cameraTarget.set(player.position.x,1.5+player.position.y,player.position.z);
 cameraOffset.set(Math.sin(heading)*Math.cos(pitch),Math.sin(pitch),Math.cos(heading)*Math.cos(pitch));
 cam.position.copy(cameraTarget).addScaledVector(cameraOffset,dist);
 cam.lookAt(cameraTarget);
+skyWeather.update(dt,elapsed,st.gameMinutes);
 positionInteractionTooltip();
-sun.position.set(player.position.x+70,95,player.position.z+40);
-sun.target.position.set(player.position.x,0,player.position.z);sun.target.updateMatrixWorld();
 const nowIndustry=performance.now();
 const workDt=paused?0:Math.min(.22,Math.max(0,(nowIndustry-lastIndustryTime)/1000));
 lastIndustryTime=nowIndustry;
@@ -1792,6 +1803,7 @@ if(!paused)try{
   monitor.lastError=String(error);
   console.error('Industry update failed',error);
 }
+if(!paused)wildlife.update(dt);
 
 if(ticks++%12===0){
 stream();renewResources();updateResourceVisibility();updateInventory();
@@ -1839,6 +1851,10 @@ monitor.chunks=world.size;monitor.resources=resources.length;
 monitor.inventoryCount=count();monitor.cameraDistance=dist;monitor.constructionActive=!!placing;
 monitor.gameMinutes=st.gameMinutes;monitor.terrainPaths=trails.count;
 monitor.roadTiles=roads.built;monitor.roadPlan=roads.plannedCount;
+monitor.wildlifeLand=wildlife.landCount;monitor.wildlifeBirds=wildlife.birdCount;
+monitor.wildlifeSpecies=wildlife.speciesCount;
+monitor.cloudCount=skyWeather.cloudCount;
+monitor.daylight=skyWeather.dayFactor;
 monitor.renderResolution=renderer.getPixelRatio();monitor.viewDistance=settings.viewDistance;
 monitor.jumpHeight=player.position.y;
 controlQuality();
