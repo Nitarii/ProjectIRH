@@ -113,7 +113,7 @@ try{
   tradePage.on('pageerror',e=>errors.push('TRADE SCRIPT '+e.message));
   await tradePage.addInitScript(()=>{
     localStorage.setItem('irh-state',JSON.stringify({
-      x:26,z:15,gold:1800,inv:[3,0,0,0,0],products:[0,1,0,0,0],bag:8,
+      x:26,z:15,gold:20000,inv:[3,0,0,0,0],products:[0,1,0,0,0],bag:8,
       gameMinutes:102,buildings:[{id:'b70',kind:'seller',type:0,x:27,z:17,workers:0}]
     }));
   });
