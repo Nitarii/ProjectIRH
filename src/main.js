@@ -92,6 +92,33 @@ for(let type=0;type<5;type++){
       if(tier<3)g.add(cube(.50+tier*.16,.12,.10,metal,.17,-.65,0),cube(.10,.27,.1,metal,.40,-.78,0));
       else {g.add(cube(.72,.29,.30,m.shirt,.15,-.72,0),cube(.82,.075,.11,metal,.27,-.85,0))}
     }
+    // Powered tools have independent mechanical parts, allocated once per model.
+    if(tier>=3){
+      const motor=new T.Group(),motorMaterial=tier===4?m.gold:m.ore;
+      if(type===0){
+        motor.position.set(.35,-.82,0);
+        const sprocket=cy(.12,.095,motorMaterial);sprocket.rotation.x=Math.PI/2;
+        motor.add(sprocket);
+        if(tier===4)g.add(cube(.48,.055,.035,m.rock,.44,-.96,0));
+      }else if(type===1){
+        motor.position.set(0,-.88,0);motor.add(cy(.085,.33,motorMaterial,0,-.12,0));
+        g.add(cube(.18,.20,.2,m.wood,0,-.45,.20));
+      }else if(type===2){
+        motor.position.set(0,-.94,0);motor.add(cy(.09,.45,motorMaterial,0,-.19,0));
+        motor.add(cube(.18,.09,.18,m.rock,0,-.37,0));
+      }else if(type===3){
+        motor.position.set(0,-.90,0);motor.add(cy(.08,.47,motorMaterial,0,-.18,0));
+        for(let j=0;j<3;j++){
+          const flute=cube(.26,.035,.07,m.rock,0,-.08-j*.12,0);
+          flute.rotation.y=j*Math.PI/3;motor.add(flute);
+        }
+      }else{
+        motor.position.set(.28,-.86,0);
+        const disc=cy(.23,.045,motorMaterial);disc.rotation.x=Math.PI/2;motor.add(disc);
+        g.add(cube(.42,.06,.12,m.rock,.40,-.94,.02));
+      }
+      g.add(motor);g.userData.motor=motor;
+    }
     g.visible=false;toolHolder.add(g);variants.push(g);
   }
   toolModels.push(variants);
@@ -449,6 +476,13 @@ if(tier<0){
   toolHolder.rotation.set(0,0,0);
 }else{
   toolModels[type][tier].visible=true;
+   const motor=toolModels[type][tier].userData.motor;
+   if(motor){
+     const rate=tier===4?28:21;
+     if(type===0||type===4)motor.rotation.z+=dt*rate;
+     else if(type===1)motor.position.y=-.88+Math.sin(phase*Math.PI*10)*.09;
+     else motor.rotation.y+=dt*rate;
+   }
   if(type===0){
     // The tree stands along the avatar's +Z axis. The axe bit is modelled
     // toward local +X, so rotate the blade -90° around Y to face the trunk.
