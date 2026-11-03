@@ -1074,6 +1074,8 @@ addEventListener('keydown',e=>{
     settings.bindings[awaitingBinding]=e.code;
     awaitingBinding=null;storeSettings(settings);renderPanel();applyLocale();return;
   }
+  if(!$('creator').classList.contains('hidden')||
+     !$('welcome').classList.contains('hidden'))return;
   keys[e.code]=true;
   if(!panel&&['forward','backward','left','right'].some(k=>isPressed(keys,settings,k))){
     autoPilot.setEnabled(false);stopHarvest();
@@ -1261,7 +1263,10 @@ applyLocale();
 const cameraTarget=new T.Vector3(),cameraOffset=new T.Vector3();
 function frame(){
 requestAnimationFrame(frame);
-const frameDelta=Math.min(clock.getDelta(),.05),paused=panel==='settings',dt=paused?0:frameDelta;
+const frameDelta=Math.min(clock.getDelta(),.05);
+const paused=panel==='settings'||!$('creator').classList.contains('hidden')||
+  !$('welcome').classList.contains('hidden');
+const dt=paused?0:frameDelta;
 elapsed+=dt;st.gameMinutes=(Number(st.gameMinutes)||0)+dt;
 if(player.position.y>0||jumpVelocity>0){
   jumpVelocity-=23*dt;
@@ -1272,10 +1277,10 @@ trails.update(dt);
 harvestFx.update(dt);
 pumpWorld();
 placementFrame();
-collectSaleZone();
+if(!paused)collectSaleZone();
 const side=Number(isPressed(keys,settings,'right'))-Number(isPressed(keys,settings,'left'));
 const front=Number(isPressed(keys,settings,'forward'))-Number(isPressed(keys,settings,'backward'));
-const moving=!panel&&(side!==0||front!==0);
+const moving=!paused&&!panel&&(side!==0||front!==0);
 const wantsSprint=isPressed(keys,settings,'sprint');
 if(stamina<.01)sprintLocked=true;
 if(stamina>=maxStamina()*.27)sprintLocked=false;
@@ -1303,7 +1308,7 @@ const targetAngle=Math.atan2(vx,vz);
 const difference=Math.atan2(Math.sin(targetAngle-player.rotation.y),Math.cos(targetAngle-player.rotation.y));
 player.rotation.y+=difference*Math.min(1,dt*16);
 }
-const autoWalking=!panel&&autoPilot.update(dt);
+const autoWalking=!paused&&!panel&&autoPilot.update(dt);
 if(autoWalking){
   footstepTimer+=dt;
   if(footstepTimer>.42){footstepTimer=0;sound.effect('step')}
