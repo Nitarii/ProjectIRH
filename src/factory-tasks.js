@@ -52,3 +52,26 @@ export function storagePoint(building,processed=false){
   if(building.kind==='factory')return yardPoint(building,processed?YARD.output:YARD.raw);
   return worldPoint(building,processed?2.75:-2.75,3.15);
 }
+
+// Operator-safe factory walkways, reserved inside the existing yard footprint.
+// Equipment occupies z≈7.5–8.6. Crossing directly between storage and
+// operators would cut through furnaces, saws, hoppers and processing benches.
+export const FACTORY_AISLE={leftX:-8.42,rightX:8.42,entryZ:5.75,frontZ:10.88};
+export function factoryWorkPath(building,slot){
+  const task=workstation(building.type,slot);
+  return [
+    worldPoint(building,FACTORY_AISLE.leftX,FACTORY_AISLE.entryZ),
+    worldPoint(building,FACTORY_AISLE.leftX,FACTORY_AISLE.frontZ),
+    worldPoint(building,task.point[0],FACTORY_AISLE.frontZ),
+    yardPoint(building,task.point)
+  ];
+}
+export function factoryOutputPath(building,slot){
+  const task=workstation(building.type,slot);
+  return [
+    worldPoint(building,task.point[0],FACTORY_AISLE.frontZ),
+    worldPoint(building,FACTORY_AISLE.rightX,FACTORY_AISLE.frontZ),
+    worldPoint(building,FACTORY_AISLE.rightX,FACTORY_AISLE.entryZ),
+    storagePoint(building,true)
+  ];
+}
