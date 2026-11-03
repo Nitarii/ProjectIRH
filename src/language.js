@@ -1,4 +1,11 @@
 const pairs=[
+['DÉPÔT','STOCKPILE'],['Employés et équipements','Employees and equipment'],
+['RECRUTEMENT ET AMÉLIORATIONS','HIRING AND UPGRADES'],
+['Stockage du bâtiment','Facility stockpile'],['DÉPOSER','DEPOSIT'],['RÉCUPÉRER','WITHDRAW'],
+['Déposer','Deposit'],['Récupérer','Withdraw'],
+['Depuis votre inventaire','From your inventory'],['Vers votre inventaire','To your inventory'],
+['Aucune ressource à transférer','No resources available to transfer'],
+
 ['ZONE DE VENTE','SELLING AREA'],['CINQ INDUSTRIES','FIVE INDUSTRIES'],
 ['DÉPÔT TRANSPORT','TRANSPORT DEPOT'],['Dépôt transport','Transport depot'],
 ['VÉHICULE','VEHICLE'],['CONSTRUIRE','BUILD'],['PROGRESSER','PROGRESSION'],['INTERAGIR','INTERACT'],
