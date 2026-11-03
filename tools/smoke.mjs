@@ -53,7 +53,11 @@ try{
       marker:window.__irhMonitor?{...window.__irhMonitor}:null
     })));
   }
-  console.log(JSON.stringify({progress,errors},null,2));
+  const created=await decryptedSave(page);
+  if(created.avatar?.hairStyle!==4||created.avatar?.topStyle!==2||
+     created.avatar?.bottomStyle!==1||created.avatar?.glasses!==true)
+    throw new Error('Personalized character style was not saved: '+JSON.stringify(created.avatar));
+  console.log(JSON.stringify({progress,errors,avatarCreated:true},null,2));
   if(errors.length)throw new Error('Browser errors: '+errors.join(' | ').slice(0,1000));
   if(progress.some(p=>!p.hudVisible||p.canvases!==1))throw new Error('The game UI was not ready');
   if(progress.some(p=>p.contextLost===true))throw new Error('WebGL context lost');
@@ -123,7 +127,7 @@ try{
   const workforce=await factoryContext.newPage();
   workforce.on('pageerror',e=>errors.push('WORKFORCE '+e.message));
   await workforce.addInitScript(()=>{
-    localStorage.setItem('irh-state',JSON.stringify({x:17,z:12,gold:250,bag:8,
+    localStorage.setItem('irh-state',JSON.stringify({x:33,z:24,gold:250,bag:8,
       buildings:[
         {id:'b1',kind:'worker',type:0,x:33,z:20,workers:1,stockRaw:12,stock:12},
         {id:'b2',kind:'factory',type:0,x:42,z:20,workers:1,inputRaw:4,stockProcessed:5},
@@ -138,7 +142,12 @@ try{
   const workerStats=await workforce.evaluate(()=>({...window.__irhMonitor}));
   if(workerStats.lastError||workerStats.contextLost||workerStats.employees<4||
      workerStats.visibleEmployees>workerStats.employees)throw new Error('Employee scene failed: '+JSON.stringify(workerStats));
-  console.log(JSON.stringify({workerStats},null,2));
+  await workforce.keyboard.press('f');
+  await workforce.waitForFunction(()=>document.querySelector('#panelTitle')?.textContent==='EMPLOYEES',null,{timeout:20000});
+  if(await workforce.locator('button[data-action="hire:0"]').count()!==1||
+     await workforce.locator('button[data-action="carry:0"]').count()!==1)
+    throw new Error('F at harvesting facility did not focus its hiring and equipment upgrades');
+  console.log(JSON.stringify({workerStats,facilityEmployees:true},null,2));
   await factoryContext.close();
 
   const tradeContext=await browser.newContext({viewport:{width:1280,height:800}});
@@ -271,6 +280,13 @@ try{
   await optionsPage.keyboard.press('Tab'); // close construction panel
   await optionsPage.keyboard.press('Tab'); // open settings
   await optionsPage.waitForFunction(()=>!!document.querySelector('#resetConfirm'),null,{timeout:15000});
+  const personalId=await optionsPage.locator('.vault-code').textContent();
+  if(!/^IRH-[A-F0-9]{14}$/.test(personalId))
+    throw new Error('Unique local save ID not shown: '+personalId);
+  await optionsPage.locator('button[data-system="saveExport"]').click();
+  const backup=await optionsPage.locator('#vaultExportCode').inputValue();
+  if(!backup.startsWith('IRH1.')||backup.length<100)
+    throw new Error('Encrypted save export missing or malformed');
   await optionsPage.locator('button[data-system="requestReset"]').click();
   const confirmed=await optionsPage.locator('#resetConfirm').evaluate(el=>!el.classList.contains('hidden'));
   if(!confirmed)throw new Error('Reset confirmation was not shown');
