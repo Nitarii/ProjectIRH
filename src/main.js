@@ -1222,6 +1222,17 @@ renderPanel();
 const close=()=>{panel=null;renderPanel()};$('close').onclick=close;$('resume').onclick=close;
 function applyLocale(){
 document.documentElement.lang=settings.language;
+const mobileText=settings.language==='fr'
+  ?{interact:'AGIR',jump:'SAUT',auto:'AUTO',sprint:'COURIR',drop:'POSER',vehicle:'VÉLO',cancel:'ANNULER'}
+  :{interact:'ACTION',jump:'JUMP',auto:'AUTO',sprint:'RUN',drop:'DROP',vehicle:'BIKE',cancel:'CANCEL'};
+const mobileAria=settings.language==='fr'
+  ?{market:'Comptoir',build:'Construction',talents:'Progression',map:'Carte',settings:'Paramètres',rotateLeft:'Tourner à gauche',rotateRight:'Tourner à droite'}
+  :{market:'Market',build:'Construction',talents:'Progression',map:'Map',settings:'Settings',rotateLeft:'Rotate left',rotateRight:'Rotate right'};
+for(const button of document.querySelectorAll('#mobileControls [data-touch-action]')){
+  const action=button.dataset.touchAction;
+  if(mobileText[action])button.textContent=mobileText[action];
+  button.setAttribute('aria-label',mobileAria[action]||mobileText[action]||action);
+}
 signCtx.clearRect(0,0,640,180);
 signCtx.strokeText(settings.language==='fr'?'VENDRE':'SELL',320,93);
 signCtx.fillText(settings.language==='fr'?'VENDRE':'SELL',320,93);
@@ -1347,6 +1358,8 @@ renderer.domElement.addEventListener('mousedown',e=>{
   if(mouseFree)document.exitPointerLock?.();
   else renderer.domElement.requestPointerLock?.();
   document.body.classList.toggle('mouse-free',mouseFree);
+  pop(settings.language==='fr'?(mouseFree?'Curseur libre':'Contrôle de caméra'):
+    (mouseFree?'Free cursor':'Camera control'));
 });
 document.addEventListener('pointerlockchange',()=>{
   if(!document.pointerLockElement&&!panel&&!exploration.visible&&
