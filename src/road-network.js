@@ -12,7 +12,17 @@ export function createRoadNetwork(state,{cell=3,maxTiles=5600}={}){
   const point=k=>{const [ix,iz]=k.split(',').map(Number);return{x:(ix+.5)*cell,z:(iz+.5)*cell}};
   const stage=k=>Math.max(0,Math.min(2,Number(tiles[k]?.l??tiles[k])||0));
   const retired=k=>!!tiles[k]?.retired;
-  const available=()=>planned.size-[...planned].filter(retired).length;
+  // Most worker claims only read this count. Cache it until road topology
+  // or retirement changes instead of scanning thousands of cells per claim.
+  let availableRevision=-1,availableCount=0;
+  const available=()=>{
+    if(availableRevision!==revision){
+      availableCount=0;
+      for(const k of planned)if(!retired(k))availableCount++;
+      availableRevision=revision;
+    }
+    return availableCount;
+  };
   let built=Object.keys(tiles).filter(k=>stage(k)>0).length;
   const distance=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z);
   const passable=(p)=>!blocked(p.x,p.z,.62);
