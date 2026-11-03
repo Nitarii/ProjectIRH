@@ -160,7 +160,7 @@ console.log('Impassable resource recovery verified');
 
 
 const oldLog={type:0,x:13,z:40,hp:0,max:40,dead:true,
-  log:{kind:'fallen trunk'},mesh:{visible:false},logPlacedAt:0};
+  log:{kind:'fallen trunk',position:{x:12,z:42}},mesh:{visible:false},logPlacedAt:0};
 const reclaimedState={gold:0,buildings:[{
   id:'reclaimer',kind:'worker',type:0,x:23,z:35,rotation:Math.PI/2,
   workers:1,carryLevel:1,stockRaw:0
