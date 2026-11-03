@@ -149,7 +149,7 @@ export function createSkyWeather(T,scene,player,camera,sun,ambient,{
   const clouds=[];
   for(let i=0;i<14;i++){
     const mesh=new T.Mesh(cloudGeometry,cloudMaterial);
-    mesh.renderOrder=-20;mesh.visible=false;mesh.frustumCulled=false;
+    mesh.renderOrder=-20;mesh.visible=false;mesh.frustumCulled=true;
     scene.add(mesh);clouds.push(mesh);
   }
   const cloudSites=[];
