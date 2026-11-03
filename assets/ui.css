@@ -679,3 +679,40 @@ body.touch-placement .touch-action-pad{grid-template-columns:repeat(3,minmax(0,1
    or the minimum touch target sizes on phones. */
 .notice{transform:translateX(-50%) scale(var(--nim-hud-scale,1));transform-origin:top center}
 #reticle{transform:translate(-50%,-50%) scale(var(--nim-hud-scale,1));transform-origin:center}
+
+
+/* Distinct, scalable compartments for every industrial facility. */
+.facility-management{--facility-accent:#9cc5aa;position:relative;margin:13px 0 20px;
+  padding:16px;border:1px solid #b8dac041;border-radius:14px;
+  background:linear-gradient(140deg,#20363aeb,#102325ef 70%);
+  box-shadow:0 8px 28px #0003;contain:layout style}
+.facility-management.biome-1{--facility-accent:#c2d2da}
+.facility-management.biome-2{--facility-accent:#85cbd0}
+.facility-management.biome-3{--facility-accent:#e9c995}
+.facility-management.biome-4{--facility-accent:#c7cc89}
+.facility-management-heading{display:flex;justify-content:space-between;
+  gap:10px;align-items:center;padding-bottom:10px;border-bottom:1px solid #ffffff18}
+.facility-management-heading h3{margin:4px 0 0;font:800 26px/1.1 'Barlow Condensed',sans-serif;
+  color:#f4f8ed;letter-spacing:.45px}
+.facility-index{font:800 10px 'DM Sans',sans-serif;letter-spacing:1.6px;color:var(--facility-accent)}
+.facility-staff-count{flex:none;border:1px solid #e1e8d139;border-radius:18px;
+  padding:7px 12px;font:700 11px 'DM Sans',sans-serif;color:#e4ebd4;background:#ffffff08}
+.facility-production{font:500 12px/1.5 'DM Sans',sans-serif;color:#adc7b8;margin:11px 0 15px}
+.facility-upgrade-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}
+.facility-upgrade-grid .shop-card{min-height:115px;padding:13px;gap:10px}
+.facility-upgrade-grid .shop-card-head small{margin-top:5px}
+@media(max-width:650px){.facility-management{padding:11px;margin:10px 0 14px}
+  .facility-upgrade-grid{grid-template-columns:1fr}
+  .facility-management-heading h3{font-size:21px}
+  .facility-staff-count{font-size:10px;padding:6px 7px}}
+/* Browser fullscreen controls are available with both mouse and touch. */
+#fullscreenButton{position:fixed;right:calc(12px + env(safe-area-inset-right,0px));
+  top:calc(12px + env(safe-area-inset-top,0px));z-index:12;
+  min-width:42px;min-height:42px;border-radius:12px;border:1px solid #e0e9d477;
+  background:#14332ccf;color:#fff5db;cursor:pointer;
+  font:800 21px/1 sans-serif;box-shadow:0 3px 15px #0c19176a;
+  backdrop-filter:blur(7px);-webkit-tap-highlight-color:transparent}
+#fullscreenButton:hover,#fullscreenButton:focus-visible{background:#356451;outline-color:#e1d2a5}
+#fullscreenButton.hidden{display:none!important}
+html:fullscreen #fullscreenButton{background:#264a3eb0}
+html.touch-enabled #fullscreenButton{top:calc(8px + env(safe-area-inset-top,0px))}
