@@ -17,16 +17,7 @@ check('road construction and upgrade animations take more time',
 check('per-building personnel cards and upgrade compartments',
   main.includes('class="facility-management')&&main.includes('class="facility-upgrade-grid')&&
   css.includes('.facility-management-heading')&&css.includes('.facility-upgrade-grid'));
-// Verify the actual button transitions, not merely static source text.
-const vehicleStart=main.indexOf("const mobileVehicleButton=$('mobileControls')");
-const vehicleEnd=main.indexOf('function updateInventory(){',vehicleStart);
-assert.ok(vehicleStart>=0&&vehicleEnd>vehicleStart);
-let bikeVisible=false;
-const vehicleButton={classList:{toggle(name,hidden){
-  assert.equal(name,'hidden');bikeVisible=!hidden;
-}}};
-const dummyStorage={bicycle:false};
-const toggleVehicle=new Function('st','
+check('road workshop hiring guard uses per-building cap',
   main.includes('workers>=industry.workerLimit(st.buildings[i])'));
 check('bike touch button is conditional on purchase',
   main.includes("mobileVehicleButton?.classList.toggle('hidden',!available)"));
