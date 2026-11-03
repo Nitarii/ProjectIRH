@@ -82,7 +82,21 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       else if(type===3)part(new T.BoxGeometry(.26,.33,.08),cargoMaterials[1],0,-.62,0,handTool);
       else part(new T.BoxGeometry(.47,.10,.10),cargoMaterials[1],.14,-.51,0,handTool);
     }
-    parts.load=carried;parts.group=g;
+    const finished=new T.Group();
+    finished.position.set(0,1.12,-.44);finished.visible=false;g.add(finished);
+    const done=new T.MeshLambertMaterial({color:[0xc89a66,0xb3bfc0,0xa7c0c3,0xcfe6de,0xe4dac0][agent.home.type]});
+    for(let i=0;i<3;i++){
+      const t=agent.home.type;
+      let geo;
+      if(t===0)geo=new T.BoxGeometry(.15,.10,.42);
+      else if(t===1)geo=new T.BoxGeometry(.20,.18,.32);
+      else if(t===2)geo=new T.BoxGeometry(.19,.13,.35);
+      else if(t===3)geo=new T.CylinderGeometry(.07,.11,.26,7);
+      else geo=new T.CylinderGeometry(.11,.15,.29,7);
+      const m=new T.Mesh(geo,done);
+      m.position.set((i-1)*.18,(i%2)*.16,0);finished.add(m);
+    }
+    parts.load=carried;parts.finishedLoad=finished;parts.group=g;
     scene.add(g);return parts;
   }
   function removeView(a){
@@ -501,7 +515,8 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       v.leftArm.rotation.x=walking?-stride*.48:-.14;
       v.rightArm.rotation.x=walking?stride*.48:-.17;
     }
-    v.load.visible=a.carry>0&&!work;
+    v.load.visible=a.carry>0&&!a.processed&&!work;
+    v.finishedLoad.visible=a.carry>0&&a.processed&&!work;
     if(a.carry>0)for(const mesh of v.load.children)mesh.material=cargoMaterials[a.carryType];
     return true;
   }
