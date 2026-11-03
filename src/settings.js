@@ -1,64 +1,97 @@
-const frenchKeyboard=(navigator.language||'en').toLowerCase().startsWith('fr');
+// Movement is based on physical key position, not the browser interface language.
+// navigator.keyboard.getLayoutMap supplies actual labels for AZERTY, QWERTY,
+// QWERTZ, Dvorak and other layouts whenever the browser makes it available.
+const locale=(typeof navigator!=='undefined'?navigator.language:'en')||'en';
 const defaults={
-  language:(navigator.language||'en').toLowerCase().startsWith('fr')?'fr':'en',
-  muted:false,volume:.5,mouseSensitivity:1,renderScale:1,viewDistance:128,quality:'balanced',shadows:true,
-  effects:true,
-  bindings:{
-    forward:frenchKeyboard?'KeyZ':'KeyW',backward:'KeyS',left:'KeyQ',right:'KeyD',
-    sprint:'ShiftLeft',interact:'KeyF',market:'KeyC',build:'KeyB',talents:'KeyU',
-    auto:'KeyA',drop:'KeyG',vehicle:'KeyR',jump:'Space'
-  }
+ language:locale.toLowerCase().startsWith('fr')?'fr':'en',
+ muted:false,volume:.5,mouseSensitivity:1,renderScale:1,viewDistance:128,
+ quality:'balanced',shadows:true,effects:true,
+ bindings:{
+  forward:'KeyW',backward:'KeyS',left:'KeyA',right:'KeyD',
+  sprint:'ShiftLeft',interact:'KeyF',market:'KeyC',build:'KeyB',talents:'KeyU',
+  auto:'KeyR',drop:'KeyX',vehicle:'KeyV',jump:'Space'
+ }
 };
+let keyboardMap=null;
+const fallbackFrench=locale.toLowerCase().startsWith('fr');
 export const ACTIONS=Object.keys(defaults.bindings);
+export async function detectKeyboardLayout(){
+  try{
+    if(typeof navigator!=='undefined'&&navigator.keyboard?.getLayoutMap){
+      keyboardMap=await navigator.keyboard.getLayoutMap();
+    }
+  }catch{/* Permission or browser availability varies. Physical bindings remain valid. */}
+  return keyboardMap;
+}
 export function loadSettings(){
-  let stored={};
-  try{stored=JSON.parse(localStorage.getItem('irh-options')||'{}')}catch{}
-  const clamp=(v,min,max,base)=>Number.isFinite(Number(v))?Math.max(min,Math.min(max,Number(v))):base;
-  return {...defaults,...stored,
-    volume:clamp(stored.volume,0,1,defaults.volume),
-    mouseSensitivity:clamp(stored.mouseSensitivity,.2,3,defaults.mouseSensitivity),
-    renderScale:clamp(stored.renderScale,.5,1.5,defaults.renderScale),
-    viewDistance:clamp(stored.viewDistance,64,256,defaults.viewDistance),
-    bindings:(()=>{
-      const binds={...defaults.bindings,...(stored.bindings||{})};
-      delete binds.inventory;
-      // A must be reserved for auto mode, including older saved WASD layouts.
-      if(binds.left===binds.auto)binds.left='KeyQ';
-      if(binds.market===binds.auto)binds.market='KeyC';
-      return binds;
-    })(),
-    language:stored.language==='fr'?'fr':stored.language==='en'?'en':defaults.language};
+ let stored={};
+ try{stored=JSON.parse(localStorage.getItem('irh-options')||'{}')}catch{}
+ const clamp=(v,min,max,base)=>Number.isFinite(Number(v))?Math.max(min,Math.min(max,Number(v))):base;
+ const bindings={...defaults.bindings,...(stored.bindings||{})};
+ delete bindings.inventory;
+ // Migrate the shipped defaults, never arbitrary player-defined remaps.
+ if(bindings.forward==='KeyZ')bindings.forward='KeyW';
+ if(bindings.left==='KeyQ')bindings.left='KeyA';
+ if(bindings.auto==='KeyA')bindings.auto='KeyR';
+ if(bindings.vehicle==='KeyR')bindings.vehicle='KeyV';
+ if(bindings.drop==='KeyG')bindings.drop='KeyX';
+ // An older user-defined mapping can collide with a new reserved command.
+ const used=new Set();
+ for(const action of ACTIONS){
+  if(used.has(bindings[action]))bindings[action]=defaults.bindings[action];
+  used.add(bindings[action]);
+ }
+ return {...defaults,...stored,
+   volume:clamp(stored.volume,0,1,defaults.volume),
+   mouseSensitivity:clamp(stored.mouseSensitivity,.2,3,defaults.mouseSensitivity),
+   renderScale:clamp(stored.renderScale,.5,1.5,defaults.renderScale),
+   viewDistance:clamp(stored.viewDistance,64,256,defaults.viewDistance),
+   bindings,
+   language:stored.language==='fr'?'fr':stored.language==='en'?'en':defaults.language};
 }
 export function storeSettings(settings){
-  try{localStorage.setItem('irh-options',JSON.stringify(settings))}catch{}
+ try{localStorage.setItem('irh-options',JSON.stringify(settings))}catch{}
 }
 export function keyLabel(code){
-  const variants={Space:'SPACE',ShiftLeft:'SHIFT',ShiftRight:'SHIFT',Escape:'ESC',
-    ArrowUp:'↑',ArrowDown:'↓',ArrowLeft:'←',ArrowRight:'→'};
-  if(variants[code])return variants[code];
-  return code.replace(/^Key/,'').replace(/^Digit/,'').replace(/^Numpad/,'NUM ');
+ if(!code)return '—';
+ const variants={Space:'SPACE',ShiftLeft:'SHIFT',ShiftRight:'SHIFT',
+  Escape:'ESC',Tab:'TAB',ArrowUp:'↑',ArrowDown:'↓',ArrowLeft:'←',ArrowRight:'→',
+  ControlLeft:'CTRL',ControlRight:'CTRL',AltLeft:'ALT',AltRight:'ALT'};
+ if(variants[code])return variants[code];
+ if(keyboardMap?.get){
+  const label=keyboardMap.get(code);
+  if(label&&label.length<=8)return label.toLocaleUpperCase();
+ }
+ const french=fallbackFrench?{
+  KeyW:'Z',KeyA:'Q',KeyQ:'A',KeyZ:'W',KeyM:',',
+  Digit1:'&',Digit2:'É',Digit3:'"',Digit4:"'",Digit5:'('
+ }:{};
+ return french[code]||code.replace(/^Key/,'').replace(/^Digit/,'').replace(/^Numpad/,'NUM ');
 }
 export function isPressed(keys,settings,action){
-  const code=settings.bindings[action];
-  if(keys[code])return true;
-  if(action==='forward')return !!(code==='KeyW'&&keys.KeyZ||code==='KeyZ'&&keys.KeyW||keys.ArrowUp);
-  if(action==='left')return !!keys.ArrowLeft;
-  if(action==='backward')return !!keys.ArrowDown;
-  if(action==='right')return !!keys.ArrowRight;
-  if(action==='sprint')return !!keys.ShiftRight;
-  return false;
+ const code=settings.bindings[action];
+ if(keys[code])return true;
+ if(action==='forward')return !!keys.ArrowUp;
+ if(action==='backward')return !!keys.ArrowDown;
+ if(action==='left')return !!keys.ArrowLeft;
+ if(action==='right')return !!keys.ArrowRight;
+ if(action==='sprint')return !!keys.ShiftRight;
+ return false;
 }
 export function applyQuality(renderer,sun,quality,renderScale=1){
-  const settings={
-    low:{shadows:false,shadowSize:512},
-    balanced:{shadows:true,shadowSize:1024},
-    high:{shadows:true,shadowSize:2048}
-  }[quality]||{pixel:1,shadows:true};
-  const ratio=Math.max(.45,Math.min(window.devicePixelRatio||1,1.5)*Math.max(.5,Math.min(1.5,renderScale)));
-  renderer.setPixelRatio(ratio);
-  renderer.shadowMap.enabled=settings.shadows;
-  if(sun){sun.castShadow=settings.shadows;sun.shadow.mapSize.set(settings.shadowSize,settings.shadowSize);
-    sun.shadow.map?.dispose();sun.shadow.map=null}
-  renderer.setSize(window.innerWidth,window.innerHeight);
-  return ratio;
+ const preset={
+  low:{shadows:false,shadowSize:512},balanced:{shadows:true,shadowSize:1024},
+  high:{shadows:true,shadowSize:2048}
+ }[quality]||{shadows:true,shadowSize:1024};
+ const ratio=Math.max(.45,Math.min(window.devicePixelRatio||1,1.5)*
+   Math.max(.5,Math.min(1.5,renderScale)));
+ renderer.setPixelRatio(ratio);
+ renderer.shadowMap.enabled=preset.shadows;
+ if(sun){
+  sun.castShadow=preset.shadows;
+  sun.shadow.mapSize.set(preset.shadowSize,preset.shadowSize);
+  sun.shadow.map?.dispose();sun.shadow.map=null;
+ }
+ renderer.setSize(window.innerWidth,window.innerHeight);
+ return ratio;
 }
