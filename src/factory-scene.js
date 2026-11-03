@@ -144,8 +144,11 @@ export function decorateFacility(T,group,b,materials){
       workstations.push({...task,station:i,position:worldPoint(b,x,z)});
     });
   }
-  // Model bounds are broad-phase collision shapes, not rigid-body simulation.
+  // Ground-level module hulls extend beyond the central building's facade.
+  // The front saw benches / kiln fittings at z≈2.0 were previously rendered
+  // without a matching collision envelope, allowing workers to path through.
   collision(0,0,4.25,4.10);
+  if(b.kind==='factory')collision(0,2.12,4.4,1.34);
   let cachedRaw=-1,cachedProcessed=-1,cachedSeller='';
   function updateStock(){
     if(b.kind==='seller'){
