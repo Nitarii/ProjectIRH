@@ -36,7 +36,7 @@ export function roadLampSites(tiles,viewer,range=140,maxCount=110,cell=3,isBlock
 }
 
 export function createNightLighting(T,scene,{
-  buildings=()=>[],roads,player,
+  buildings=()=>[],fixedBuildings=[],roads,player,
   viewDistance=()=>128,quality=()=> 'balanced',isBlocked=()=>false
 }={}){
   const metal=new T.MeshLambertMaterial({color:0x514b47});
@@ -85,7 +85,7 @@ export function createNightLighting(T,scene,{
     const mode=quality();
     const maxRoad=mode==='low'?45:mode==='high'?MAX_ROAD:95;
     const maxBuildings=mode==='low'?48:mode==='high'?MAX_BUILDING:100;
-    const nearby=buildings().filter(b=>Number.isFinite(b.x+b.z)&&sq(center,b)<(range+4)**2)
+    const nearby=[...buildings(),...fixedBuildings].filter(b=>Number.isFinite(b.x+b.z)&&sq(center,b)<(range+4)**2)
       .sort((a,b)=>sq(center,a)-sq(center,b)).slice(0,Math.floor(maxBuildings/2));
     const roadSites=roadLampSites(roads?.data,center,range,maxRoad,3,isBlocked);
     candidates=[];let poleCount=0,capCount=0,bracketCount=0;bulbCount=0;
@@ -134,11 +134,13 @@ export function createNightLighting(T,scene,{
     aura.opacity=night*.18;
     glows.visible=night>.018;
     const pos=player.position,mode=quality(),range=viewDistance();
-    const signature=buildings().map(b=>b.id+':'+b.x+':'+b.z+':'+(b.rotation||0)).join('|');
     refreshClock+=dt;
     if(refreshClock>.9||sq(pos,{x:oldX,z:oldZ})>100||
-       lastRevision!==roads?.revision||lastBuildings!==signature||
-       lastRange!==range||lastQuality!==mode){
+       lastRevision!==roads?.revision||lastRange!==range||lastQuality!==mode){
+      // Dynamic building signatures are only compared at the refresh
+      // boundary, not allocated and joined on every animation frame.
+      const signature=buildings().map(b=>
+        b.id+':'+b.x+':'+b.z+':'+(b.rotation||0)).join('|');
       refreshClock=0;oldX=pos.x;oldZ=pos.z;
       lastRevision=roads?.revision;lastBuildings=signature;
       lastRange=range;lastQuality=mode;
