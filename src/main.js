@@ -964,7 +964,8 @@ onResourceDepleted(node){
 },
 blocked:sceneryBlocked,
 roads,
-onMove(id,x,z){trails.recordMovement(id,x,z);roads.recordUse(id,x,z,st.gameMinutes)}
+onMove(id,x,z,role){trails.recordMovement(id,x,z);
+  if(role!=='road')roads.recordUse(id,x,z,st.gameMinutes)}
 });
 roads.setProbes({
   blocked:(x,z,r)=>industry.blocked(x,z,r),
