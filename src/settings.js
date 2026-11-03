@@ -4,9 +4,9 @@ const defaults={
   muted:false,volume:.5,mouseSensitivity:1,renderScale:1,viewDistance:128,quality:'balanced',shadows:true,
   effects:true,
   bindings:{
-    forward:frenchKeyboard?'KeyZ':'KeyW',backward:'KeyS',left:frenchKeyboard?'KeyQ':'KeyA',right:'KeyD',
-    sprint:'ShiftLeft',interact:'KeyF',build:'KeyB',talents:'KeyU',
-    inventory:'KeyI',drop:'KeyG',vehicle:'KeyR',jump:'Space'
+    forward:frenchKeyboard?'KeyZ':'KeyW',backward:'KeyS',left:'KeyQ',right:'KeyD',
+    sprint:'ShiftLeft',interact:'KeyF',market:'KeyC',build:'KeyB',talents:'KeyU',
+    auto:'KeyA',drop:'KeyG',vehicle:'KeyR',jump:'Space'
   }
 };
 export const ACTIONS=Object.keys(defaults.bindings);
@@ -19,7 +19,14 @@ export function loadSettings(){
     mouseSensitivity:clamp(stored.mouseSensitivity,.2,3,defaults.mouseSensitivity),
     renderScale:clamp(stored.renderScale,.5,1.5,defaults.renderScale),
     viewDistance:clamp(stored.viewDistance,64,256,defaults.viewDistance),
-    bindings:{...defaults.bindings,...(stored.bindings||{})},
+    bindings:(()=>{
+      const binds={...defaults.bindings,...(stored.bindings||{})};
+      delete binds.inventory;
+      // A must be reserved for auto mode, including older saved WASD layouts.
+      if(binds.left===binds.auto)binds.left='KeyQ';
+      if(binds.market===binds.auto)binds.market='KeyC';
+      return binds;
+    })(),
     language:stored.language==='fr'?'fr':stored.language==='en'?'en':defaults.language};
 }
 export function storeSettings(settings){
