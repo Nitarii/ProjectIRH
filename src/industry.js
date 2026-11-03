@@ -53,8 +53,33 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       part(armGeometry,materials[agent.role],0,-.35,0,arm);
       if(side===-1)parts.leftArm=arm;else parts.rightArm=arm;
     }
-    const carried=part(loadGeometry,cargoMaterials[agent.home.type],0,1.09,.4);
-    carried.visible=false;parts.load=carried;parts.group=g;
+    const carried=new T.Group();carried.position.set(0,1.12,-.44);carried.visible=false;g.add(carried);
+    const color=cargoMaterials[agent.home.type];
+    if(agent.home.type===0){
+      for(let i=-1;i<=1;i++){
+        const log=part(new T.CylinderGeometry(.10,.1,.55,6),color,i*.18,0,0,carried);
+        log.rotation.z=Math.PI/2;
+      }
+    }else if(agent.home.type===1||agent.home.type===2){
+      part(new T.IcosahedronGeometry(.23,0),color,0,.05,0,carried);
+      part(new T.IcosahedronGeometry(.15,0),color,.19,.07,0,carried);
+    }else if(agent.home.type===3){
+      part(new T.BoxGeometry(.56,.43,.38),color,0,0,0,carried);
+    }else{
+      for(let i=-1;i<=1;i++)part(new T.ConeGeometry(.11,.48,4),color,i*.16,.08,0,carried);
+    }
+    const handTool=new T.Group();handTool.position.set(0,-.6,.08);
+    parts.rightArm.add(handTool);parts.tool=handTool;handTool.visible=agent.role==='worker';
+    if(agent.role==='worker'){
+      const shaft=part(new T.CylinderGeometry(.045,.055,.68,6),cargoMaterials[0],0,-.21,0,handTool);
+      const type=agent.home.type;
+      if(type===0)part(new T.BoxGeometry(.40,.23,.12),cargoMaterials[1],.16,-.51,0,handTool);
+      else if(type===1)part(new T.BoxGeometry(.65,.16,.14),cargoMaterials[1],0,-.5,0,handTool);
+      else if(type===2){shaft.material=cargoMaterials[2];part(new T.CylinderGeometry(.12,.15,.33,7),cargoMaterials[2],0,-.58,0,handTool)}
+      else if(type===3)part(new T.BoxGeometry(.26,.33,.08),cargoMaterials[1],0,-.62,0,handTool);
+      else part(new T.BoxGeometry(.47,.10,.10),cargoMaterials[1],.14,-.51,0,handTool);
+    }
+    parts.load=carried;parts.group=g;
     scene.add(g);return parts;
   }
   function removeView(a){
@@ -296,10 +321,24 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     v.leftLeg.rotation.x=stride;v.rightLeg.rotation.x=-stride;
     const working=a.state==='gather'||a.state==='operate';
     const beat=Math.sin(time*(a.role==='factory'?7:5)+a.id.length);
-    v.leftArm.rotation.x=working?-.8+beat*.62:walking?-stride*.5:-.13;
-    v.rightArm.rotation.x=working?-1.4+beat*.8:walking?stride*.5:-.16;
+    if(a.state==='gather'){
+      const type=a.home.type;
+      v.leftArm.rotation.x=type===2?-1.05:-.54+beat*.24;
+      v.rightArm.rotation.x=type===0?-1.25+beat*.85:
+          type===1?-1.75+beat*.9:type===2?-1.33+beat*.1:
+          type===3?-.9+beat*.6:-.7;
+      v.rightArm.rotation.y=type===4?beat*.8:0;
+      v.tool.rotation.z=type===4?beat*.45:0;
+      g.rotation.z=type===1?beat*.035:0;
+    }else{
+      v.leftArm.rotation.x=working?-.76+beat*.4:walking?-stride*.5:-.13;
+      v.rightArm.rotation.x=working?-1.08+beat*.62:walking?stride*.5:-.16;
+      v.rightArm.rotation.y=0;v.tool.rotation.z=0;g.rotation.z=0;
+    }
     v.load.visible=a.carry>0;
-    if(a.carry>0)v.load.material=cargoMaterials[a.carryType];
+    if(a.carry>0){
+      for(const mesh of v.load.children)mesh.material=cargoMaterials[a.carryType];
+    }
     return true;
   }
   function register(b){ensure(b);reconcile();return b.mesh}
