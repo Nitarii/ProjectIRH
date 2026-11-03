@@ -1,6 +1,6 @@
 // Bounded obstacle-aware A* for the ground plane.
 // Paths validate the full corridor between waypoints, never just grid centers.
-export function createRouter(isBlocked,{cell=1.2,maxVisits=1900}={}){
+export function createRouter(isBlocked,{cell=1.2,maxVisits=1900,speedAt=null}={}){
   const dirs=[[1,0,1],[0,1,1],[-1,0,1],[0,-1,1],
     [1,1,Math.SQRT2],[-1,1,Math.SQRT2],[1,-1,Math.SQRT2],[-1,-1,Math.SQRT2]];
   class Heap{
@@ -41,14 +41,20 @@ export function createRouter(isBlocked,{cell=1.2,maxVisits=1900}={}){
       }
       return true;
     };
-    if(clear(from.x,from.z)&&clear(to.x,to.z)&&corridor(from.x,from.z,to.x,to.z))
+    const direct=clear(from.x,from.z)&&clear(to.x,to.z)&&
+      corridor(from.x,from.z,to.x,to.z);
+    // Road-aware navigation compares travel time instead of plain distance.
+    // Skip A* in very short/long empty corridors; capped search retains fallback.
+    if(direct&&(!speedAt||Math.hypot(from.x-to.x,from.z-to.z)<7.5||
+      Math.hypot(from.x-to.x,from.z-to.z)>110))
       return [{x:to.x,z:to.z}];
     const walkable=(x,z)=>{
       const k=id(x,z);
       if(!cells.has(k))cells.set(k,clear(x*cell,z*cell));
       return cells.get(k);
     };
-    const h=(x,z)=>Math.hypot(to.x-x*cell,to.z-z*cell)/cell;
+    const pace=(x,z)=>speedAt?Math.max(1,Math.min(1.5,speedAt(x,z)||1)):1;
+    const h=(x,z)=>Math.hypot(to.x-x*cell,to.z-z*cell)/(cell*(speedAt?1.5:1));
     // Any nearby walkable grid point can start a route, provided the actor
     // can actually reach it without cutting through an obstacle.
     let seeds=0;
@@ -56,7 +62,7 @@ export function createRouter(isBlocked,{cell=1.2,maxVisits=1900}={}){
       const x=sx+dx,z=sz+dz,wx=x*cell,wz=z*cell;
       if(Math.hypot(wx-from.x,wz-from.z)>2.0||!walkable(x,z))continue;
       if(!corridor(from.x,from.z,wx,wz))continue;
-      const g=Math.hypot(wx-from.x,wz-from.z)/cell;
+      const g=Math.hypot(wx-from.x,wz-from.z)/(cell*pace(wx,wz));
       heap.push({x,z,g,f:g+h(x,z),parent:null});costs.set(id(x,z),g);seeds++;
     }
     if(!seeds)return null;
@@ -82,7 +88,7 @@ export function createRouter(isBlocked,{cell=1.2,maxVisits=1900}={}){
         if(Math.abs(x-sx)>92||Math.abs(z-sz)>92||!walkable(x,z))continue;
         if(dx&&dz&&(!walkable(current.x+dx,current.z)||!walkable(current.x,current.z+dz)))continue;
         if(!corridor(wx,wz,x*cell,z*cell))continue;
-        const g=current.g+cost,k2=id(x,z);
+        const g=current.g+cost/pace(x*cell,z*cell),k2=id(x,z);
         if(g>=(costs.get(k2)??Infinity))continue;
         costs.set(k2,g);heap.push({x,z,g,f:g+h(x,z),parent:current});
       }
@@ -90,6 +96,7 @@ export function createRouter(isBlocked,{cell=1.2,maxVisits=1900}={}){
     if(!finish){
       // Do not return a partial path into a wall; the caller must retry
       // an alternative goal or suspend the unreachable resource.
+      if(direct)return [{x:to.x,z:to.z}];
       if(!allowNearby||bestDistance>tolerance||!best)return null;
       finish=best;
     }
@@ -100,11 +107,27 @@ export function createRouter(isBlocked,{cell=1.2,maxVisits=1900}={}){
     if(path.length>1&&Math.hypot(path[0].x-from.x,path[0].z-from.z)<.18)path.shift();
     if(!path.length)path.push({x:finish.x*cell,z:finish.z*cell});
     // Avoid unnecessary zig-zags in open passages without compromising clearance.
+    const travel=(a,b)=>{
+      const len=Math.hypot(a.x-b.x,a.z-b.z);
+      if(!speedAt)return len;
+      const steps=Math.max(1,Math.ceil(len/3)),dx=(b.x-a.x)/steps,dz=(b.z-a.z)/steps;
+      let total=0;
+      for(let n=1;n<=steps;n++)total+=len/steps/pace(a.x+dx*n,a.z+dz*n);
+      return total;
+    };
     const smooth=[];
     let anchor={x:from.x,z:from.z},i=0;
     while(i<path.length){
       let j=Math.min(path.length-1,i+7);
-      while(j>i&&!corridor(anchor.x,anchor.z,path[j].x,path[j].z))j--;
+      while(j>i){
+        if(!corridor(anchor.x,anchor.z,path[j].x,path[j].z)){j--;continue}
+        if(speedAt){
+          let along=0,prev=anchor;
+          for(let k=i;k<=j;k++){along+=travel(prev,path[k]);prev=path[k]}
+          if(travel(anchor,path[j])>along*1.015){j--;continue}
+        }
+        break;
+      }
       smooth.push(path[j]);anchor=path[j];i=j+1;
     }
     return smooth;
