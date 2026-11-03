@@ -10,7 +10,7 @@ import {EQUIPMENT,EQUIPMENT_FR,TOOL_SPEED,TOOL_YIELD,ECONOMY,toolCost,buildingCo
 import {loadSettings,storeSettings,keyLabel,isPressed,applyQuality,ACTIONS,detectKeyboardLayout} from './settings.js?v=20261105d';
 import {tr,translateTree,UI} from './language.js?v=20261103p7';
 import {createBaseCamp} from './basecamp.js';
-import {optionsMarkup} from './options-ui.js?v=20261105d';
+import {optionsMarkup} from './options-ui.js?v=20261105e';
 import {createTrails} from './trails.js?v=20261103r1';
 import {decorationCollider} from './decor-collision.js?v=20261103p4';
 import {batchResourceNodes,setDistantResource} from './resource-batches.js?v=20261103p4';
