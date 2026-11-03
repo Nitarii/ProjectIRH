@@ -1,4 +1,4 @@
-import {createRouter} from './navigation.js?v=20261106a';
+import {createRouter} from './navigation.js?v=20261106c';
 
 // Autonomous harvest/sell mode uses the same physical obstacles as the player.
 // The navigator performs a bounded plan per objective, never once per frame.
