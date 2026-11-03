@@ -18,7 +18,7 @@ export function createSkyWeather(T,scene,player,camera,sun,ambient,{
   const skyUniforms={
     uTime:{value:0},uSun:{value:new T.Vector3(.7,.38,.2)},
     uDay:{value:1},uTwilight:{value:0},uNight:{value:0},
-    uHorizon:{value:new T.Color(0x9fc6cf)}
+    uHorizon:{value:new T.Color(0x9fc6cf)},uDetail:{value:1}
   };
   const skyMaterial=new T.ShaderMaterial({
     uniforms:skyUniforms,side:T.BackSide,depthWrite:false,depthTest:false,
@@ -31,7 +31,7 @@ export function createSkyWeather(T,scene,player,camera,sun,ambient,{
       }
     `,
     fragmentShader:`
-      uniform float uTime,uDay,uTwilight,uNight;
+      uniform float uTime,uDay,uTwilight,uNight,uDetail;
       uniform vec3 uSun,uHorizon;
       varying vec3 vDirection;
       float hash(vec3 p){
@@ -64,9 +64,11 @@ export function createSkyWeather(T,scene,player,camera,sun,ambient,{
         float stars=step(.9988,starCell)*pow(max(0.0,hash(d*134.0)),3.0);
         color+=vec3(.65,.75,.93)*stars*uNight*clamp(d.y*4.0,0.0,1.0);
         // Subtle upper atmosphere wisps, no pixel-space grain or bloom pass.
-        float wisps=noise(d*13.0+vec3(uTime*.004,0.0,0.0));
-        color+=vec3(.07,.085,.09)*pow(smoothstep(.52,.83,wisps),2.0)*
-          uDay*clamp(d.y*2.0,0.0,1.0);
+        if(uDetail>.5&&d.y>.02){
+          float wisps=noise(d*13.0+vec3(uTime*.004,0.0,0.0));
+          color+=vec3(.07,.085,.09)*pow(smoothstep(.52,.83,wisps),2.0)*
+            uDay*clamp(d.y*2.0,0.0,1.0);
+        }
         gl_FragColor=vec4(color,1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
@@ -115,7 +117,7 @@ export function createSkyWeather(T,scene,player,camera,sun,ambient,{
       void main(){
         vec2 uv=(vUv-.5)*vec2(2.0,2.2);
         float shape=length(uv);
-        if(shape>1.06)discard;
+        if(shape>1.06||vDistance>=fogEnd)discard;
         vec3 seed=vec3(vAnchor.xz*.029,fract(vAnchor.y*.061)*4.0);
         float accum=0.0,lighted=0.0;
         for(int i=0;i<6;i++){
@@ -170,7 +172,7 @@ export function createSkyWeather(T,scene,player,camera,sun,ambient,{
     }
     cloudSites.sort((a,b)=>a.dist-b.dist);
   }
-  const horizon=new T.Color(),dusk=new T.Color(0xc88f70);
+  const horizon=new T.Color(),dayHorizon=new T.Color(0x98bed0),dusk=new T.Color(0xc88f70);
   const warm=new T.Color(0xffbc7e),daySun=new T.Color(0xffe7cc),
         moon=new T.Color(0x92afd7),nightAmbient=new T.Color(0x879bb9),
         dayAmbient=new T.Color(0xf2f6e9),nightGround=new T.Color(0x344057),
@@ -185,10 +187,11 @@ export function createSkyWeather(T,scene,player,camera,sun,ambient,{
     sunDir.set(Math.cos(sunAzimuth),solar.altitude,Math.sin(sunAzimuth)).normalize();
     // Smooth exposure transitions, with a readable moonlit night.
     const night=1-daylight;
-    horizon.set(0x1d385b).lerp(new T.Color(0x98bed0),daylight);
+    horizon.set(0x1d385b).lerp(dayHorizon,daylight);
     horizon.lerp(dusk,solar.twilight*.38);
     skyUniforms.uHorizon.value.copy(horizon);
     skyUniforms.uDay.value=daylight;
+    skyUniforms.uDetail.value=quality()==='low'?0:1;
     skyUniforms.uTwilight.value=solar.twilight;
     skyUniforms.uNight.value=night;
     skyUniforms.uTime.value=elapsed;
