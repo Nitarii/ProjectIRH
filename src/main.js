@@ -30,10 +30,13 @@ const M=c=>new T.MeshLambertMaterial({color:c}),m={grass:M(0x658b55),forest:M(0x
 function cube(w,h,d,mat,x=0,y=0,z=0){let q=new T.Mesh(new T.BoxGeometry(w,h,d),mat);q.position.set(x,y,z);q.castShadow=true;q.receiveShadow=true;return q}function orb(r,mat,x=0,y=0,z=0){let q=new T.Mesh(new T.IcosahedronGeometry(r,1),mat);q.position.set(x,y,z);q.castShadow=true;return q}function cy(r,h,mat,x=0,y=0,z=0){let q=new T.Mesh(new T.CylinderGeometry(r,r,h,8),mat);q.position.set(x,y,z);q.castShadow=true;return q}
 const types=['FORÊT','MONTAGNE','EXCAVATION','DÉSERT','CHAMPS'],raw=['Bois','Pierre','Minerai','Sable','Blé'],processed=['Planches','Pierre taillée','Lingots','Verre','Farine'],tools=EQUIPMENT_FR,worksites=['Cabane de bûcheron','Carrière','Mine','Camp de terrassiers','Ferme'],factories=['Scierie','Atelier de taille','Fonderie','Verrerie','Moulin'],values=[12,15,22,10,14],colors=['#488756','#87938b','#b88f6b','#e3c67c','#c8b64e'];
 const vault=await openSaveVault();
-let defaultState={gold:100,bag:8,inv:[0,0,0,0,0],products:[0,0,0,0,0],tools:[-1,-1,-1,-1,-1],talents:[0,0,0,0,0],buildings:[],stock:[],truck:false,cart:false,staminaLevel:0,gameMinutes:0,x:0,z:9,seed:Math.floor(Math.random()*2000000000)+10000,exhausted:{},avatar:null};let st={...defaultState};
+let defaultState={gold:100,bag:8,inv:[0,0,0,0,0],products:[0,0,0,0,0],tools:[-1,-1,-1,-1,-1],talents:[0,0,0,0,0],buildings:[],stock:[],truck:false,cart:false,staminaLevel:0,gameMinutes:0,x:0,z:9,seed:Math.floor(Math.random()*2000000000)+10000,worldVersion:2,exhausted:{},avatar:null};let st={...defaultState};
 const settings=loadSettings();let awaitingBinding=null;let observedGold=st.gold,goldHideAt=0;try{
  const a=vault.state||{};
  for(const k in defaultState)if(a[k]!==undefined)st[k]=a[k];
+ // Existing maps retain their original nearby forest; only newly generated
+ // worlds use the seeded three-biome starting crossroads.
+ if(vault.state&&vault.state.worldVersion===undefined)st.worldVersion=1;
 }catch(error){console.warn('Save could not be loaded',error)}
 observedGold=st.gold;
 const save=()=>{st.x=player.position.x;st.z=player.position.z;
@@ -144,8 +147,13 @@ const resourceLife=createResourceLifecycle(st);
 const trails=createTrails(T,st,world);
 let R=Math.max(2,Math.min(8,Math.ceil(settings.viewDistance/CH)));const hash=(x,z,s=0)=>{let n=Math.sin(x*127.1+z*311.7+s*51.6+((st.seed||7331)-7331)*.7919)*43758.5453;return n-Math.floor(n)},blend=t=>t*t*(3-2*t);function noise(x,z,k,s){let a=Math.floor(x/k),b=Math.floor(z/k),u=blend(x/k-a),v=blend(z/k-b);return T.MathUtils.lerp(T.MathUtils.lerp(hash(a,b,s),hash(a+1,b,s),u),T.MathUtils.lerp(hash(a,b+1,s),hash(a+1,b+1,s),u),v)}
 function biome(x,z){
-const starting=openingBiome(x,z,st.seed);
-if(starting!==null)return starting;
+if(st.worldVersion===1){
+  if(Math.hypot(x,z)<22)return -1;
+  if(Math.hypot(x-34,z)<76)return 0;
+}else{
+  const starting=openingBiome(x,z,st.seed);
+  if(starting!==null)return starting;
+}
 const size=290,cx=Math.floor(x/size),cz=Math.floor(z/size);
 let nearest=Infinity,selected=0;
 for(let ix=-1;ix<=1;ix++)for(let iz=-1;iz<=1;iz++){
@@ -883,7 +891,7 @@ function resetEntireGame(){
     tools:[-1,-1,-1,-1,-1],talents:[0,0,0,0,0],
     buildings:[],stock:[],truck:false,cart:false,staminaLevel:0,
     gameMinutes:0,x:0,z:9,
-    seed:Math.floor(Math.random()*2000000000)+10000,
+    seed:Math.floor(Math.random()*2000000000)+10000,worldVersion:2,
     avatar:null,exhausted:{},trails:{}
   };
   vault.save(fresh).then(()=>location.reload()).catch(e=>{
