@@ -424,6 +424,29 @@ world.delete(key)
 }
 }
 }
+// Shadow-map caster budget: only nearby decorative instanced batches enter
+// the directional shadow pass, keeping thousands of distant objects visible
+// without redrawing all of them into the shadow map.
+let decorationShadowClock=0,decorationShadowX=Infinity,decorationShadowZ=Infinity;
+function refreshDecorationShadows(dt){
+  decorationShadowClock+=Math.max(0,dt);
+  const dx=player.position.x-decorationShadowX,dz=player.position.z-decorationShadowZ;
+  if(decorationShadowClock<1.15&&dx*dx+dz*dz<160)return;
+  decorationShadowClock=0;decorationShadowX=player.position.x;
+  decorationShadowZ=player.position.z;
+  const quality=settings.quality;
+  for(const c of world.values()){
+    for(const batch of c.root.userData.decorationBatches||[]){
+      const mesh=batch.mesh,objects=batch.instances;
+      // A chunk's first object is enough to reject distant batches cheaply.
+      const sample=objects[0];
+      const close=sample&&Math.abs(sample.x-player.position.x)<70&&
+        Math.abs(sample.z-player.position.z)<70;
+      const casts=quality!=='low'&&close&&(quality==='high'||batch.kind!==4);
+      if(mesh.castShadow!==!!casts)mesh.castShadow=!!casts;
+    }
+  }
+}
 const resourceFrustum=new T.Frustum(),resourceProjection=new T.Matrix4(),
   resourceBoundingSphere=new T.Sphere(new T.Vector3(),5.6);
 function updateResourceVisibility(){
@@ -1848,6 +1871,7 @@ if(player.position.y>0||jumpVelocity>0){
   if(player.position.y===0)jumpVelocity=0;
 }
 trails.update(dt);
+refreshDecorationShadows(dt);
 harvestFx.update(dt);
 pumpWorld();
 placementFrame();
