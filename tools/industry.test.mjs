@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {createIndustry} from '../src/industry.js';
+import {FACTORY_TASKS,workstation} from '../src/factory-tasks.js';
 
 class Vec{
   constructor(x=0,y=0,z=0){this.x=x;this.y=y;this.z=z}
@@ -80,3 +81,13 @@ for(let i=0;i<500;i++)remote.update(.2,0,0);
 assert.equal(remote.readStats().visible,0,'out-of-view workers must have no active models');
 assert.equal(remote.readStats().abstract,5,'all distant staff must use data-only simulation');
 console.log('Crowd spacing, factory stations and remote simulation checks passed');
+
+for(let type=0;type<5;type++){
+  const tasks=FACTORY_TASKS[type];
+  assert.equal(tasks.length,5,'every processing industry needs five roles');
+  assert.equal(new Set(tasks.map(x=>x.name)).size,5,'roles must be independently recognizable');
+  assert.equal(new Set(tasks.map(x=>x.point.join(','))).size,5,'jobs must occupy different workstations');
+  assert.ok(tasks.every((x,i)=>workstation(type,i)===x),'the assigned workstation must be stable');
+}
+assert.ok(remote.readStats().processed>0,'offscreen production must continue as numeric data');
+console.log('All twenty-five specialist jobs and remote output verified');
