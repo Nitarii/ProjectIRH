@@ -91,3 +91,45 @@ for(let type=0;type<5;type++){
 }
 assert.ok(remote.readStats().processed>0,'offscreen production must continue as numeric data');
 console.log('All twenty-five specialist jobs and remote output verified');
+
+
+const crowdedResources=[
+  {type:0,x:6,z:29.7,hp:40,max:40,dead:false,mesh:{visible:true}},
+  {type:0,x:6.7,z:31.25,hp:40,max:40,dead:false,mesh:{visible:true}},
+  {type:0,x:7.0,z:27.05,hp:40,max:40,dead:false,mesh:{visible:true}}
+];
+const chokepointProps=[
+  {x:10.6,z:29,r:1.20},
+  {x:10.6,z:31,r:1.20},
+  {x:11.9,z:30,r:.55}
+];
+const crowdState={gold:100,buildings:[
+  {id:'b-crew',kind:'worker',type:0,x:17,z:30,workers:2,stockRaw:0}
+]};
+const crowd=createIndustry(T,scene2,crowdState,crowdedResources,()=>0,
+  {x:80,z:90,w:8,d:8},[12,15,22,10,14],{
+    blocked(x,z,radius){
+      return chokepointProps.some(o=>(o.x-x)**2+(o.z-z)**2<(o.r+radius)**2);
+    }
+  });
+crowd.sync();
+let minCrewSpacing=Infinity,maxDelay=0,finishedTasks=0;
+for(let i=0;i<1050;i++){
+  crowd.update(.12,17,30);
+  const crew=crowd.snapshot();
+  if(crew.length===2){
+    minCrewSpacing=Math.min(minCrewSpacing,
+      Math.hypot(crew[0].x-crew[1].x,crew[0].z-crew[1].z));
+    maxDelay=Math.max(maxDelay,...crew.map(w=>w.blockedAge||0));
+  }
+  if(crowdState.buildings[0].stockRaw>finishedTasks)
+    finishedTasks=crowdState.buildings[0].stockRaw;
+}
+assert.ok(minCrewSpacing>.48,'harvesters must not overlap at tight trees');
+assert.ok(maxDelay<8,'blocked-worker watchdog must not accumulate without bound');
+assert.ok(crowdedResources.some(r=>r.hp<r.max||r.dead)||finishedTasks>0,
+  'harvesters must eventually work around tightly packed nodes');
+const crowdStats=crowd.readStats();
+assert.ok(crowdStats.replans<500,'routing must not run expensive searches every frame');
+console.log(JSON.stringify({minCrewSpacing,maxDelay,finishedTasks,crowdStats},null,2));
+console.log('Tight-tree congestion and worker recovery verified');
