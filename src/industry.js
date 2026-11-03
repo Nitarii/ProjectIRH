@@ -1,6 +1,7 @@
 import {makeStructure} from './structures.js?v=20261103r2';
 import {createRouter} from './navigation.js?v=20261103aa';
-import {workstation,storagePoint} from './factory-tasks.js?v=20261103v';
+import {workstation,storagePoint,yardPoint} from './factory-tasks.js?v=20261103v';
+import {worldPoint,rotateOffset,normalizeRotation,pointInOrientedRect} from './facility-layout.js';
 
 export function createIndustry(T, scene, st, resources, biome, sale, values, hooks={}) {
   const agents=[],agentById=new Map(), buildings=st.buildings;
@@ -32,6 +33,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     if(!b.id)b.id='b'+nextId++;
     if(b.id.startsWith('b'))nextId=Math.max(nextId,(Number(b.id.slice(1))||0)+1);
     b.type=Number.isInteger(b.type)?Math.max(0,Math.min(4,b.type)):Math.max(0,biome(b.x,b.z));
+    b.rotation=normalizeRotation(b.rotation);
     b.workers=limited(Math.floor(num(b.workers)),employeeLimit);
     b.carryLevel=Math.min(5,Math.floor(num(b.carryLevel)));
     b.stockRaw=limited(num(b.stockRaw??(b.kind==='worker'?b.stock:0)));
@@ -124,7 +126,8 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
   }
   function addAgent(b,i){
     const role=b.kind==='worker'?'worker':b.kind==='factory'?'factory':b.kind==='transport'?'transport':'seller';
-    const a={id:b.id+'-'+i,home:b,role,x:b.x+(i-2)*.82,z:b.z+3.65,slot:i,
+    const port=homePort(b,i);
+    const a={id:b.id+'-'+i,home:b,role,x:port.x,z:port.z,slot:i,
       state:'idle',target:null,targetBuilding:null,receiver:null,goal:null,carry:0,carryType:b.type,
       processed:false,timer:0,wait:0,walkPhase:i,angle:0,view:null,selectionCooldown:0,route:null,waypoint:0,goalKey:'',routeCooldown:0,abstract:false,workMotion:'inspect',workElapsed:0,
        blockedAge:0,noPathAge:0,stagnationAge:0,navWatch:0,navStartX:NaN,navStartZ:NaN,
@@ -149,10 +152,11 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       }
     }
   }
-  function homePort(b,i=0){return {x:b.x+(i-2)*.80,z:b.z+3.7}}
+  function homePort(b,i=0){return worldPoint(b,(i-2)*.80,b.kind==='factory'?4.5:3.7)}
   function stockAccess(b,processed=false,slot=2){
     const p=storagePoint(b,processed);
-    return {x:p.x+(slot-2)*.72,z:p.z+Math.abs(slot-2)*.12};
+    const offset=rotateOffset((slot-2)*.73,Math.abs(slot-2)*.13,b.rotation);
+    return {x:p.x+offset.x,z:p.z+offset.z};
   }
   function approachNode(agent,target,attempt=0){
     const distanceFromTarget=Math.hypot(agent.x-target.x,agent.z-target.z);
@@ -219,11 +223,11 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     for(let ix=bx-2;ix<=bx+2;ix++)for(let iz=bz-2;iz<=bz+2;iz++){
       const group=buildingCells.get(ix+','+iz);if(!group)continue;
       for(const b of group){
-        if(Math.abs(x-b.x)>14||Math.abs(z-b.z)>14)continue;
+        if(Math.abs(x-b.x)>23||Math.abs(z-b.z)>23)continue;
         const view=models.get(b.id);
         if(view?.colliders?.length){
           for(const c of view.colliders)
-            if(Math.abs(x-c.x)<c.w/2+radius&&Math.abs(z-c.z)<c.d/2+radius)return true;
+            if(pointInOrientedRect(x,z,c,radius))return true;
         }else if(Math.abs(x-b.x)<2.45+radius&&Math.abs(z-b.z)<2.3+radius)return true;
       }
     }
@@ -544,7 +548,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
         if(a.home.inputRaw>0&&a.home.stockProcessed<totalCapacity){
           a.goal=stockAccess(a.home,false,a.slot);a.state='factoryPickup';
         }else {
-          a.goal={x:a.home.x+task.point[0],z:a.home.z+task.point[1]};
+          a.goal=yardPoint(a.home,task.point);
           a.state='factoryStandby';
         }
       }
@@ -564,20 +568,20 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     if(a.state==='factoryPickup'){
       if(a.home.inputRaw<=0||a.home.stockProcessed>=totalCapacity){idle(a,1);return}
       if(!walk(a,a.goal,dt,2.4))return;
-      a.state='factoryCollect';a.timer=0;a.angle=Math.PI;return;
+      a.state='factoryCollect';a.timer=0;a.angle=normalizeRotation(a.home.rotation)+Math.PI;return;
     }
     if(a.state==='factoryCollect'){
       a.timer+=dt;if(a.timer<.55)return;
       if(a.home.inputRaw<1){idle(a,.6);return}
       a.home.inputRaw--;a.carry=1;a.processed=false;
       const task=workstation(a.home.type,a.slot);
-      a.goal={x:a.home.x+task.point[0],z:a.home.z+task.point[1]};
+      a.goal=yardPoint(a.home,task.point);
       a.state='factoryToWork';return;
     }
     if(a.state==='factoryToWork'){
       if(walk(a,a.goal,dt,2.35)){
         a.workMotion=workstation(a.home.type,a.slot).motion;
-        a.state='factoryWork';a.timer=0;a.angle=Math.PI;
+        a.state='factoryWork';a.timer=0;a.angle=normalizeRotation(a.home.rotation)+Math.PI;
       }
       return;
     }
@@ -591,7 +595,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     }
     if(a.state==='factoryToOutput'){
       if(!walk(a,a.goal,dt,2.35))return;
-      a.state='factoryOutput';a.timer=0;a.angle=Math.PI;return;
+      a.state='factoryOutput';a.timer=0;a.angle=normalizeRotation(a.home.rotation)+Math.PI;return;
     }
     if(a.state==='factoryOutput'){
       a.timer+=dt;if(a.timer<.55)return;
@@ -606,7 +610,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     }
     if(a.state==='gather'){gather(a,dt);return}
     if(a.state==='toHome'){
-      if(walk(a,a.goal,dt)){a.state='dropHarvest';a.timer=0;a.angle=Math.PI}return;
+      if(walk(a,a.goal,dt)){a.state='dropHarvest';a.timer=0;a.angle=normalizeRotation(a.home.rotation)+Math.PI}return;
     }
     if(a.state==='dropHarvest'){
       a.timer+=dt;if(a.timer<.55)return;
@@ -710,7 +714,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     const transfer=['factoryCollect','factoryOutput','pickupStock','dropTransport','dropHarvest'].includes(a.state);
     const beat=Math.sin(time*(work?4.5:gather?5.5:3.0)+a.slot*.6);
     v.leftArm.rotation.y=0;v.rightArm.rotation.y=0;
-    v.tool.rotation.z=0;g.rotation.z=0;
+    v.tool.rotation.z=0;v.tool.rotation.y=0;g.rotation.z=0;
     if(transfer){
       const dip=Math.sin(Math.min(1,a.timer/.55)*Math.PI);
       v.leftArm.rotation.x=-.85-dip*.6;
@@ -732,14 +736,18 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       if(a.workMotion==='hammer')v.rightArm.rotation.x=right-Math.max(0,beat)*1.0;
       if(a.workMotion==='sift')v.leftArm.rotation.y=beat*.38;
       if(a.workMotion==='crank')v.rightArm.rotation.y=Math.sin(time*5)*.86;
-      // Operators face the actual machine mounted behind their standing point.
-      a.angle=Math.PI;
+      // Workstations are behind their operator in each facility's local -Z.
+      a.angle=normalizeRotation(a.home.rotation)+Math.PI;
     }else if(gather){
       const type=a.home.type;
+      if(a.target)a.angle=Math.atan2(a.target.x-a.x,a.target.z-a.z);
       v.leftArm.rotation.x=type===2?-1.05:-.55+beat*.23;
-      v.rightArm.rotation.x=type===0?-1.27+beat*.79:
+      v.rightArm.rotation.x=type===0?(a.targetLog?-.95+beat*.89:-1.27+beat*.38):
         type===1?-1.73+beat*.91:type===2?-1.33+beat*.11:type===3?-.94+beat*.61:-.71;
       v.rightArm.rotation.y=type===4?beat*.8:0;
+      // Tree axes must strike sideways, with the axe edge facing local +Z.
+      v.tool.rotation.y=type===0?(-Math.PI/2+beat*.14):0;
+      v.rightArm.rotation.y=type===0?-.45+beat*.66:v.rightArm.rotation.y;
       v.tool.rotation.z=type===4?beat*.45:0;
       g.rotation.z=type===1?beat*.032:0;
     }else{
