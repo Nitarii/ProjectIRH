@@ -199,10 +199,25 @@ try{
     throw new Error('Old HUD shortcuts or sound toggle remain: '+JSON.stringify(initialState));
   if(initialState.labels?.[0]?.label!=='LOGGING HUT')
     throw new Error('English building signage missing: '+JSON.stringify(initialState));
+  await optionsPage.keyboard.press('a');
+  await optionsPage.waitForFunction(()=>window.__irhMonitor?.autoMode===true,null,{timeout:16000});
+  const autoLabel=await optionsPage.locator('#autoState').textContent();
+  if(autoLabel!=='AUTO MODE')throw new Error('Auto-mode label missing: '+autoLabel);
+  await optionsPage.keyboard.press('a');
+  await optionsPage.waitForFunction(()=>window.__irhMonitor?.autoMode===false,null,{timeout:16000});
+  await optionsPage.keyboard.press('c');
+  await optionsPage.waitForFunction(()=>document.querySelector('#panelTitle')?.textContent==='MARKET',null,{timeout:16000});
+  await optionsPage.keyboard.press('Tab');
+  await optionsPage.waitForFunction(()=>document.querySelector('#panel').classList.contains('hidden'),null,{timeout:15000});
   await optionsPage.keyboard.press('Space');
   await optionsPage.waitForFunction(()=>window.__irhMonitor?.jumpHeight>.15,null,{timeout:19000});
   await optionsPage.keyboard.press('Escape');
   await optionsPage.waitForFunction(()=>!!document.querySelector('#settingVolume'),null,{timeout:15000});
+  const pauseBefore=await optionsPage.evaluate(()=>window.__irhMonitor?.gameMinutes);
+  await optionsPage.waitForTimeout(550);
+  const pauseAfter=await optionsPage.evaluate(()=>window.__irhMonitor?.gameMinutes);
+  if(Math.abs(pauseAfter-pauseBefore)>.00001)
+    throw new Error('Escape menu must pause the game clock');
   await optionsPage.locator('#settingVolume').evaluate(el=>{el.value='28';el.dispatchEvent(new Event('input',{bubbles:true}))});
   await optionsPage.locator('#settingQuality').selectOption('low');
   await optionsPage.locator('#settingResolution').evaluate(el=>{el.value='75';el.dispatchEvent(new Event('input',{bubbles:true}))});
