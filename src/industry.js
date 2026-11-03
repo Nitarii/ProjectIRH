@@ -775,9 +775,21 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       const previous=a.abstract;
       a.abstract=!inView(a.x,a.z,155)&&distance(a,viewer)>32;
       if(a.abstract)abstractCount++;
-      if(previous&&!a.abstract&&staticBlocked(a.x,a.z,.34,a.target)){
-        const point=homePort(a.home,a.slot);
-        a.x=point.x;a.z=point.z;a.route=null;
+      if(previous&&!a.abstract&&
+         (staticBlocked(a.x,a.z,.38)||humanBlocked(a.x,a.z,a))){
+        // Data-only workers can share a theoretical pickup point. When they
+        // enter view, resolve each into a distinct physically valid spot.
+        const locations=[homePort(a.home,a.slot)];
+        for(const radius of [.85,1.55,2.35,3.4,4.8])
+          for(let i=0;i<12;i++){
+            const theta=i*Math.PI/6+a.slot*.28;
+            locations.push({x:a.x+Math.cos(theta)*radius,z:a.z+Math.sin(theta)*radius});
+          }
+        locations.sort((u,v)=>distance(u,a)-distance(v,a));
+        const safe=locations.find(p=>!staticBlocked(p.x,p.z,.41)&&!humanBlocked(p.x,p.z,a));
+        if(safe){
+          a.x=safe.x;a.z=safe.z;a.route=null;a.routeGoal=null;a.goalKey='';
+        }else a.abstract=true;
       }
       if(a.abstract){
         a.abstractElapsed=(a.abstractElapsed||0)+dt;
