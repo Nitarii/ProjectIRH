@@ -71,3 +71,12 @@ The on-screen virtual joystick handles movement. Drag on the world to rotate the
 ## Desktop mouse and HUD
 
 Right mouse button toggles pointer lock/free cursor. The bottom-left keyboard shortcut chips are clickable buttons for action, market, construction, progression, world map, auto mode and settings. Only progression contains the endurance upgrade.
+
+## N.I.M HUD, storage and live maps
+
+- Storage screens show the keyboard shortcut **A/Q** next to Deposit and **E** next to Withdraw. A successful transaction closes the window automatically; **F** closes without transferring anything. Unavailable transactions leave the window open and explain the failure.
+- The explored atlas is **live**: time, employees, automation and resource production continue when the map is open. The atlas captures manual keyboard input to avoid accidental walking behind it.
+- Both the camera-rotating minimap and world atlas display **gold building dots** and **cyan worker/AI dots**. The world atlas respects exploration fog of war and updates markers while open.
+- Settings include independent **Minimap size (72–260 px)** and **In-game HUD scale (70–140%)** controls. Both persist in the existing local settings and update immediately. Mobile portrait/landscape placement remains responsive.
+- While automatic mode is enabled, the player's eyes display a lightweight animated chromatic wave shader. They revert to dark eyes when automation is disabled.
+- Storage, focused building management and sound settings use simpler labels to avoid repeating the same instructions in headings, buttons and footers.
