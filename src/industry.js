@@ -272,7 +272,11 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       const delay=Math.min(150,65*Math.pow(1.7,Math.min(3,a.target.unreachableFailures-1)));
       a.target.unreachableUntil=time+delay+a.slot*2;
     }
-    if(a.carry)refundCargo(a);
+    // Recovery is a position/navigation repair, never a transaction.
+    // Keep both the carried units and their raw/processed identity. Returning
+    // them to an already-full stockpile here previously destroyed overflow.
+    const hadCargo=a.carry>0;
+    const cargoBefore=a.carry;
     const sameSpot=a.rescueX!==undefined&&Math.hypot(a.x-a.rescueX,a.z-a.rescueZ)<1;
     a.rescueFailures=sameSpot?(a.rescueFailures||0)+1:1;
     a.rescueX=a.x;a.rescueZ=a.z;
@@ -291,6 +295,19 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
         a.x=safe.x;a.z=safe.z;
         a.route=null;a.routeGoal=null;a.rescueFailures=0;
       }
+    }
+    if(hadCargo){
+      // Retain destination, transport receiver, processing phase and any
+      // factory aisle waypoints. Only the obsolete route is discarded.
+      a.route=null;a.routeGoal=null;a.waypoint=0;a.goalKey='';
+      a.routeCooldown=.35;a.wait=0;a.blockedAge=0;a.noPathAge=0;
+      a.stagnationAge=0;a.navWatch=0;
+      a.navStartX=a.x;a.navStartZ=a.z;
+      a.rescueFailures=0;
+      // No cloning or inventory mutation: the physical load stays attached.
+      if(a.carry!==cargoBefore)throw new Error('Recovery changed employee cargo');
+      if(!a.abstract)hooks.onMove?.(a.id,a.x,a.z);
+      return;
     }
     idle(a,2+a.slot*.32);
   }
