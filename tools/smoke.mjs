@@ -168,6 +168,9 @@ try{
     throw new Error('Nearby vendor consumed player bag: '+JSON.stringify({beforeVendor,afterVendor}));
   if(!/\d\d:\d\d$/.test(beforeVendor.clock))
     throw new Error('Clock does not display game minutes: '+beforeVendor.clock);
+  // F on a nearby facility legitimately opens its employee-management panel.
+  if(!await tradePage.locator('#panel').evaluate(el=>el.classList.contains('hidden')))
+    await tradePage.keyboard.press('Tab');
   await tradePage.keyboard.press('b');
   await tradePage.waitForFunction(()=>!document.querySelector('#panel').classList.contains('hidden'),null,{timeout:15000});
   const zoomBefore=await tradePage.evaluate(()=>window.__irhMonitor.cameraDistance);
