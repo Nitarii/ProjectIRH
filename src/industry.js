@@ -2,13 +2,14 @@ import {makeStructure} from './structures.js?v=20261105b';
 import {createRouter} from './navigation.js?v=20261104d';
 import {workstation,storagePoint,yardPoint} from './factory-tasks.js?v=20261104b';
 import {worldPoint,rotateOffset,normalizeRotation,pointInOrientedRect} from './facility-layout.js';
+import {prepareWarehouse,warehouseRoom,chooseWarehouseSale,pickupWarehouse,selectTransportJob,transportSpace,deliverTransport} from './logistics.js?v=20261106a';
 
 export function createIndustry(T, scene, st, resources, biome, sale, values, hooks={}) {
   const agents=[],agentById=new Map(), buildings=st.buildings;
   const byId=new Map(), models=new Map(), totalCapacity=100, employeeLimit=5;
   const colors=[0x438258,0x8c9a9d,0x7d889e,0xd4a772,0xaaa36c];
   const outfits={
-    worker:0x477365, factory:0x486f8c, transport:0xb58748, seller:0x7964a3
+    worker:0x477365, factory:0x486f8c, transport:0xb58748, seller:0x7964a3,road:0x9b8c52
   };
   const resourcesColors=[0xa87849,0x8b9398,0x6496b4,0xdcc58b,0xcdb451];
   const viewPool=new Map();
@@ -40,6 +41,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     b.inputRaw=limited(num(b.inputRaw));
     b.stockProcessed=limited(num(b.stockProcessed));
     b.progress=limited(num(b.progress),999);
+    if(b.kind==='seller')prepareWarehouse(b);
     b.stock=b.kind==='worker'?b.stockRaw:b.kind==='factory'?b.stockProcessed:0;
     if(!byId.has(b.id)){byId.set(b.id,b);const view=makeStructure(T,scene,b);models.set(b.id,view);b.mesh=view.group}
     return b;
@@ -84,11 +86,12 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       for(let i=-1;i<=1;i++)part(new T.ConeGeometry(.11,.48,4),color,i*.16,.08,0,carried);
     }
     const handTool=new T.Group();handTool.position.set(0,-.6,.08);
-    parts.rightArm.add(handTool);parts.tool=handTool;handTool.visible=agent.role==='worker';
-    if(agent.role==='worker'){
+    parts.rightArm.add(handTool);parts.tool=handTool;handTool.visible=agent.role==='worker'||agent.role==='road';
+    if(agent.role==='worker'||agent.role==='road'){
       const shaft=part(new T.CylinderGeometry(.045,.055,.68,6),cargoMaterials[0],0,-.21,0,handTool);
       const type=agent.home.type;
-      if(type===0)part(new T.BoxGeometry(.40,.23,.12),cargoMaterials[1],.16,-.51,0,handTool);
+      if(agent.role==='road')part(new T.BoxGeometry(.28,.39,.12),cargoMaterials[1],.0,-.55,0,handTool);
+      else if(type===0)part(new T.BoxGeometry(.40,.23,.12),cargoMaterials[1],.16,-.51,0,handTool);
       else if(type===1)part(new T.BoxGeometry(.65,.16,.14),cargoMaterials[1],0,-.5,0,handTool);
       else if(type===2){shaft.material=cargoMaterials[2];part(new T.CylinderGeometry(.12,.15,.33,7),cargoMaterials[2],0,-.58,0,handTool)}
       else if(type===3)part(new T.BoxGeometry(.26,.33,.08),cargoMaterials[1],0,-.62,0,handTool);
@@ -125,7 +128,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     a.view=null;
   }
   function addAgent(b,i){
-    const role=b.kind==='worker'?'worker':b.kind==='factory'?'factory':b.kind==='transport'?'transport':'seller';
+    const role=['worker','factory','transport','seller','road'].includes(b.kind)?b.kind:'seller';
     const port=homePort(b,i);
     const a={id:b.id+'-'+i,home:b,role,x:port.x,z:port.z,slot:i,
       state:'idle',target:null,targetBuilding:null,receiver:null,goal:null,carry:0,carryType:b.type,
@@ -460,6 +463,8 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     a.carry=0;
   }
   function idle(a,delay=.5){
+    hooks.roads?.release(a.id);
+    a.roadTask=null;
     release(a);a.state='idle';a.goal=null;a.targetBuilding=null;a.receiver=null;a.route=null;a.waypoint=0;a.routeGoal=null;
     a.timer=0;a.selectionCooldown=delay;a.wait=0;a.goalKey='';
     a.blockedAge=0;a.noPathAge=0;a.stagnationAge=0;a.navWatch=0;
