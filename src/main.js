@@ -18,7 +18,7 @@ const M=c=>new T.MeshLambertMaterial({color:c}),m={grass:M(0x658b55),forest:M(0x
 function cube(w,h,d,mat,x=0,y=0,z=0){let q=new T.Mesh(new T.BoxGeometry(w,h,d),mat);q.position.set(x,y,z);q.castShadow=true;q.receiveShadow=true;return q}function orb(r,mat,x=0,y=0,z=0){let q=new T.Mesh(new T.IcosahedronGeometry(r,1),mat);q.position.set(x,y,z);q.castShadow=true;return q}function cy(r,h,mat,x=0,y=0,z=0){let q=new T.Mesh(new T.CylinderGeometry(r,r,h,8),mat);q.position.set(x,y,z);q.castShadow=true;return q}
 const types=['FORÊT','MONTAGNE','EXCAVATION','DÉSERT','CHAMPS'],raw=['Bois','Pierre','Minerai','Sable','Blé'],processed=['Planches','Pierre taillée','Lingots','Verre','Farine'],tools=EQUIPMENT_FR,worksites=['Cabane de bûcheron','Carrière','Mine','Camp de terrassiers','Ferme'],factories=['Scierie','Atelier de taille','Fonderie','Verrerie','Moulin'],prices=[100,120,150,100,100],values=[12,15,22,10,14],colors=['#488756','#87938b','#b88f6b','#e3c67c','#c8b64e'];
 let defaultState={gold:100,bag:8,inv:[0,0,0,0,0],products:[0,0,0,0,0],tools:[-1,-1,-1,-1,-1],talents:[0,0,0,0,0],buildings:[],stock:[],truck:false,cart:false,staminaLevel:0,gameMinutes:0,x:0,z:9,seed:7331};let st={...defaultState};
-const settings=loadSettings();let awaitingBinding=null;try{let a=JSON.parse(localStorage.getItem('irh-state')||'{}');for(let k in defaultState)if(a[k]!==undefined)st[k]=a[k]}catch{}const save=()=>{st.x=player.position.x;st.z=player.position.z;
+const settings=loadSettings();let awaitingBinding=null;let observedGold=st.gold,goldHideAt=0;try{let a=JSON.parse(localStorage.getItem('irh-state')||'{}');for(let k in defaultState)if(a[k]!==undefined)st[k]=a[k]}catch{}observedGold=st.gold;const save=()=>{st.x=player.position.x;st.z=player.position.z;
 const cleanBuildings=st.buildings.map(b=>({
 id:b.id,kind:b.kind,type:b.type,x:b.x,z:b.z,workers:b.workers,carryLevel:b.carryLevel,
 stock:b.stock,stockRaw:b.stockRaw,inputRaw:b.inputRaw,stockProcessed:b.stockProcessed,progress:b.progress
@@ -356,12 +356,12 @@ const items=[];for(let i=0;i<5;i++)for(let j=0;j<st.inv[i];j++)items.push(i);
 for(let i=0;i<5;i++)for(let j=0;j<st.products[i];j++)items.push(i+5);
 const signature=st.bag+':'+items.join(',');if(grid.dataset.signature===signature)return;grid.dataset.signature=signature;
 grid.innerHTML=Array.from({length:st.bag},(_,i)=>{
-const type=items[i],title=type===undefined?'':(type<5?raw[type]:processed[type-5]);
+const type=items[i],title=type===undefined?'':tr(type<5?raw[type]:processed[type-5],settings.language);
 return '<div class="inventory-slot'+(type===undefined?' empty':'')+'"'+(type===undefined?'':' title="'+title+'"')+'>'+
 (type===undefined?'':'<span class="inventory-symbol resource-'+(type%5)+'">'+inventoryIcon(type)+'</span>')+'</div>';
 }).join('');
 $('inventoryCapacity').textContent=count()+' / '+st.bag;updateCargo()
-}function pop(s){let e=$('notice');e.textContent=s;e.classList.add('show');clearTimeout(pop.t);pop.t=setTimeout(()=>e.classList.remove('show'),2200)}
+}function pop(s){let e=$('notice');e.textContent=tr(s,settings.language);e.classList.add('show');clearTimeout(pop.t);pop.t=setTimeout(()=>e.classList.remove('show'),2200)}
 function closest(){
 let best=null,score=Infinity,px=player.position.x,pz=player.position.z;
 const fx=Math.sin(player.rotation.y),fz=Math.cos(player.rotation.y);
@@ -424,7 +424,7 @@ setTimeout(()=>{
 if(!world.has(o.key))return;
 o.dead=false;o.hp=o.max;scene.add(o.mesh);
 if(o.log&&!carried)scene.remove(o.log)
-},50000)
+},240000)
 }
 updateInventory();save()
 }
@@ -840,7 +840,7 @@ if(sprinting)stamina=Math.max(0,stamina-dt*22);
 else stamina=Math.min(maxStamina(),stamina+dt*staminaRegen());
 $('staminaFill').style.width=(stamina/maxStamina()*100).toFixed(1)+'%';
 $('staminaCount').textContent=Math.round(stamina)+' / '+maxStamina();
-$('staminaRank').textContent='NIV. '+((st.staminaLevel||0)+1);
+$('staminaRank').textContent=(settings.language==='fr'?'NIV. ':'LVL. ')+((st.staminaLevel||0)+1);
 $('staminaFill').classList.toggle('fatigued',stamina/maxStamina()<.22);
 if(moving){
 stopHarvest();
@@ -902,6 +902,7 @@ try{
 if(ticks++%12===0){
 stream();updateResourceVisibility();updateInventory();
 $('coins').textContent=st.gold;
+$('goldUnit').textContent=settings.language==='fr'?'OR':'GOLD';
 $('coordinates').textContent=Math.round(player.position.x)+' / '+Math.round(player.position.z);
 const biomeId=biome(player.position.x,player.position.z);
 $('biomeName').textContent=tr(biomeId<0?'CAMP CENTRAL':types[biomeId],settings.language);
@@ -911,7 +912,7 @@ $('objective').textContent=tr(st.tools.every(t=>t<0)?'COMMENCEZ AVEC VOS POINGS'
 $('detail').textContent=tr(st.tools.every(t=>t<0)?'Récoltez lentement avec vos poings, puis améliorez votre équipement':'Récoltez, transformez et automatisez',settings.language);
 const highlighted=harvesting;
 if(highlighted){
-$('targetTitle').textContent=raw[highlighted.type];
+$('targetTitle').textContent=tr(raw[highlighted.type],settings.language);
 $('targetLife').textContent=highlighted.hp+' / '+highlighted.max+' PV';
 $('targetLife').style.setProperty('--hp',(highlighted.hp/highlighted.max*100)+'%');
 $('targetHint').textContent='RÉCOLTE EN COURS';
@@ -920,6 +921,17 @@ $('target').classList.remove('hidden')
 document.body.dataset.biome=String(biomeId);
 map()
 }
+if(st.gold!==observedGold){
+  if(st.gold>observedGold){
+    const difference=st.gold-observedGold,indicator=$('goldGain');
+    indicator.textContent='+'+difference.toLocaleString(settings.language==='fr'?'fr-FR':'en-US');
+    indicator.classList.remove('visible');void indicator.offsetWidth;
+    indicator.classList.add('visible');goldHideAt=elapsed+2.4;
+    sound.effect('coin');
+  }
+  observedGold=st.gold;
+}
+if(goldHideAt&&elapsed>goldHideAt){$('goldGain').classList.remove('visible');goldHideAt=0}
 renderer.render(scene,cam);
 monitor.frames++;monitor.drawCalls=renderer.info.render.calls;
 monitor.chunks=world.size;monitor.resources=resources.length;
