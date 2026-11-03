@@ -223,8 +223,9 @@ try{
   if(!cancelled)throw new Error('Reset confirmation could not be cancelled');
   await optionsPage.locator('button[data-system="requestReset"]').click();
   await optionsPage.locator('button[data-system="confirmReset"]').click();
-  await optionsPage.waitForFunction(()=>!document.querySelector('#welcome').classList.contains('hidden')===false,
-    null,{timeout:30000}).catch(()=>{});
+  await optionsPage.waitForFunction(()=>!!document.querySelector('#welcome')&&
+    !document.querySelector('#welcome').classList.contains('hidden'),
+    null,{timeout:30000});
   const freshState=await optionsPage.evaluate(()=>JSON.parse(localStorage.getItem('irh-state')||'{}'));
   if(freshState.gold!==100||freshState.buildings?.length!==0||freshState.seed===7331||
       freshState.tools?.some(n=>n!==-1)||Object.keys(freshState.trails||{}).length)
