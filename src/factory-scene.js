@@ -88,7 +88,9 @@ export function decorateFacility(T,group,b,materials){
     stock('raw',YARD.raw,b.type);stock('processed',YARD.output,b.type);
     FACTORY_TASKS[b.type].forEach((task,i)=>{
       const {x,z}=yardPoint({x:0,z:0},task.point);
-      const bodyZ=z-1.15;
+      // Preserve a clear operator capsule even around broad millstones.
+      // Former 1.15m spacing intersected the mill's .65m radius + .59m AI clearance.
+      const bodyZ=z-(task.tool==='mill'?1.42:1.22);
       const color=[wood,metal,stone,roof,trim][i];
       box(1.45,.10,1.34,stone,x,.05,bodyZ);
       // Machine remains behind operator standing point; no worker walks through apparatus.
