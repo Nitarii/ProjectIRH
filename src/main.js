@@ -16,6 +16,7 @@ import {createBaseCamp} from './basecamp.js';
 import {optionsMarkup} from './options-ui.js?v=20261106d';
 import {createTrails} from './trails.js?v=20261106d';
 import {createRoadNetwork} from './road-network.js?v=20261103night3';
+import {createRoadSurfaces} from './road-surface.js?v=20261103visual2';
 import {decorationCollider} from './decor-collision.js?v=20261103p4';
 import {batchResourceNodes,setDistantResource} from './resource-batches.js?v=20261103p4';
 import {createResourceLifecycle} from './resource-life.js?v=20261106nature2';
@@ -208,6 +209,9 @@ saleLabel.position.set(SALE.x,6.3,SALE.z);scene.add(saleLabel);
 const world=new Map(),resources=[],CH=32;
 const resourceLife=createResourceLifecycle(st);
 const roads=createRoadNetwork(st);
+const roadSurfaces=createRoadSurfaces(T,scene,roads,player,{
+  viewDistance:()=>settings.viewDistance,quality:()=>settings.quality
+});
 const trails=createTrails(T,st,world,{roadLevel:(x,z)=>roads.levelAt(x,z)});
 let R=Math.max(2,Math.min(8,Math.ceil(settings.viewDistance/CH)));const hash=(x,z,s=0)=>{let n=Math.sin(x*127.1+z*311.7+s*51.6+((st.seed||7331)-7331)*.7919)*43758.5453;return n-Math.floor(n)},blend=t=>t*t*(3-2*t);function noise(x,z,k,s){let a=Math.floor(x/k),b=Math.floor(z/k),u=blend(x/k-a),v=blend(z/k-b);return T.MathUtils.lerp(T.MathUtils.lerp(hash(a,b,s),hash(a+1,b,s),u),T.MathUtils.lerp(hash(a,b+1,s),hash(a+1,b+1,s),u),v)}
 function biome(x,z){
@@ -237,7 +241,7 @@ const variant=Math.floor(hash(Math.floor(x*3),Math.floor(z*3),66)*4);
 const g=resourceGraphics.createNode(type,variant,x+z*3);
 g.position.set(x,0,z);
 scene.add(g);
-const hp=[40,50,60,30,30][type];
+const hp=[340,440,520,300,360][type];
 const obj={type,x,z,mesh:g,hp,max:hp,key,dead:false,variant};
 resourceLife.spawn(obj);resources.push(obj);return obj;
 }
@@ -1808,6 +1812,7 @@ const paused=panel==='settings'||!$('creator').classList.contains('hidden')||
 const dt=paused?0:frameDelta;
 elapsed+=dt;st.gameMinutes=(Number(st.gameMinutes)||0)+dt;
 if(dt>0)roads.update(st.gameMinutes);
+roadSurfaces.update(dt);
 if(autoMode)eyeChromaMaterial.uniforms.time.value=elapsed;
 if(player.position.y>0||jumpVelocity>0){
   jumpVelocity-=23*dt;
@@ -1948,6 +1953,7 @@ monitor.chunks=world.size;monitor.resources=resources.length;
 monitor.inventoryCount=count();monitor.cameraDistance=dist;monitor.constructionActive=!!placing;
 monitor.gameMinutes=st.gameMinutes;monitor.terrainPaths=trails.count;
 monitor.roadTiles=roads.built;monitor.roadPlan=roads.plannedCount;
+monitor.roadSurfaceTiles=roadSurfaces.visibleTiles;
 monitor.roadLanterns=nightLighting.roadsLit;
 monitor.activeNightLights=nightLighting.activeLights;
 monitor.wildlifeLand=wildlife.landCount;monitor.wildlifeBirds=wildlife.birdCount;
