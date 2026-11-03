@@ -1129,7 +1129,7 @@ translateTree($('panel'),settings.language);
 industry.setLanguage(settings.language);
 $('inventoryGrid').dataset.signature='';
 updateInventory();
-const prompt=$('prompt');if(!prompt.classList.contains('hidden'))prompt.textContent=keyLabel(settings.bindings.interact);
+const prompt=$('prompt');if(!prompt.classList.contains('hidden'))prompt.textContent=keyLabel(carried&&!isSelling(player.position.x,player.position.z)?settings.bindings.drop:settings.bindings.interact);
 $('rotationHint').innerHTML='<kbd>'+keyLabel('KeyQ')+' / '+keyLabel('KeyE')+'</kbd> '+
  (settings.language==='fr'?'TOURNER':'ROTATE');
 $('autoShortcut').innerHTML='<kbd>'+keyLabel(settings.bindings.auto)+'</kbd> AUTO';
@@ -1283,10 +1283,10 @@ function interactionAnchor(){
     const z=T.MathUtils.clamp(pz,SALE.z-SALE.d/2+1,SALE.z+SALE.d/2-1);
     return [x,.9,z];
   }
+  if(carried)return [px,2.9,pz];
   for(const log of nearbyResourceNodes())
     if(log.dead&&log.log&&Math.hypot(log.log.position.x-px,log.log.position.z-pz)<3.2)
       return [log.log.position.x,1.6,log.log.position.z];
-  if(carried)return [px,2.9,pz];
   if(Math.hypot(px,pz)<7)return [0,3.4,2.25];
   const pile=nearestStock(st.buildings,player.position,b=>industry.buildingGeometry(b.id)?.stockPoints);
   if(pile)return [pile.point.x,1.6,pile.point.z];
@@ -1314,7 +1314,9 @@ function positionInteractionTooltip(){
   }
   prompt.style.left=Math.round((tooltipPosition.x+1)*.5*window.innerWidth)+'px';
   prompt.style.top=Math.round((1-tooltipPosition.y)*.5*window.innerHeight)+'px';
-  const key=keyLabel(settings.bindings.interact);if(prompt.textContent!==key)prompt.textContent=key;
+  const key=keyLabel(carried&&!isSelling(player.position.x,player.position.z)
+  ?settings.bindings.drop:settings.bindings.interact);
+if(prompt.textContent!==key)prompt.textContent=key;
   prompt.classList.remove('hidden');
   prompt.classList.toggle('sale',isSelling(player.position.x,player.position.z));
 }
