@@ -21,7 +21,7 @@ export function rankHarvestNodes(nodes,position,toolTier=()=>-1,maxDistance=150,
 export function createAutoPilot({
   player,blocked,move,resources,count,capacity,isSelling,sale,
   harvest,isHarvesting,sell,onChange,speedMultiplier=()=>.8,terrainSpeed=()=>1,hasRoads=()=>false,
-  toolTier=()=>-1
+  toolTier=()=>-1,cancelHarvest=()=>{}
 }){
   let enabled=false,route=[],stepIndex=0,target=null,goal=null;
   let selling=false,stalled=0,retry=0,elapsed=0;
@@ -100,16 +100,28 @@ export function createAutoPilot({
   function update(dt){
     if(!enabled||dt<=0)return false;
     elapsed+=dt;
+    const full=count()>=capacity();
+    // A bag reaching capacity takes precedence over harvesting and every
+    // existing resource objective. Cancel the current animation immediately
+    // instead of waiting beside the node for another harvest interval.
+    if(full){
+      if(isHarvesting())cancelHarvest();
+      if(!selling||target){clearRoute();retry=0}
+      selling=true;
+    }else if(selling){
+      selling=false;clearRoute();retry=0;
+    }
     if(isHarvesting())return false;
+    // The sale zone is a rectangle, not necessarily its center point.
+    // Sell as soon as the character enters it, then plan the next harvest.
+    if(full&&isSelling(player.position.x,player.position.z)){
+      sell();clearRoute();selling=false;retry=.25;return false;
+    }
     if(retry>0){retry=Math.max(0,retry-dt);return false}
-    if(selling&&count()<capacity())clearRoute();
     if(target?.dead||target?.respawnAt)clearRoute();
     if(!route.length||stepIndex>=route.length){
       clearRoute();
-      if(isSelling(player.position.x,player.position.z)&&count()>=capacity()){
-        sell();retry=.3;return false;
-      }
-      if(!plan()){retry=1.2;return false}
+      if(!plan()){retry=selling?.8:1.2;return false}
     }
     if(target&&distance(player.position,target)<3.1&&
        distance(player.position,goal)<.8){
