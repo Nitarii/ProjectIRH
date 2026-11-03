@@ -958,7 +958,10 @@ const section=(title,kicker,content)=>`<section class="catalog-section"><div cla
 function openPanel(k){sound.effect('ui');panel=panel===k?null:k;touchControls?.clear?.();renderPanel();if(panel)document.exitPointerLock?.()}
 function renderPanel(){
 const box=$('panel');box.classList.toggle('hidden',!panel);if(!panel)return;
-$('panelTitle').textContent=panel==='settings'?UI[settings.language].settings:tr(panels[panel],settings.language);
+const focus=panel==='employees'&&employeeFilterId
+  ?st.buildings.find(b=>b.id===employeeFilterId):null;
+$('panelTitle').textContent=focus?facilityName(focus):
+  panel==='settings'?UI[settings.language].settings:tr(panels[panel],settings.language);
 $('panelTag').textContent='INDUSTRIAL MADNESS';
 $('tabs').innerHTML=(panel==='settings'?['settings']:['market','build','employees','talents']).map(k=>'<button data-tab="'+k+'" '+(panel===k?'class="active"':'')+'>'+tr(panels[k],settings.language)+'</button>').join(' ');
 $('resume').textContent=UI[settings.language].back;
@@ -1002,8 +1005,8 @@ if(panel==='employees'){
     const stock=b.kind==='worker'?(fr?'Brut : ':'Raw: ')+b.stockRaw
       :b.kind==='factory'?(fr?'Entrée : ':'Input: ')+b.inputRaw+' · '+(fr?'Transformé : ':'Processed: ')+b.stockProcessed
       :(fr?'Logistique automatisée':'Automated logistics');
-    return add((fr?'Recruter un ':'Hire a ')+recruitName(b),
-      title+' · '+b.workers+'/'+industry.limit+' '+(fr?'employés':'staff')+' · '+stock,
+    return add(title,
+      (fr?'Recruter un ':'Hire a ')+recruitName(b)+' · '+b.workers+'/'+industry.limit+' '+(fr?'employés':'staff')+' · '+stock,
       b.workers>=industry.limit?'MAX':ECONOMY.hire+' OR','hire:'+i,
       b.workers>=industry.limit,b.type)
       +add(UI[settings.language].capacity,
