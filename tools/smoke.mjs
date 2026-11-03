@@ -167,7 +167,7 @@ try{
   if(initialLanguage!=='en')throw new Error('English locale should be default for non-French visitors');
   await optionsPage.keyboard.press('Escape');
   await optionsPage.waitForFunction(()=>!!document.querySelector('#settingVolume'),null,{timeout:15000});
-  await optionsPage.locator('#settingVolume').fill('28');
+  await optionsPage.locator('#settingVolume').evaluate(el=>{el.value='28';el.dispatchEvent(new Event('input',{bubbles:true}))});
   await optionsPage.locator('#settingQuality').selectOption('low');
   await optionsPage.locator('#settingAudio').uncheck();
   await optionsPage.locator('#settingLanguage').selectOption('fr');
