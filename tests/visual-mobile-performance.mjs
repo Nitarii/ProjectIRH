@@ -20,7 +20,8 @@ check('per-building personnel cards and upgrade compartments',
 check('road workshop hiring guard uses per-building cap',
   main.includes('workers>=industry.workerLimit(st.buildings[i])'));
 check('bike touch button is conditional on purchase',
-  main.includes("mobileVehicleButton?.classList.toggle('hidden',!available)"));
+  main.includes("mobileVehicleButton?.classList.toggle('hidden',!available)")&&
+  markup.includes('class="hidden" data-touch-action="vehicle"'));
 check('fullscreen control present on mobile and desktop',
   markup.includes('id="fullscreenButton"')&&main.includes("createScreenImmersion("));
 check('pickaxes have physical pointed heads',
