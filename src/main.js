@@ -921,6 +921,9 @@ function updateAutoIndicator(){
     (autoSpeedMultiplier(st.autoLevel)===1?(fr?'Aucun malus':'No penalty'):(autoSpeedMultiplier(st.autoLevel)>1?'+':'−')+Math.round(Math.abs(autoSpeedMultiplier(st.autoLevel)-1)*100)+'% '+(fr?'vitesse et récolte':'movement and harvest speed'))+
     '</small>';
 }
+const jobNames={worker:['bûcheron','carrier','mineur','terrassier','agriculteur'],factory:['scieur','tailleur de pierre','fondeur','verrier','meunier'],transport:['logisticien'],seller:['vendeur']};
+const facilityName=b=>b.kind==='worker'?worksites[b.type]:b.kind==='factory'?factories[b.type]:b.kind==='seller'?'Comptoir vendeur':'Dépôt de transport';
+const recruitName=b=>jobNames[b.kind]?.[b.kind==='worker'||b.kind==='factory'?b.type:0]||'employé';
 const panels={market:'COMPTOIR',build:'CONSTRUCTION',employees:'EMPLOYÉS',storage:'DÉPÔT',talents:'PROGRESSION',settings:'PARAMÈTRES'};
 let employeeFilterId=null,activeStorage=null;
 let panel=null;
@@ -953,7 +956,7 @@ const level=st.staminaLevel||0;
 let utility='';
 if(st.bag===8)utility+=add('Sac renforcé','8 → 16 emplacements',ECONOMY.bag+' OR','bag');
 if(st.bag===16)utility+=add('Sac de randonnée','16 → 24 emplacements',ECONOMY.bag24+' OR','bag24');
-if(level<4)utility+=add('Condition physique','Endurance '+maxStamina()+' → '+(maxStamina()+32),ECONOMY.stamina[level]+' OR','stamina');
+
 if(!st.bicycle)utility+=add('Vélo utilitaire','Déplacement accéléré · sprint à vélo · V pour monter',ECONOMY.bicycle+' OR','bicycle');
 out+=section('Équipement','CONSERVATION & MOBILITÉ',utility||'<p class="catalog-empty">Équipement entièrement amélioré.</p>');
 
@@ -971,11 +974,11 @@ if(panel==='employees'){
   else out+=section(settings.language==='fr'?'Employés et équipements':'Employees and equipment',
     settings.language==='fr'?'RECRUTEMENT ET AMÉLIORATIONS':'HIRING AND UPGRADES',chosen.map(b=>{
     const i=st.buildings.indexOf(b);
-    const title=(b.kind==='worker'?worksites[b.type]:b.kind==='factory'?factories[b.type]:b.kind==='seller'?'Comptoir vendeur':'Dépôt transport')+' #'+(i+1);
+    const title=facilityName(b)+' #'+(i+1);
     const stock=b.kind==='worker'?'Brut : '+b.stockRaw
       :b.kind==='factory'?'Entrée : '+b.inputRaw+' · Transformé : '+b.stockProcessed
       :'Logistique automatisée';
-    return add(title,'Employés : '+b.workers+'/'+industry.limit+' · '+stock,
+    return add('Recruter un '+recruitName(b),title+' · '+b.workers+'/'+industry.limit+' employés · '+stock,
       b.workers>=industry.limit?'MAX':ECONOMY.hire+' OR','hire:'+i,
       b.workers>=industry.limit,b.type)
       +add(UI[settings.language].capacity,
@@ -1128,6 +1131,7 @@ if(kind==='tool'){
   return buy(toolCost(i,tier),()=>st.tools[i]=tier);
 }
 if(kind==='hire'){
+  if(!st.buildings[i])return;
   if(st.buildings[i].workers>=industry.limit)return pop('Maximum employees reached');
   return buy(ECONOMY.hire,()=>{st.buildings[i].workers++;industry.sync()});
 }
