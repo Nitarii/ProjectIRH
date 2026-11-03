@@ -226,7 +226,7 @@ coords.sort((a,b)=>a.d-b.d);
 for(const item of coords){generationQueue.push(item);queuedGeneration.add(item.key)}
 for(const [key,c] of world){
 const [x,z]=key.split(',').map(Number);
-if(Math.abs(x-cx)>R+1||Math.abs(z-cz)>R+1)unloadQueue.push(key)
+if(Math.abs(x-cx)>R||Math.abs(z-cz)>R)unloadQueue.push(key)
 }
 }
 function pumpWorld(){
@@ -246,7 +246,7 @@ if(unloadQueue.length){
 const key=unloadQueue.shift(),c=world.get(key);
 if(c){
 const [x,z]=key.split(',').map(Number);
-if(Math.abs(x-cx)>R+1||Math.abs(z-cz)>R+1){
+if(Math.abs(x-cx)>R||Math.abs(z-cz)>R){
 scene.remove(c.root);
 c.root.traverse(o=>{if(o.isInstancedMesh)o.dispose();else if(o===c.root.children[0]&&o.geometry)o.geometry.dispose()});
 for(const n of c.nodes){
@@ -304,6 +304,16 @@ const type=harvesting.type,tier=st.tools[type],interval=harvestInterval(type);
 const phase=Math.min(1,harvestProgress/Math.max(.15,interval));
 const lift=Math.sin(phase*Math.PI)**2,impact=Math.sin(phase*Math.PI*2);
 const heavy=tier>=3,mechanical=tier>=2&&(type===2||type===3||type===4);
+const toolPattern=[
+  [[.55,1.15,.16],[.7,1.34,.19],[.92,1.58,.23],[.27,.6,.11],[.12,.3,.08]],
+  [[.67,.9,.13],[.82,1.1,.16],[.94,1.3,.20],[.21,.4,.08],[.11,.24,.07]],
+  [[.6,.83,.12],[.76,1.05,.16],[.32,.44,.11],[.16,.24,.08],[.09,.12,.05]],
+  [[.52,.7,.15],[.72,.95,.18],[.78,1.08,.20],[.25,.44,.10],[.12,.21,.06]],
+  [[.64,.80,.18],[.86,.95,.2],[.99,1.12,.22],[.30,.51,.12],[.16,.25,.08]]
+][type][Math.max(0,Math.min(4,tier))];
+const effort=toolPattern[0],reach=toolPattern[1],shake=toolPattern[2];
+const stroke=Math.sin(phase*Math.PI*2)*shake;
+const swing=lift*effort;
 const pose=(arm,x,y,z)=>{arm.rotation.x=T.MathUtils.damp(arm.rotation.x,x,18,dt);arm.rotation.y=T.MathUtils.damp(arm.rotation.y,y,18,dt);arm.rotation.z=T.MathUtils.damp(arm.rotation.z,z,18,dt)};
 if(tier<0){
   // Fists: slow, low-impact alternating close-range strikes.
@@ -315,27 +325,27 @@ if(tier<0){
   toolModels[type][tier].visible=true;
   if(type===0){
     // Axe / saw: tool sweeps forward and down toward the trunk.
-    pose(rightArm,heavy?-1.2-.26*impact:-1.05-1.1*lift,0,-.16);
+    pose(rightArm,heavy?-1.2-stroke:-.90-reach*swing,.05*stroke,-.16);
     pose(leftArm,heavy?-1.15:-.70-.5*lift,0,.12);
-    toolHolder.rotation.set(heavy?-.62:-.9+.6*lift,0,heavy?.08*impact:0);
+    toolHolder.rotation.set(heavy?-.62+stroke:-.9+(.40+effort*.25)*lift,0,stroke*.7);
     avatar.rotation.x=.045*impact;avatar.rotation.z=-.09*lift;
   }else if(type===1){
-    pose(rightArm,heavy?-1.3+.15*impact:-1.1-1.03*lift,0,-.2);
+    pose(rightArm,heavy?-1.25+stroke:-1.00-reach*swing,0,-.2-stroke*.3);
     pose(leftArm,-.7-.6*lift,0,-.26);
     toolHolder.rotation.set(heavy?-.8:-.75+.36*lift,0,0);
     avatar.rotation.x=.1*impact;
   }else if(type===2){
-    pose(rightArm,mechanical?-1.42:-.94-.9*lift,.06,-.10);
+    pose(rightArm,mechanical?-1.42+stroke:-.94-reach*swing,.06,-.1);
     pose(leftArm,mechanical?-1.37:-.7,0,.12);
     toolHolder.rotation.set(mechanical?-1.1+.06*impact:-.8+.24*lift,0,.03*impact);
     avatar.rotation.x=mechanical?.07:.10*impact;
   }else if(type===3){
-    pose(rightArm,heavy?-1.0:-.55-.88*lift,0,-.17);
+    pose(rightArm,heavy?-1.0+stroke:-.55-reach*swing,0,-.17);
     pose(leftArm,heavy?-.9:-.7-.35*lift,0,.15);
     toolHolder.rotation.set(heavy?-.6:-.8-.27*lift,0,0);
     avatar.rotation.x=.14+.05*impact;
   }else{
-    pose(rightArm,heavy?-1.1:-.72,heavy?.24*impact:.65*impact,-.38+.18*impact);
+    pose(rightArm,heavy?-1.1+stroke:-.72,heavy?stroke*.8:reach*impact,-.38+effort*.2*impact);
     pose(leftArm,-.55,0,-.20);
     toolHolder.rotation.set(-.88,0,.30*impact);
     avatar.rotation.y=.15*impact;avatar.rotation.x=.04;
