@@ -31,7 +31,7 @@ export function createHarvestEffects(T,scene){
     mesh.instanceMatrix.setUsage(T.DynamicDrawUsage);
     mesh.instanceMatrix.needsUpdate=true;
     scene.add(mesh);
-    return {mesh,particles,cursor:0,style,active:0};
+    return {mesh,particles,cursor:0,style,palette:style.colors.map(hex=>new T.Color(hex))};
   });
   const impacted=new Set();
   function emit(node,playerPosition=null){
@@ -55,7 +55,7 @@ export function createHarvestEffects(T,scene){
       p.vz=Math.sin(angle)*spread*1.3;
       p.vy=type===0?1.05+Math.random():1.5+Math.random()*2.6;
       p.rotation=Math.random()*Math.PI*2;p.spin=(Math.random()-.5)*7;
-      e.mesh.setColorAt(i,new T.Color(style.colors[(j+Math.floor(Math.random()*3))%style.colors.length]));
+      e.mesh.setColorAt(i,e.palette[(j+Math.floor(Math.random()*3))%e.palette.length]);
     }
     e.mesh.instanceColor.needsUpdate=true;
     e.mesh.visible=true;
@@ -96,7 +96,6 @@ export function createHarvestEffects(T,scene){
       }
       mesh.visible=active>0;
       if(active)mesh.instanceMatrix.needsUpdate=true;
-      else mesh.instanceMatrix.needsUpdate=true;
     }
   }
   function dispose(){
