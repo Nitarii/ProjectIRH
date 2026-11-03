@@ -204,9 +204,11 @@ if(b===-1)kind=h<.55?1:0;
 const scale=.55+hash(cx+n,cz+n,49)*1.5;
 items[kind].push({x,z,scale,turn:hash(cx+n,cz,48)*6.28});
 const solid=decorationCollider(kind,scale);
+if(st.buildings.some(building=>pointInOrientedRect(x,z,facilityFootprint(building),.38+(solid?.r||0)))){items[kind].pop();continue}
 if(solid)colliders.push({x,z,r:solid.r});
 }
 root.userData.decorationColliders=colliders;
+root.userData.decorationBatches=[];
 items.forEach((batch,i)=>{
 if(!batch.length)return;
 const geo=i===0||i===2?accentGeometry:i===3?cactusGeometry:i===4?stalkGeometry:weedGeometry;
@@ -215,7 +217,8 @@ mesh.receiveShadow=true;mesh.castShadow=false;
 batch.forEach((obj,j)=>{dummy.position.set(obj.x,i===4?.4:i===3?obj.scale*.55:obj.scale*.14,obj.z);
 dummy.rotation.set(0,obj.turn,0);dummy.scale.set(obj.scale,obj.scale*(i===4?1.3:1),obj.scale);
 dummy.updateMatrix();mesh.setMatrixAt(j,dummy.matrix)});
-mesh.instanceMatrix.needsUpdate=true;root.add(mesh)
+mesh.instanceMatrix.needsUpdate=true;root.add(mesh);
+root.userData.decorationBatches.push({mesh,instances:batch,kind:i});
 })
 }
 function chunk(cx,cz){
@@ -254,6 +257,7 @@ for(let i=0;i<13;i++){
 const x=x0+2+hash(cx*17+i,cz,2)*28,z=z0+2+hash(cx,cz*17+i,3)*28;
 if(Math.hypot(x,z)<23||(Math.abs(x-SALE.x)<SALE.w/2+6&&Math.abs(z-SALE.z)<SALE.d/2+6)||Math.hypot(x-10,z-1)<8)continue;
 const b=biome(x,z);if(b<0)continue;
+if(st.buildings.some(building=>pointInOrientedRect(x,z,facilityFootprint(building),1.1)))continue;
 const o=node(b,x,z,key);c.nodes.push(o);
 }
 batchResourceNodes(T,c);
@@ -638,11 +642,31 @@ function placementAllowed(x,z){
   if(footprintsOverlap(proposed,camp,1.1)||footprintsOverlap(proposed,sale,1.4))return false;
   if(st.buildings.some(b=>footprintsOverlap(proposed,facilityFootprint(b),1.15)))return false;
   if(pointInOrientedRect(player.position.x,player.position.z,proposed,1.5))return false;
-  for(const o of nearbyResourceNodes()){
-    if(o.dead&&!o.log)continue;
-    if(pointInOrientedRect(o.x,o.z,proposed,o.type===0?1.1:.60))return false;
-  }
+  // Nearby nodes and decoration are cleared on construction.
   return true;
+}
+function clearPlacementObstacles(building){
+ const area=facilityFootprint(building),margin=.38;
+ for(const c of world.values()){
+  for(const node of c.nodes){
+   if(!pointInOrientedRect(node.x,node.z,area,margin+.65))continue;
+   node.dead=true;node.hp=0;node.mesh.visible=false;
+   setDistantResource(T,node,false);
+   if(node.log){scene.remove(node.log);node.log=null;node.logPlacedAt=0}
+  }
+  for(const batch of c.root.userData.decorationBatches||[]){
+   const survivors=batch.instances.filter(o=>!pointInOrientedRect(o.x,o.z,area,margin+(decorationCollider(batch.kind,o.scale)?.r||0)));
+   if(survivors.length===batch.instances.length)continue;
+   batch.instances=survivors;batch.mesh.count=survivors.length;
+   survivors.forEach((o,j)=>{
+    dummy.position.set(o.x,batch.kind===4?.4:batch.kind===3?o.scale*.55:o.scale*.14,o.z);
+    dummy.rotation.set(0,o.turn,0);dummy.scale.set(o.scale,o.scale*(batch.kind===4?1.3:1),o.scale);
+    dummy.updateMatrix();batch.mesh.setMatrixAt(j,dummy.matrix);
+   });
+   batch.mesh.instanceMatrix.needsUpdate=true;
+  }
+  c.root.userData.decorationColliders=(c.root.userData.decorationColliders||[]).filter(o=>!pointInOrientedRect(o.x,o.z,area,margin+o.r));
+ }
 }
 function clearPlacementPreview(){
   if(!buildingPreview)return;
@@ -721,6 +745,7 @@ const {x,z}=placementPoint();
 if(!placementAllowed(x,z))return pop('Emplacement indisponible');
 st.buildings.push({kind:placing.kind,type:placing.type,x,z,rotation:placing.rotation,workers:0,stock:0,stockRaw:0,inputRaw:0,stockProcessed:0});
 addBuilding(st.buildings.at(-1));
+clearPlacementObstacles(st.buildings.at(-1));
 cancelPlacement(false);
 sound.effect('build');pop('Bâtiment construit');save();return;
 }
