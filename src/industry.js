@@ -751,7 +751,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
   function register(b){ensure(b);reconcile();return b.mesh}
   function update(dt,px,pz,cam=null){
     time+=dt;planningClock+=dt;viewer.x=px;viewer.z=pz;camera=cam;
-    navigationBudget=3;
+    navigationBudget=agents.length>70?1:2;
     rebuildSpatialIndex();
     if(camera&&typeof camera.getWorldDirection==='function'&&T.Vector3){
       if(frustum){
