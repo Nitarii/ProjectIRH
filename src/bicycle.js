@@ -94,7 +94,7 @@ export function createBicycle(T,parent){
   const step=Math.max(0,Math.min(.065,dt));
   rolling+=Math.max(0,speed)*step;
   for(const wheel of wheels)wheel.rotation.x=-rolling/wheelR;
-  pedals.rotation.x=-rolling/1.07;
+  pedals.rotation.x=-rolling/2.0;
   group.rotation.z=T.MathUtils.damp(group.rotation.z,
     sprinting?Math.sin(rolling*.9)*.016:0,6,step);
  }
