@@ -778,7 +778,7 @@ $('panelTag').textContent='FRONTIER CAPITAL';
 $('tabs').innerHTML=(panel==='settings'?['settings']:['market','build','employees','talents']).map(k=>'<button data-tab="'+k+'" '+(panel===k?'class="active"':'')+'>'+tr(panels[k],settings.language)+'</button>').join(' ');
 $('resume').textContent=UI[settings.language].back;
 if(panel==='settings'){
-  $('shopbody').innerHTML=optionsMarkup(settings,awaitingBinding);
+  $('shopbody').innerHTML=optionsMarkup(settings,awaitingBinding,vault.id);
   $('panelhint').textContent=UI[settings.language].lowHint;
   return;
 }
@@ -890,10 +890,40 @@ function resetEntireGame(){
     console.error('Cannot reset encrypted progress',e);pop('Save unavailable');
   });
 }
-$('panel').onclick=e=>{
+$('panel').onclick=async e=>{
 const button=e.target.closest('button');if(!button)return;
 if(button.dataset.system){
   const action=button.dataset.system;
+  if(action==='saveExport'){
+    try{
+      save();
+      const code=await vault.backup();
+      const area=$('vaultExportCode');
+      $('vaultExport').classList.remove('hidden');
+      area.value=code;
+      let copied=false;
+      try{if(navigator.clipboard?.writeText){await navigator.clipboard.writeText(code);copied=true}}catch{}
+      if(!copied){area.focus();area.select();copied=document.execCommand?.('copy')||false}
+      $('vaultMessage').textContent=copied
+        ?(settings.language==='fr'?'Code copié. Conservez-le dans un endroit privé.':'Recovery code copied. Store it privately.')
+        :(settings.language==='fr'?'Sélectionnez et copiez ce code pour le conserver.':'Select and copy this code to keep it safe.');
+    }catch(error){$('vaultMessage').textContent=String(error?.message||error)}
+    return;
+  }
+  if(action==='requestImport'){$('vaultImport').classList.remove('hidden');return}
+  if(action==='cancelImport'){$('vaultImport').classList.add('hidden');return}
+  if(action==='confirmImport'){
+    try{
+      const code=$('vaultRecoveryCode').value;
+      await vault.restore(code);
+      location.reload();
+    }catch(error){
+      $('vaultMessage').textContent=settings.language==='fr'
+        ?'Code invalide ou corrompu : '+String(error?.message||error)
+        :'Invalid or damaged code: '+String(error?.message||error);
+    }
+    return;
+  }
   if(action==='requestReset')$('resetConfirm').classList.remove('hidden');
   if(action==='cancelReset')$('resetConfirm').classList.add('hidden');
   if(action==='confirmReset')resetEntireGame();
