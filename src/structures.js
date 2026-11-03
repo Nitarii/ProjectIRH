@@ -114,39 +114,47 @@ export function makeStructure(T, scene, building) {
       q.rotation.z=i%2?.02:-.02}
     crates(2,1.2);cylinder(.42,.4,.9,trim,-1.95,.48,1.25);
   }
-  // Distinct facades, silhouettes and visible industrial identity.
-  const industryName=[
-    ['LOGGING HUT','QUARRY','MINE SHAFT','SAND YARD','FARM'],
-    ['SAWMILL','STONEWORKS','SMELTERY','GLASSWORKS','WINDMILL']
-  ];
-  const industryFr=[
-  ['BÛCHERONS','CARRIÈRE','MINE','SABLIÈRE','FERME'],
-  ['SCIERIE','TAILLE DE PIERRE','FONDERIE','VERRERIE','MOULIN']
-];
-let lang='en';
-if(typeof navigator!=='undefined'){
-  try{lang=JSON.parse(localStorage.getItem('irh-options')||'{}').language||
-    ((navigator.language||'en').toLowerCase().startsWith('fr')?'fr':'en')}
-  catch{lang=(navigator.language||'en').toLowerCase().startsWith('fr')?'fr':'en'}
-}
-const names=lang==='fr'?industryFr:industryName;
-const label=(kind==='worker'?names[0][t]:kind==='factory'?names[1][t]:
-  kind==='transport'?lang==='fr'?'DÉPÔT':'FREIGHT DEPOT':lang==='fr'?'COMPTOIR':'TRADE HOUSE');
-  const board=box(2.43,.52,.14,wood,0,2.19,1.72);
-  board.castShadow=false;
+  // The nameplate is an integrated material that can change language in place.
+  const industries={
+    en:[['LOGGING HUT','QUARRY','MINE SHAFT','SAND YARD','FARM'],
+      ['SAWMILL','STONEWORKS','SMELTER','GLASSWORKS','WINDMILL']],
+    fr:[['BÛCHERONS','CARRIÈRE','MINE','SABLIÈRE','FERME'],
+      ['SCIERIE','TAILLE DE PIERRE','FONDERIE','VERRERIE','MOULIN']]
+  };
+  const names={en:['FREIGHT DEPOT','TRADE HOUSE'],fr:['DÉPÔT','COMPTOIR']};
+  function labelFor(language){
+    const lang=language==='fr'?'fr':'en';
+    return kind==='worker'?industries[lang][0][t]:
+      kind==='factory'?industries[lang][1][t]:
+      names[lang][kind==='transport'?0:1];
+  }
+  box(2.43,.52,.14,wood,0,2.19,1.72).castShadow=false;
   box(2.34,.39,.03,trim,0,2.19,1.815).castShadow=false;
-  if(typeof document!=='undefined'){
+  let plaque=null,currentLabel='';
+  function setLanguage(lang){
+    if(!plaque)return;
+    const label=labelFor(lang);
+    if(label===currentLabel)return;
     const texts=makeStructure._labels||(makeStructure._labels=new Map());
     if(!texts.has(label)){
       const canvas=document.createElement('canvas');canvas.width=512;canvas.height=110;
-      const ctx=canvas.getContext('2d');
-      ctx.clearRect(0,0,512,110);ctx.fillStyle='#1d312d';
-      ctx.font='bold 45px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
-      ctx.fillText(label,256,56,480);
+      const ctx=canvas.getContext('2d');ctx.clearRect(0,0,512,110);
+      ctx.fillStyle='#1d312d';ctx.font='bold 45px sans-serif';
+      ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(label,256,56,480);
       texts.set(label,new T.CanvasTexture(canvas));
     }
-    const plaque=new T.Mesh(new T.PlaneGeometry(2.22,.43),new T.MeshBasicMaterial({map:texts.get(label),transparent:true}));
+    plaque.material.map=texts.get(label);
+    plaque.material.needsUpdate=true;currentLabel=label;
+  }
+  if(typeof document!=='undefined'){
+    plaque=new T.Mesh(new T.PlaneGeometry(2.22,.43),
+      new T.MeshBasicMaterial({transparent:true,depthWrite:false}));
     plaque.position.set(0,2.19,1.85);group.add(plaque);
+    let lang='en';
+    try{lang=JSON.parse(localStorage.getItem('irh-options')||'{}').language||
+      ((navigator.language||'en').toLowerCase().startsWith('fr')?'fr':'en')}
+    catch{lang=(navigator.language||'en').toLowerCase().startsWith('fr')?'fr':'en'}
+    setLanguage(lang);
   }
   if(kind==='worker'){
     for(let i=0;i<3;i++)box(.16,1.12,.16,wood,-1.35+i*1.35,.64,1.86);
@@ -172,7 +180,7 @@ const label=(kind==='worker'?names[0][t]:kind==='factory'?names[1][t]:
   group.position.set(building.x,0,building.z);
   scene.add(group);
   return {
-    group,colliders:facility.colliders,workstations:facility.workstations,
+    group,setLanguage,colliders:facility.colliders,workstations:facility.workstations,
     stockPoints:facility.stockPoints,
     update(time,active){
       facility.updateStock();
