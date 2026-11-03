@@ -7,6 +7,7 @@ export function createRoadNetwork(state,{cell=3,maxTiles=5600}={}){
   state.roads=tiles;
   let blocked=()=>false,traffic=()=>0,onChange=()=>{},signature='';
   let planned=new Set(),claims=new Map(),completion=0,revision=0;
+  let upgradeKeys=[],upgradeCursor=0;
   const key=(x,z)=>Math.floor(x/cell)+','+Math.floor(z/cell);
   const point=k=>{const [ix,iz]=k.split(',').map(Number);return{x:(ix+.5)*cell,z:(iz+.5)*cell}};
   const stage=k=>Math.max(0,Math.min(2,Number(tiles[k]?.l??tiles[k])||0));
@@ -82,6 +83,8 @@ export function createRoadNetwork(state,{cell=3,maxTiles=5600}={}){
       if(best<=470)addConnection(neighbor,target);
       connected.push(target);
     }
+    upgradeKeys=[...planned];upgradeCursor=0;
+    for(const k of Object.keys(tiles))if(!planned.has(k)&&stage(k)===0)delete tiles[k];
     completion=0;
     for(const k of planned)if(stage(k)>0)completion++;
     for(const k of old)if(!planned.has(k))clearClaimsFor(k);
@@ -105,11 +108,17 @@ export function createRoadNetwork(state,{cell=3,maxTiles=5600}={}){
     // After placement/removal, dismantle obsolete road before expanding.
     for(const k of Object.keys(tiles))if(!planned.has(k)&&stage(k)>0)consider(k,'demolish');
     if(!best)for(const k of planned)if(stage(k)===0)consider(k,'build');
-    if(!best&&completion>=planned.size&&planned.size>0)
-      for(const k of planned)if(stage(k)===1){
+    if(!best&&completion>=planned.size&&upgradeKeys.length){
+      // Inspect a small moving window, never thousands of traffic cells per worker.
+      const checked=Math.min(180,upgradeKeys.length);
+      for(let i=0;i<checked;i++){
+        const k=upgradeKeys[(upgradeCursor+i)%upgradeKeys.length];
+        if(stage(k)!==1)continue;
         const p=point(k);
         if(traffic(p.x,p.z)>=12)consider(k,'upgrade');
       }
+      upgradeCursor=(upgradeCursor+checked)%upgradeKeys.length;
+    }
     if(best)claims.set(workerId,best);
     return best;
   }
@@ -137,7 +146,7 @@ export function createRoadNetwork(state,{cell=3,maxTiles=5600}={}){
   function invalidatePlan(){signature=''}
   function clear(){
     for(const k of Object.keys(tiles))delete tiles[k];
-    claims.clear();planned.clear();signature='';built=0;completion=0;revision++;
+    claims.clear();planned.clear();upgradeKeys=[];upgradeCursor=0;signature='';built=0;completion=0;revision++;
   }
   return {setProbes,rebuild,levelAt,speedAt,claim,release,work,invalidatePlan,clear,
     get built(){return built},get plannedCount(){return planned.size},get completed(){return completion},
