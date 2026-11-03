@@ -659,31 +659,40 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     }
     if(a.state==='pickupStock'){
       a.timer+=dt;if(a.timer<.52)return;
-      const b=a.targetBuilding;
+      const source=a.targetBuilding;
+      if(!isPresent(source)){idle(a,.8);return}
+      const capacity=6+3*a.home.carryLevel;
       if(a.role==='transport'){
-        const n=Math.min(6+3*a.home.carryLevel,b.stockRaw,totalCapacity-a.receiver.inputRaw);
+        if(!isPresent(a.receiver)){idle(a,.8);return}
+        const room=transportSpace(a.receiver,a.carryType,a.processed,totalCapacity);
+        const field=a.processed?'stockProcessed':'stockRaw';
+        const n=Math.min(capacity,Math.max(0,source[field]||0),room);
         if(n<=0){idle(a,.7);return}
-        b.stockRaw-=n;a.carry=n;a.carryType=b.type;a.goal=stockAccess(a.receiver,false,a.slot);
-        a.state='toFactory';return;
+        source[field]-=n;a.carry=n;
+        a.goal=stockAccess(a.receiver,a.processed,a.slot);
+        a.state='toDelivery';return;
       }
-      const available=a.processed?b.stockProcessed:b.stockRaw;
-      const n=Math.min(6+3*a.home.carryLevel,available);
+      // Sellers only withdraw from the inventory delivered to their OWN house.
+      // A full harvesting hut can independently dispatch workers to sell raw goods.
+      const n=a.role==='seller'
+        ?pickupWarehouse(a.home,a.carryType,a.processed,capacity)
+        :Math.min(capacity,Math.max(0,source.stockRaw||0));
       if(n<=0){idle(a,.8);return}
-      if(a.processed)b.stockProcessed-=n;else b.stockRaw-=n;
-      a.carry=n;a.carryType=b.type;a.goal={x:sale.x,z:sale.z+sale.d*.32};
+      if(a.role==='worker')source.stockRaw-=n;
+      a.carry=n;a.goal={x:sale.x,z:sale.z+sale.d*.32};
       a.state='toMarket';return;
     }
-    if(a.state==='toFactory'){
+    if(a.state==='toDelivery'){
       if(!isPresent(a.receiver)){refundCargo(a);idle(a,1);return}
       if(!walk(a,a.goal,dt))return;
       a.state='dropTransport';a.timer=0;a.angle=Math.PI;return;
     }
     if(a.state==='dropTransport'){
       a.timer+=dt;if(a.timer<.55)return;
-      const n=Math.min(a.carry,totalCapacity-a.receiver.inputRaw);
-      a.receiver.inputRaw+=n;a.carry-=n;
+      const n=deliverTransport(a.receiver,a.carryType,a.processed,a.carry,totalCapacity);
+      a.carry-=n;
       lastStats.delivered+=n;
-      if(a.carry>0){refundCargo(a)}
+      if(a.carry>0)refundCargo(a);
       a.state='returnHome';a.goal=homePort(a.home,a.slot);return;
     }
     if(a.state==='toMarket'){
