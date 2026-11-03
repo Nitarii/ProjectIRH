@@ -1,11 +1,11 @@
 import * as T from 'three';
 import {createSound} from './sound.js?v=20261103r';
 import {createAtmosphere} from './atmosphere.js?v=20261103r';
-import {createIndustry} from './industry.js?v=20261103t';
+import {createIndustry} from './industry.js?v=20261103w';
 import {inventoryIcon} from './item-icons.js?v=20261103k';
 import {createResourceGraphics} from './resource-visuals.js?v=20261103n';
 import {createFieldBuilder} from './wheat-fields.js?v=20261103k';
-import {makeStructure} from './structures.js?v=20261103t';
+import {makeStructure} from './structures.js?v=20261103w';
 import {EQUIPMENT,EQUIPMENT_FR,TOOL_SPEED,TOOL_YIELD,ECONOMY,toolCost,buildingCost,workerCarryCost} from './balance.js';
 import {loadSettings,storeSettings,keyLabel,isPressed,applyQuality,ACTIONS} from './settings.js?v=20261103t';
 import {tr,translateTree,UI} from './language.js?v=20261103t';
