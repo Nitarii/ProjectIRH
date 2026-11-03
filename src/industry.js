@@ -513,9 +513,11 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     a.carry=amount;a.carryType=a.home.type;
     target.unreachableFailures=0;target.unreachableUntil=0;
     target.hp=Math.max(0,target.hp-amount);
+    hooks.onResourceHit?.(target,a);
     if(target.hp<=0){
       target.dead=true;target.mesh.visible=false;
-      target.recoverAt=time+210;release(a);
+      hooks.onResourceDepleted?.(target,a);
+      release(a);
     }else release(a);
     a.goal=stockAccess(a.home,false,a.slot);a.state='toHome';
   }
@@ -651,7 +653,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     }
     if(a.state==='selling'){
       a.timer-=dt;if(a.timer>0)return;
-      const amount=a.carry*values[a.carryType]*(a.processed?3:1);
+      const amount=Math.round(a.carry*values[a.carryType]*(a.processed?3:1)*(hooks.priceMultiplier?.(a.carryType)||1));
       if(amount>0){st.gold+=amount;lastStats.sold+=amount;
         if(a.processed)lastStats.soldProcessed+=amount;else lastStats.soldRaw+=amount;
         hooks.onSale?.(amount,a)}
@@ -767,9 +769,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     }else camera=null;
     if(planningClock>=.33){reconcile();planningClock=0}
     refreshAgentIndex();
-    for(const r of resources)if(r.dead&&r.recoverAt&&time>=r.recoverAt){
-      r.dead=false;r.hp=r.max;r.recoverAt=0;r.workerClaim=null;r.mesh.visible=true;
-    }
+
     let shown=0,transporting=0,carrying=0;abstractCount=0;
     for(const a of agents){
       const previousX=a.x,previousZ=a.z;
