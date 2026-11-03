@@ -606,3 +606,17 @@ body.touch-placement .touch-action-pad{grid-template-columns:repeat(3,minmax(0,1
  html.touch-enabled #hud .location{top:calc(117px + env(safe-area-inset-top,0px))!important}
  html.touch-enabled #hud .mission{top:calc(152px + env(safe-area-inset-top,0px))!important}
 }
+
+/* Fit map dialogs into short landscape viewports without clipping controls. */
+@media (orientation:landscape) and (max-height:520px){
+ .world-map{padding:5px}
+ .world-map-sheet{max-height:97dvh;min-height:0;gap:5px;padding:8px}
+ .world-map-heading h2{font-size:clamp(20px,5vh,29px)}
+ #worldMapCanvas{max-height:47dvh;min-height:0;width:100%;object-fit:contain}
+ .world-map-footer{font-size:9px;gap:4px}
+ .world-map-zoom button{padding:5px 8px;min-height:40px}
+}
+@media (pointer:coarse){
+ .creator-field select,.options-box select,.vault-info textarea{font-size:16px}
+ .creator-body{max-height:calc(100dvh - 18px);overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+}
