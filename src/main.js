@@ -10,6 +10,7 @@ import {EQUIPMENT,EQUIPMENT_FR,TOOL_SPEED,TOOL_YIELD,ECONOMY,toolCost,buildingCo
 import {loadSettings,storeSettings,keyLabel,isPressed,applyQuality,ACTIONS} from './settings.js';
 import {tr,translateTree,UI} from './language.js';
 import {createBaseCamp} from './basecamp.js';
+import {optionsMarkup} from './options-ui.js';
 const $=id=>document.getElementById(id), scene=new T.Scene();scene.background=new T.Color('#a6cbd1');scene.fog=new T.FogExp2('#a6cbd1',.007);
 const cam=new T.PerspectiveCamera(65,innerWidth/innerHeight,.1,450),renderer=new T.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.25));renderer.shadowMap.enabled=true;$('game').append(renderer.domElement);
 scene.add(new T.HemisphereLight(0xffffff,0x657449,2.4));const sun=new T.DirectionalLight(0xffe7bc,2.3);sun.position.set(70,95,40);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.bias=-.0004;sun.shadow.normalBias=.024;sun.shadow.radius=2;sun.shadow.camera.left=-60;sun.shadow.camera.right=60;sun.shadow.camera.top=60;sun.shadow.camera.bottom=-60;scene.add(sun);
@@ -109,7 +110,7 @@ saleLabel.scale.set(7.2,2.03,1);
 saleLabel.position.set(SALE.x,6.3,SALE.z);scene.add(saleLabel);
 
 
-const world=new Map(),resources=[],CH=32,R=2;const hash=(x,z,s=0)=>{let n=Math.sin(x*127.1+z*311.7+s*51.6)*43758.5453;return n-Math.floor(n)},blend=t=>t*t*(3-2*t);function noise(x,z,k,s){let a=Math.floor(x/k),b=Math.floor(z/k),u=blend(x/k-a),v=blend(z/k-b);return T.MathUtils.lerp(T.MathUtils.lerp(hash(a,b,s),hash(a+1,b,s),u),T.MathUtils.lerp(hash(a,b+1,s),hash(a+1,b+1,s),u),v)}
+const world=new Map(),resources=[],CH=32;let R=settings.quality==='low'?1:2;const hash=(x,z,s=0)=>{let n=Math.sin(x*127.1+z*311.7+s*51.6)*43758.5453;return n-Math.floor(n)},blend=t=>t*t*(3-2*t);function noise(x,z,k,s){let a=Math.floor(x/k),b=Math.floor(z/k),u=blend(x/k-a),v=blend(z/k-b);return T.MathUtils.lerp(T.MathUtils.lerp(hash(a,b,s),hash(a+1,b,s),u),T.MathUtils.lerp(hash(a,b+1,s),hash(a+1,b+1,s),u),v)}
 function biome(x,z){
 if(Math.hypot(x,z)<22)return -1;
 if(Math.hypot(x-34,z)<76)return 0;
@@ -268,6 +269,7 @@ let buildingPreview=null,previewMaterials=[],lastPlacementValid=null;
 let harvesting=null,harvestProgress=0,stepPhase=0;
 const sound=createSound();const atmosphere=createAtmosphere(T,scene,player,biome);
 const baseCamp=createBaseCamp(T,scene);
+atmosphere.setEnabled(settings.effects&&settings.quality!=='low');
 sound.setVolume(settings.volume);
 sound.setEnabled(!settings.muted);
 applyQuality(renderer,sun,settings.quality);
@@ -584,7 +586,7 @@ onSale(amount){save()}
 function addBuilding(b){return industry.register(b)}
 st.buildings.forEach(addBuilding);
 
-const panels={market:'COMPTOIR',build:'CONSTRUCTION',talents:'PROGRESSION',inventory:'INVENTAIRE'};
+const panels={market:'COMPTOIR',build:'CONSTRUCTION',talents:'PROGRESSION',inventory:'INVENTAIRE',settings:'PARAMÈTRES'};
 let panel=null;
 const labels=['BOIS','PIERRE','MINERAI','SABLE','BLÉ'];
 const biomeIcons=['♧','◆','◈','◒','✺'];
@@ -600,37 +602,39 @@ $('tabs').innerHTML=['market','build','talents','inventory'].map(k=>'<button dat
 let out='';
 if(panel==='market'){
 let group='';for(let i=0;i<5;i++){
-const tier=st.tools[i]+1;if(tier>=3)continue;
-const cost=tier===0?prices[i]:tier===1?650:2900;
-group+=add(tools[i][tier],types[i]+' · Palier '+(tier+1)+' / 3',cost+' OR','tool:'+i,false,i);
+const tier=st.tools[i]+1;if(tier>=5)continue;
+const cost=toolCost(i,tier);
+group+=add(settings.language==='en'?EQUIPMENT[i][tier]:tools[i][tier],types[i]+' · Palier '+(tier+1)+' / 5',cost+' OR','tool:'+i,false,i);
 }
 out+=section('Outils & récolte','CINQ INDUSTRIES',group||'<p class="catalog-empty">Tous les outils sont au niveau maximum.</p>');
 const level=st.staminaLevel||0;
 let utility='';
-if(st.bag===8)utility+=add('Capacité de stockage','8 → 16 emplacements','450 OR','bag');
-if(level<4)utility+=add('Condition physique','Endurance '+maxStamina()+' → '+(maxStamina()+32),[500,1250,2600,5500][level]+' OR','stamina');
-if(!st.cart)utility+=add('Chariot utilitaire','Transport de petites charges','1200 OR','cart');
-if(!st.truck)utility+=add('Camion de ressources','Grand volume de transport','4500 OR','truck');
+if(st.bag===8)utility+=add('Capacité de stockage','8 → 16 emplacements',ECONOMY.bag+' OR','bag');
+if(level<4)utility+=add('Condition physique','Endurance '+maxStamina()+' → '+(maxStamina()+32),ECONOMY.stamina[level]+' OR','stamina');
+if(!st.cart)utility+=add('Chariot utilitaire','Transport de petites charges',ECONOMY.cart+' OR','cart');
+if(!st.truck)utility+=add('Camion de ressources','Grand volume de transport',ECONOMY.truck+' OR','truck');
 out+=section('Équipement','CONSERVATION & MOBILITÉ',utility||'<p class="catalog-empty">Équipement entièrement amélioré.</p>');
 out+=section('Comptoir','TRANSACTIONS',add('Vendre le chargement','Inventaire et zone de vente','VENDRE','sell'));
 }
 if(panel==='build'){
 for(let i=0;i<5;i++){
-out+=section(types[i]+' · '+raw[i].toUpperCase(),'CHAÎNE DE PRODUCTION',add(worksites[i],'Collecte automatique · stockage',(550+i*160)+' OR','worker:'+i,false,i)+add(factories[i],raw[i]+' → '+processed[i],(480+i*150)+' OR','factory:'+i,false,i));
+out+=section(types[i]+' · '+raw[i].toUpperCase(),'CHAÎNE DE PRODUCTION',add(worksites[i],'Collecte automatique · stockage',buildingCost('worker',i)+' OR','worker:'+i,false,i)+add(factories[i],raw[i]+' → '+processed[i],buildingCost('factory',i)+' OR','factory:'+i,false,i));
 }
-out+=section('Logistique','TRANSPORT & COMMERCE',add('Dépôt de transport','Déplacements des ressources','1400 OR','transport:0')+add('Comptoir vendeur','Vente automatisée','1800 OR','seller:0'));
+out+=section('Logistique','TRANSPORT & COMMERCE',add('Dépôt de transport','Déplacements des ressources',buildingCost('transport')+' OR','transport:0')+add('Comptoir vendeur','Vente automatisée',buildingCost('seller')+' OR','seller:0'));
 if(st.buildings.length)out+=section('Personnel','RECRUTEMENT',st.buildings.map((b,i)=>{
 const title=(b.kind==='worker'?worksites[b.type]:b.kind==='factory'?factories[b.type]:b.kind==='seller'?'Comptoir vendeur':'Dépôt transport')+' #'+(i+1);
 const stock=b.kind==='worker'?'Brut : '+b.stockRaw
 :b.kind==='factory'?'Entrée : '+b.inputRaw+' · Transformé : '+b.stockProcessed
 :'Logistique automatisée';
-return add(title,'Employés : '+b.workers+'/'+industry.limit+' · '+stock,b.workers>=industry.limit?'MAX':'300 OR','hire:'+i,b.workers>=industry.limit,b.type)
+return add(title,'Employés : '+b.workers+'/'+industry.limit+' · '+stock,b.workers>=industry.limit?'MAX':ECONOMY.hire+' OR','hire:'+i,b.workers>=industry.limit,b.type)
++add(UI[settings.language].capacity,'Niveau '+(b.carryLevel||0)+'/5 · '+(2+2*(b.carryLevel||0))+' / '+(6+3*(b.carryLevel||0)),
+(b.carryLevel||0)>=5?'MAX':workerCarryCost(b.carryLevel||0)+' OR','carry:'+i,(b.carryLevel||0)>=5,b.type)
 }).join(''));
 }
 if(panel==='talents'){
 const level=st.staminaLevel||0;
-out+=section('Endurance & sprint','PERFORMANCES',level<4?add('Endurance '+(level+1),'Réserve '+maxStamina()+' → '+(maxStamina()+32)+' · récupération +4/s',[500,1250,2600,5500][level]+' OR','stamina'):add('Endurance MAX','Capacité maximale atteinte','MAX','noop',true));
-out+=section('Expertise des métiers','SPÉCIALISATIONS',types.map((name,i)=>add(name+' · Palier '+st.talents[i],'+10 % à la valeur de vente (développement)','500 OR','talent:'+i,false,i)).join(''));
+out+=section('Endurance & sprint','PERFORMANCES',level<4?add('Endurance '+(level+1),'Réserve '+maxStamina()+' → '+(maxStamina()+32)+' · récupération +4/s',ECONOMY.stamina[level]+' OR','stamina'):add('Endurance MAX','Capacité maximale atteinte','MAX','noop',true));
+out+=section('Expertise des métiers','SPÉCIALISATIONS',types.map((name,i)=>add(name+' · Palier '+st.talents[i],'+10 % à la valeur de vente (développement)',ECONOMY.talent+' OR','talent:'+i,false,i)).join(''));
 }
 if(panel==='inventory'){
 out+=section('Contenu transporté',count()+' / '+st.bag+' EMPLACEMENTS',types.map((name,i)=>add(raw[i],st.inv[i]+' unité(s) · '+processed[i]+' : '+st.products[i],values[i]+' / unité','noop',true,i)).join(''));
