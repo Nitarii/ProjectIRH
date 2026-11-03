@@ -1,4 +1,4 @@
-# Nitari's Industrial Madness (NIM)
+# N.I.M — Nitari's Industrial Madness
 
 Procedural 3D industrial economy and resource game.
 
@@ -63,3 +63,11 @@ Auto mode starts at −20% harvest and movement speed. Upgrade in Progression fo
 ## World map and clearing
 
 The map shows only explored terrain and persists discovery in the encrypted local save. Construction clears interfering resource nodes and nearby decoration within a small safety margin; generated chunks respect existing buildings. World save and browser data remain in the existing IRH format for compatibility.
+
+## Mobile controls (portrait & landscape)
+
+The on-screen virtual joystick handles movement. Drag on the world to rotate the camera, pinch to zoom, and use the action buttons for interaction/harvesting, jumping, sprinting, automatic mode, bicycle and dropping logs. The top mobile navigation opens the market, construction, progression, explored world map and settings. Building placement exposes rotate-left, rotate-right and cancel controls. The map supports touch panning and zoom buttons.
+
+## Desktop mouse and HUD
+
+Right mouse button toggles pointer lock/free cursor. The bottom-left keyboard shortcut chips are clickable buttons for action, market, construction, progression, world map, auto mode and settings. Only progression contains the endurance upgrade.
