@@ -318,3 +318,11 @@ border:1px solid #7cc9ac85;border-radius:13px;padding:15px 18px;box-shadow:0 14p
  .creator-colors{grid-template-columns:repeat(2,1fr)}
  .creator-footer{flex-direction:column;align-items:stretch}
 }
+
+/* Activity notices stay above the play space without covering the player. */
+.notice{top:9.5%!important;max-width:min(460px,88vw);text-align:center;
+  font-weight:700;letter-spacing:.25px;z-index:10}
+.storage-overview{display:flex;flex-direction:column;gap:7px;padding:13px 15px;
+  border:1px solid #a1d3ad31;border-radius:10px;background:#17352c8c;margin-bottom:11px}
+.storage-overview strong{font:800 19px 'Barlow Condensed';letter-spacing:1px;color:#d2f1cc}
+.storage-overview span{font:600 12px 'DM Sans';color:#b9d7c4}
