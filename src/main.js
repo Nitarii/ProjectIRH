@@ -248,16 +248,16 @@ terrainMaterial.onBeforeCompile=shader=>{
     'vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);',
     'return mix(mix(nimHash(i),nimHash(i+vec2(1.0,0.0)),f.x),',
     'mix(nimHash(i+vec2(0.0,1.0)),nimHash(i+vec2(1.0,1.0)),f.x),f.y);}'
-  ].join('\\n');
+  ].join('\n');
   shader.vertexShader=shader.vertexShader.replace('#include <common>',
-    '#include <common>\\n'+vertexDetail);
+    '#include <common>\n'+vertexDetail);
   shader.vertexShader=shader.vertexShader.replace('#include <worldpos_vertex>',
-    '#include <worldpos_vertex>\\nvec2 nimWorldXZ=(modelMatrix*vec4(transformed,1.0)).xz;'+
+    '#include <worldpos_vertex>\nvec2 nimWorldXZ=(modelMatrix*vec4(transformed,1.0)).xz;'+
     'nimShade=nimNoise(nimWorldXZ*.19);');
   shader.fragmentShader=shader.fragmentShader.replace('#include <common>',
-    '#include <common>\\nvarying float nimShade;');
+    '#include <common>\nvarying float nimShade;');
   shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',
-    '#include <color_fragment>\\ndiffuseColor.rgb*=.958+.080*nimShade;');
+    '#include <color_fragment>\ndiffuseColor.rgb*=.958+.080*nimShade;');
 };
 terrainMaterial.customProgramCacheKey=()=> 'nim-soft-terrain-v1';
 const accentGeometry=new T.IcosahedronGeometry(.19,0);
