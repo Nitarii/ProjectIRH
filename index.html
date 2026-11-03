@@ -23,14 +23,14 @@
   <div id="placementHud" class="placement-hud hidden" aria-live="polite">
     <div class="placement-head"><span class="placement-symbol">⌑</span><div><strong>CONSTRUCTION</strong><span id="placementName"></span></div></div>
     <div id="placementStatus" class="placement-status">PLACE DISPONIBLE</div>
-    <div class="placement-actions"><span><kbd>F</kbd> PLACER</span><span><kbd>ÉCHAP</kbd> ANNULER</span></div>
+    <div class="placement-actions"><span><kbd>F</kbd> PLACER</span><span id="rotationHint"><kbd>Q / E</kbd> TOURNER</span><span><kbd>ÉCHAP</kbd> ANNULER</span></div>
   </div>
-  <div class="bottom"><div class="keyline"><span><kbd>F</kbd> INTERAGIR</span><span><kbd>C</kbd> COMPTOIR</span><span><kbd>B</kbd> CONSTRUIRE</span><span><kbd>U</kbd> PROGRESSER</span><span id="autoShortcut"><kbd>A</kbd> AUTO</span><span><kbd>TAB</kbd> MENU</span></div></div><div id="autoState" class="auto-state hidden" aria-live="polite">MODE AUTO</div>
+  <div class="bottom"><div class="keyline"><span><kbd>F</kbd> INTERAGIR</span><span><kbd>C</kbd> COMPTOIR</span><span><kbd>B</kbd> CONSTRUIRE</span><span><kbd>U</kbd> PROGRESSER</span><span id="autoShortcut"><kbd>R</kbd> AUTO</span><span><kbd>TAB</kbd> MENU</span></div></div><div id="autoState" class="auto-state hidden" aria-live="polite"><span class="auto-title">MODE AUTO</span><small class="auto-penalty">−20 % vitesse de déplacement et de récolte</small></div>
   <aside id="miniInventory" class="inventory-mini" aria-label="Inventaire"><div class="inventory-title"><span>INVENTAIRE</span><span id="inventoryCapacity">0 / 8</span></div><div id="inventoryGrid" class="inventory-grid"></div></aside>
 </div>
 <div id="notice" class="notice"></div>
 <div id="panel" class="panel hidden"><div class="sheet"><header><div><div class="eyebrow" id="panelTag">COMPTOIR</div><h2 id="panelTitle">Marché</h2></div><button id="close" class="close" title="Fermer">×</button></header><nav id="tabs"></nav><div id="shopbody" class="shopbody"></div><footer><span id="panelhint"></span><button id="resume" class="cta small">REPRENDRE ↗</button></footer></div></div>
-<div id="welcome" class="welcome"><div class="welcomeinner"><div class="mark">◇</div><p class="eyebrow">UN MONDE, CINQ INDUSTRIES, AUCUNE FRONTIÈRE</p><h1>IRH<span>FRONTIER<br>CAPITAL</span></h1><p class="intro">Partez de rien. Récoltez la terre. Construisez un empire.</p><button id="play" class="cta">ENTRER DANS LE MONDE <span>→</span></button><div class="welcomefoot">MONDE PROCÉDURAL INFINI · SAUVEGARDE AUTOMATIQUE · VERSION ALPHA</div></div></div>
+<div id="welcome" class="welcome"><div class="welcomeinner"><div class="mark">◇</div><p class="eyebrow">UN MONDE, CINQ INDUSTRIES, AUCUNE FRONTIÈRE</p><h1>IRH<span>FRONTIER<br>CAPITAL</span></h1><p class="intro">Partez de rien. Récoltez la terre. Construisez un empire.</p><button id="play" class="cta">ENTRER DANS LE MONDE <span>→</span></button><div class="welcomefoot">MONDE PROCÉDURAL INFINI · SAUVEGARDE AUTOMATIQUE · VERSION ALPHA · © 2026 NITARII</div></div></div>
 <div id="creator" class="creator hidden" role="dialog" aria-modal="true" aria-label="Character customization">
   <div id="creatorBody" class="creator-body"></div>
 </div>
