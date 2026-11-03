@@ -16,7 +16,7 @@ export const TOOL_BASE_COSTS=[250,950,3200,9000,24000];
 export const TOOL_SPEED=[2.8,1.85,1.42,1.09,.83,.54];
 export const TOOL_YIELD=[1,1,1,2,3,4];
 export const ECONOMY={
-  bag:2000,cart:8500,truck:28000,hire:1800,
+  bag:2000,bag24:9500,bicycle:6200,hire:1800,
   transport:10500,seller:13500,
   factory:[5400,6700,8300,6600,6100],
   worker:[6300,7200,8800,7500,6800],
