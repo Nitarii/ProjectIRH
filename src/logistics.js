@@ -78,11 +78,11 @@ export function selectTransportJob(home,buildings,capacity=100){
     const processed=origin.kind==='factory';
     const amount=processed?origin.stockProcessed:origin.stockRaw;
     const homeDistance=d(home,origin);
-    if(amount<1||homeDistance>215)continue;
+    if(amount<1||!Number.isFinite(homeDistance))continue;
     const examine=dest=>{
       if(dest===origin)return;
       const separation=d(origin,dest);
-      if(separation>240)return;
+      if(!Number.isFinite(separation)||homeDistance+separation*.75-32>=bestScore)return;
       const room=dest.kind==='seller'?(sellerRooms.get(dest)||0):
         transportSpace(dest,origin.type,processed,capacity);
       if(room<=0)return;
