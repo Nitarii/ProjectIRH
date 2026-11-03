@@ -5,6 +5,12 @@ const bounded=n=>Math.max(0,Math.min(WAREHOUSE_CAPACITY,Math.floor(Number(n)||0)
 const d=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z);
 export function prepareWarehouse(building){
   if(building.kind!=='seller')return building;
+  const valid=['warehouseRaw','warehouseProcessed'].every(key=>
+    Array.isArray(building[key])&&building[key].length===5&&
+    building[key].every(n=>Number.isInteger(n)&&n>=0&&n<=WAREHOUSE_CAPACITY));
+  const filled=valid?building.warehouseRaw.reduce((n,x)=>n+x,0)+
+    building.warehouseProcessed.reduce((n,x)=>n+x,0):Infinity;
+  if(valid&&filled<=WAREHOUSE_CAPACITY)return building;
   for(const key of ['warehouseRaw','warehouseProcessed']){
     const previous=Array.isArray(building[key])?building[key]:[];
     building[key]=Array.from({length:5},(_,i)=>bounded(previous[i]));
