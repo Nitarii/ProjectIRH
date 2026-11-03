@@ -86,6 +86,27 @@ try{
   await marketPage.waitForFunction(()=>!document.querySelector('#panel').classList.contains('hidden'),null,{timeout:15000});
   console.log(JSON.stringify({sale: {gold:saleState.gold,inventory:saleState.capacity},merchant:'F',tooltip:contextHint,extraErrors:errors},null,2));
   await marketContext.close();
+  const factoryContext=await browser.newContext({viewport:{width:1280,height:800}});
+  const workforce=await factoryContext.newPage();
+  workforce.on('pageerror',e=>errors.push('WORKFORCE '+e.message));
+  await workforce.addInitScript(()=>{
+    localStorage.setItem('irh-state',JSON.stringify({x:17,z:12,gold:250,bag:8,
+      buildings:[
+        {id:'b1',kind:'worker',type:0,x:33,z:20,workers:1,stockRaw:12,stock:12},
+        {id:'b2',kind:'factory',type:0,x:42,z:20,workers:1,inputRaw:4,stockProcessed:5},
+        {id:'b3',kind:'transport',type:0,x:30,z:30,workers:1},
+        {id:'b4',kind:'seller',type:0,x:27,z:15,workers:1}
+      ]
+    }));
+  });
+  await workforce.goto('http://127.0.0.1:8765/',{waitUntil:'domcontentloaded',timeout:30000});
+  await workforce.locator('#play').click({timeout:15000});
+  await workforce.waitForFunction(()=>window.__irhMonitor?.visibleEmployees>=4,null,{timeout:25000});
+  const workerStats=await workforce.evaluate(()=>({...window.__irhMonitor}));
+  if(workerStats.lastError||workerStats.contextLost||workerStats.employees<4||
+     workerStats.visibleEmployees<4)throw new Error('Employee scene failed: '+JSON.stringify(workerStats));
+  console.log(JSON.stringify({workerStats},null,2));
+  await factoryContext.close();
   if(errors.length)throw new Error('Browser errors after scenarios: '+errors.join(' | '));
 
 }finally{
