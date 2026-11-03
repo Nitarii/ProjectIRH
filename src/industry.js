@@ -201,7 +201,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     sourceCells.clear();buildingCells.clear();
     for(let t=0;t<5;t++){workerBuildings[t].length=0;factoryBuildings[t].length=0}
     for(const r of resources){
-      if(r.dead)continue;
+      if(r.dead&&!hooks.canBreakLog?.(r))continue;
       const key=gridKey(r.x,r.z);
       if(!sourceCells.has(key))sourceCells.set(key,[]);
       sourceCells.get(key).push(r);
@@ -428,9 +428,10 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       const candidates=sourceCells.get(ix+','+iz);
       if(!candidates)continue;
       for(const r of candidates){
-        if(r.dead||r.type!==b.type||(r.unreachableUntil||0)>time||
+        const recoverable=b.type===0&&hooks.canBreakLog?.(r);
+        if((r.dead&&!recoverable)||r.type!==b.type||(r.unreachableUntil||0)>time||
           r.workerClaim&&r.workerClaim!==a.id)continue;
-        const dx=r.x-b.x,dz=r.z-b.z,d2=dx*dx+dz*dz;
+        const dx=r.x-b.x,dz=r.z-b.z,d2=(dx*dx+dz*dz)*(recoverable?.76:1);
         if(d2<6.25||d2>=score)continue;
         best=r;score=d2;
       }
@@ -438,7 +439,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     if(!best)return null;
     best.workerClaim=a.id;return best;
   }
-  function release(a){if(a.target&&a.target.workerClaim===a.id)a.target.workerClaim=null;a.target=null}
+  function release(a){if(a.target&&a.target.workerClaim===a.id)a.target.workerClaim=null;a.target=null;a.targetLog=false}
   function refundCargo(a){
     if(!a.carry)return;
     let source=isPresent(a.targetBuilding)?a.targetBuilding:a.home;
@@ -463,7 +464,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     if(a.home.stockRaw>=totalCapacity)return;
     const target=reserveResource(a);
     if(!target){if(distance(a.home,viewer)>80){a.state='remoteGather';a.timer=0}return}
-    a.target=target;a.approachAttempts=0;
+    a.target=target;a.targetLog=!!target.log;a.approachAttempts=0;
     a.goal=approachNode(a,target,0);
     if(!a.goal){
       target.unreachableUntil=time+25;release(a);a.selectionCooldown=1.5;return;
@@ -507,7 +508,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     a.goal=stockAccess(best,processed,a.slot);a.state='toPickup';
   }
   function gather(a,dt){
-    if(!a.target||a.target.dead||!resources.includes(a.target)){idle(a,.8);return}
+    if(!a.target||a.target.dead&&!a.targetLog||!resources.includes(a.target)){idle(a,.8);return}
     const target=a.target;
     a.timer+=dt;
     if(a.timer<2.2)return;
@@ -516,13 +517,19 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     if(amount<=0){idle(a,.8);return}
     a.carry=amount;a.carryType=a.home.type;
     target.unreachableFailures=0;target.unreachableUntil=0;
-    target.hp=Math.max(0,target.hp-amount);
-    hooks.onResourceHit?.(target,a);
-    if(target.hp<=0){
-      target.dead=true;target.mesh.visible=false;
-      hooks.onResourceDepleted?.(target,a);
+    if(a.targetLog){
+      if(!hooks.canBreakLog?.(target)){idle(a,.5);return}
+      hooks.onLogCut?.(target,a);
       release(a);
-    }else release(a);
+    }else{
+      target.hp=Math.max(0,target.hp-amount);
+      hooks.onResourceHit?.(target,a);
+      if(target.hp<=0){
+        target.dead=true;target.mesh.visible=false;
+        hooks.onResourceDepleted?.(target,a);
+        release(a);
+      }else release(a);
+    }
     a.goal=stockAccess(a.home,false,a.slot);a.state='toHome';
   }
   function updateAgent(a,dt){
@@ -605,10 +612,13 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       idle(a,.4);return;
     }
     if(a.state==='toResource'){
-      if(!a.target||a.target.dead||!resources.includes(a.target)){idle(a,.6);return}
+      if(!a.target||a.target.dead&&!a.targetLog||!resources.includes(a.target)){idle(a,.6);return}
       if(walk(a,a.goal,dt)){a.state='gather';a.timer=0}return;
     }
-    if(a.state==='gather'){gather(a,dt);return}
+    if(a.state==='gather'){
+      if(a.target)a.angle=Math.atan2(a.target.x-a.x,a.target.z-a.z);
+      gather(a,dt);return;
+    }
     if(a.state==='toHome'){
       if(walk(a,a.goal,dt)){a.state='dropHarvest';a.timer=0;a.angle=normalizeRotation(a.home.rotation)+Math.PI}return;
     }
