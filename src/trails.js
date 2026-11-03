@@ -1,6 +1,6 @@
 // Foot-traffic aging is data-only: no extra road meshes, colliders, or draw calls.
 // Every loaded terrain tile blends its existing vertex colors toward earth and stone.
-export function createTrails(T,state,world,{cell=2.25,maxRecords=11000}={}){
+export function createTrails(T,state,world,{cell=2.25,maxRecords=11000,roadLevel=()=>0}={}){
   const entries=state.trails&&typeof state.trails==='object'&&!Array.isArray(state.trails)?state.trails:{};
   state.trails=entries;
   const previous=new Map(),dirty=new Set(),earth=new T.Color('#87785d'),road=new T.Color('#807d72');
@@ -53,6 +53,7 @@ export function createTrails(T,state,world,{cell=2.25,maxRecords=11000}={}){
       // Almost invisible initially; dirt after many crossings, paved route much later.
       const worn=smooth(step(value,9,84));
       const paved=smooth(step(value,115,225));
+      const constructed=roadLevel(x,z);
       const texture=((Math.sin(x*2.41+z*.8)+Math.cos(z*1.7-x*.6))*.035);
       const base=i*3;
       const dust=Math.max(0,Math.min(.94,worn*(.84+texture)));
@@ -62,6 +63,13 @@ export function createTrails(T,state,world,{cell=2.25,maxRecords=11000}={}){
       colors.array[base]=colors.array[base]*(1-paved*.70)+road.r*paved*.70;
       colors.array[base+1]=colors.array[base+1]*(1-paved*.70)+road.g*paved*.70;
       colors.array[base+2]=colors.array[base+2]*(1-paved*.70)+road.b*paved*.70;
+      if(constructed){
+        const surf=constructed===2?road:earth,weight=constructed===2?.91:.77;
+        const variance=((Math.sin(x*.94+z*.43)+Math.cos(z*1.11-x*.21))*.027);
+        colors.array[base]=colors.array[base]*(1-weight)+Math.max(0,surf.r+variance)*weight;
+        colors.array[base+1]=colors.array[base+1]*(1-weight)+Math.max(0,surf.g+variance)*weight;
+        colors.array[base+2]=colors.array[base+2]*(1-weight)+Math.max(0,surf.b+variance)*weight;
+      }
     }
     colors.needsUpdate=true;
   }
@@ -79,6 +87,7 @@ export function createTrails(T,state,world,{cell=2.25,maxRecords=11000}={}){
       if(++refreshed>=2)break;
     }
   }
+  function invalidate(x,z){mark(x,z);changed=true}
   function clear(){for(const k in entries)delete entries[k];previous.clear();dirty.clear();recordCount=0;changed=true}
-  return {recordMovement,initChunk,update,clear,get count(){return recordCount},get changed(){return changed}};
+  return {recordMovement,initChunk,update,invalidate,traffic,clear,get count(){return recordCount},get changed(){return changed}};
 }
