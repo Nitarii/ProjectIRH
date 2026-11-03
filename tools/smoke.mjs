@@ -121,9 +121,10 @@ try{
   });
   await salePage.goto('http://127.0.0.1:8765/',{waitUntil:'domcontentloaded',timeout:30000});
   await startGame(salePage);
-  await salePage.waitForFunction(()=>document.querySelector('#coins')?.textContent==='240',null,{timeout:35000});
+  // 2 wood + 1 stone + 1 processed wood (3x) + 1 legacy stock at 12 gold each = 84 gold.
+  await salePage.waitForFunction(()=>document.querySelector('#coins')?.textContent==='184',null,{timeout:35000});
   const gainText=await salePage.locator('#goldGain').textContent();
-  if(gainText?.trim()!=='+140')throw new Error('Currency gain indicator missing: '+gainText);
+  if(gainText?.trim()!=='+84')throw new Error('Currency gain indicator missing: '+gainText);
   const saleState=await salePage.evaluate(()=>({
     gold:document.querySelector('#coins')?.textContent,
     capacity:document.querySelector('#inventoryCapacity')?.textContent,
@@ -131,7 +132,7 @@ try{
     topBagCount:document.querySelectorAll('#bag').length
   }));
   saleState.saved=await decryptedSave(salePage);
-  if(saleState.gold!=='240'||saleState.capacity?.trim()!=='0 / 8'||
+  if(saleState.gold!=='184'||saleState.capacity?.trim()!=='0 / 8'||
      saleState.topBagCount!==0||saleState.saved.stock?.length!==0)
     throw new Error('Automatic sale failed: '+JSON.stringify(saleState));
   await checkContext.close();
