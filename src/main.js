@@ -6,7 +6,7 @@ import {inventoryIcon} from './item-icons.js?v=20261103k';
 import {createResourceGraphics} from './resource-visuals.js?v=20261103ac';
 import {createFieldBuilder} from './wheat-fields.js?v=20261103k';
 import {makeStructure} from './structures.js?v=20261103r2';
-import {EQUIPMENT,EQUIPMENT_FR,TOOL_SPEED,TOOL_YIELD,ECONOMY,toolCost,buildingCost,workerCarryCost} from './balance.js';
+import {EQUIPMENT,EQUIPMENT_FR,TOOL_SPEED,TOOL_YIELD,ECONOMY,toolCost,buildingCost,workerCarryCost,MAX_EXPERTISE,expertiseCost,expertiseMultiplier,expertiseHarvestSpeed} from './balance.js';
 import {loadSettings,storeSettings,keyLabel,isPressed,applyQuality,ACTIONS} from './settings.js?v=20261103r2';
 import {tr,translateTree,UI} from './language.js?v=20261103r2';
 import {createBaseCamp} from './basecamp.js';
@@ -14,13 +14,16 @@ import {optionsMarkup} from './options-ui.js?v=20261103r2';
 import {createTrails} from './trails.js?v=20261103r1';
 import {decorationCollider} from './decor-collision.js?v=20261103p4';
 import {batchResourceNodes,setDistantResource} from './resource-batches.js?v=20261103p4';
+import {createResourceLifecycle} from './resource-life.js';
+import {createHarvestEffects} from './harvest-fx.js';
+import {createRouter} from './navigation.js?v=20261103aa';
 const $=id=>document.getElementById(id), scene=new T.Scene();scene.background=new T.Color('#a6cbd1');scene.fog=new T.FogExp2('#a6cbd1',.0039);
 const cam=new T.PerspectiveCamera(65,innerWidth/innerHeight,.1,450),renderer=new T.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.25));renderer.shadowMap.enabled=true;$('game').append(renderer.domElement);
 scene.add(new T.HemisphereLight(0xffffff,0x657449,2.4));const sun=new T.DirectionalLight(0xffe7bc,2.3);sun.position.set(70,95,40);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.bias=-.0004;sun.shadow.normalBias=.024;sun.shadow.radius=2;sun.shadow.camera.left=-60;sun.shadow.camera.right=60;sun.shadow.camera.top=60;sun.shadow.camera.bottom=-60;scene.add(sun);
 const M=c=>new T.MeshLambertMaterial({color:c}),m={grass:M(0x658b55),forest:M(0x3a784e),mountain:M(0x858b83),mine:M(0x94775c),desert:M(0xd7bd7d),field:M(0xb2b75e),tree:M(0x845b35),leaf:M(0x388653),rock:M(0x888e90),ore:M(0x709fad),wheat:M(0xebbb53),skin:M(0xe8b997),shirt:M(0x275c70),wood:M(0xac7852),roof:M(0x965e46),gold:M(0xffd068)};
 function cube(w,h,d,mat,x=0,y=0,z=0){let q=new T.Mesh(new T.BoxGeometry(w,h,d),mat);q.position.set(x,y,z);q.castShadow=true;q.receiveShadow=true;return q}function orb(r,mat,x=0,y=0,z=0){let q=new T.Mesh(new T.IcosahedronGeometry(r,1),mat);q.position.set(x,y,z);q.castShadow=true;return q}function cy(r,h,mat,x=0,y=0,z=0){let q=new T.Mesh(new T.CylinderGeometry(r,r,h,8),mat);q.position.set(x,y,z);q.castShadow=true;return q}
 const types=['FORÊT','MONTAGNE','EXCAVATION','DÉSERT','CHAMPS'],raw=['Bois','Pierre','Minerai','Sable','Blé'],processed=['Planches','Pierre taillée','Lingots','Verre','Farine'],tools=EQUIPMENT_FR,worksites=['Cabane de bûcheron','Carrière','Mine','Camp de terrassiers','Ferme'],factories=['Scierie','Atelier de taille','Fonderie','Verrerie','Moulin'],values=[12,15,22,10,14],colors=['#488756','#87938b','#b88f6b','#e3c67c','#c8b64e'];
-let defaultState={gold:100,bag:8,inv:[0,0,0,0,0],products:[0,0,0,0,0],tools:[-1,-1,-1,-1,-1],talents:[0,0,0,0,0],buildings:[],stock:[],truck:false,cart:false,staminaLevel:0,gameMinutes:0,x:0,z:9,seed:7331};let st={...defaultState};
+let defaultState={gold:100,bag:8,inv:[0,0,0,0,0],products:[0,0,0,0,0],tools:[-1,-1,-1,-1,-1],talents:[0,0,0,0,0],buildings:[],stock:[],truck:false,cart:false,staminaLevel:0,gameMinutes:0,x:0,z:9,seed:7331,exhausted:{}};let st={...defaultState};
 const settings=loadSettings();let awaitingBinding=null;let observedGold=st.gold,goldHideAt=0;try{let a=JSON.parse(localStorage.getItem('irh-state')||'{}');for(let k in defaultState)if(a[k]!==undefined)st[k]=a[k]}catch{}observedGold=st.gold;const save=()=>{st.x=player.position.x;st.z=player.position.z;
 const cleanBuildings=st.buildings.map(b=>({
 id:b.id,kind:b.kind,type:b.type,x:b.x,z:b.z,workers:b.workers,carryLevel:b.carryLevel,
@@ -114,6 +117,7 @@ saleLabel.position.set(SALE.x,6.3,SALE.z);scene.add(saleLabel);
 
 
 const world=new Map(),resources=[],CH=32;
+const resourceLife=createResourceLifecycle(st);
 const trails=createTrails(T,st,world);
 let R=Math.max(2,Math.min(8,Math.ceil(settings.viewDistance/CH)));const hash=(x,z,s=0)=>{let n=Math.sin(x*127.1+z*311.7+s*51.6+((st.seed||7331)-7331)*.7919)*43758.5453;return n-Math.floor(n)},blend=t=>t*t*(3-2*t);function noise(x,z,k,s){let a=Math.floor(x/k),b=Math.floor(z/k),u=blend(x/k-a),v=blend(z/k-b);return T.MathUtils.lerp(T.MathUtils.lerp(hash(a,b,s),hash(a+1,b,s),u),T.MathUtils.lerp(hash(a,b+1,s),hash(a+1,b+1,s),u),v)}
 function biome(x,z){
@@ -131,6 +135,7 @@ if(d<nearest){nearest=d;selected=Math.floor(hash(gx,gz,35)*5)}
 return selected;
 }
 const resourceGraphics=createResourceGraphics(T);
+const harvestFx=createHarvestEffects(T,scene);
 const buildWheatField=createFieldBuilder(T,biome,hash);
 function node(type,x,z,key){
 const variant=Math.floor(hash(Math.floor(x*3),Math.floor(z*3),66)*4);
@@ -139,7 +144,7 @@ g.position.set(x,0,z);
 scene.add(g);
 const hp=[40,50,60,30,30][type];
 const obj={type,x,z,mesh:g,hp,max:hp,key,dead:false,variant};
-resources.push(obj);return obj;
+resourceLife.spawn(obj);resources.push(obj);return obj;
 }
 
 const terrainMaterial=new T.MeshLambertMaterial({vertexColors:true});
@@ -350,7 +355,7 @@ if(!blocked(x+dx,z))player.position.x=x+dx;
 if(!blocked(player.position.x,z+dz))player.position.z=z+dz;
 }
 const stopHarvest=()=>{harvesting=null;harvestProgress=0};
-const harvestInterval=type=>([1.00,1.10,1.08,.94,.86][type])*TOOL_SPEED[Math.max(0,Math.min(5,st.tools[type]+1))];
+const harvestInterval=type=>([1.00,1.10,1.08,.94,.86][type])*TOOL_SPEED[Math.max(0,Math.min(5,st.tools[type]+1))]/expertiseHarvestSpeed(st,type);
 const TOOL_STROKES=[
   [[.55,1.15,.16],[.7,1.34,.19],[.92,1.58,.23],[.27,.6,.11],[.12,.3,.08]],
   [[.67,.9,.13],[.82,1.1,.16],[.94,1.3,.20],[.21,.4,.08],[.11,.24,.07]],
