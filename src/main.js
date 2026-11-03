@@ -959,7 +959,8 @@ const wildlife=createWildlife(T,scene,{
   blocked:(x,z,r)=>industry.blocked(x,z,r),
   quality:()=>settings.quality,
   viewDistance:()=>settings.viewDistance,
-  playerPosition:()=>player.position
+  playerPosition:()=>player.position,
+  daylight:()=>skyWeather.dayFactor
 });
 const autoPilot=createAutoPilot({
   player,blocked,move:movePlayer,resources:()=>resources,
