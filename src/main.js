@@ -9,6 +9,7 @@ import {makeStructure} from './structures.js';
 import {EQUIPMENT,EQUIPMENT_FR,TOOL_SPEED,TOOL_YIELD,ECONOMY,toolCost,buildingCost,workerCarryCost} from './balance.js';
 import {loadSettings,storeSettings,keyLabel,isPressed,applyQuality,ACTIONS} from './settings.js';
 import {tr,translateTree,UI} from './language.js';
+import {createBaseCamp} from './basecamp.js';
 const $=id=>document.getElementById(id), scene=new T.Scene();scene.background=new T.Color('#a6cbd1');scene.fog=new T.FogExp2('#a6cbd1',.007);
 const cam=new T.PerspectiveCamera(65,innerWidth/innerHeight,.1,450),renderer=new T.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.25));renderer.shadowMap.enabled=true;$('game').append(renderer.domElement);
 scene.add(new T.HemisphereLight(0xffffff,0x657449,2.4));const sun=new T.DirectionalLight(0xffe7bc,2.3);sun.position.set(70,95,40);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.bias=-.0004;sun.shadow.normalBias=.024;sun.shadow.radius=2;sun.shadow.camera.left=-60;sun.shadow.camera.right=60;sun.shadow.camera.top=60;sun.shadow.camera.bottom=-60;scene.add(sun);
@@ -170,21 +171,30 @@ mesh.instanceMatrix.needsUpdate=true;root.add(mesh)
 }
 function chunk(cx,cz){
 const key=cx+','+cz;if(world.has(key))return;
-const root=new T.Group(),nodes=[],groups=Array.from({length:6},()=>[]);
+const root=new T.Group(),nodes=[];
 const x0=cx*CH,z0=cz*CH;
-for(let i=0;i<8;i++)for(let j=0;j<8;j++){
-const x=x0+(i+.5)*4,z=z0+(j+.5)*4,b=biome(x,z);
-groups[b<0?0:b+1].push([x,z]);
+// Smooth vertex-colored terrain, continuous across streaming chunk borders.
+const groundGeometry=new T.PlaneGeometry(CH,CH,8,8);
+groundGeometry.rotateX(-Math.PI/2);
+const vertexColors=[];
+const basePalette=['#527751','#477c55','#858b84','#826e59','#dec28b','#adb66a'];
+const baseColor=(x,z)=>{
+  const b=biome(x,z);
+  const color=new T.Color(basePalette[b<0?0:b+1]);
+  const variation=.91+noise(x,z,18,63)*.17+noise(x,z,5,88)*.08;
+  return color.multiplyScalar(variation);
+};
+const positions=groundGeometry.attributes.position;
+for(let i=0;i<positions.count;i++){
+  const x=x0+CH/2+positions.getX(i),z=z0+CH/2+positions.getZ(i);
+  const color=baseColor(x,z);
+  vertexColors.push(color.r,color.g,color.b);
 }
-const mats=[m.grass,m.forest,m.mountain,m.mine,m.desert,m.field];
-groups.forEach((group,i)=>{
-if(!group.length)return;
-const mesh=new T.InstancedMesh(floorGeometry,mats[i],group.length);
-mesh.receiveShadow=true;mesh.castShadow=false;
-group.forEach(([x,z],j)=>{dummy.position.set(x,-.12,z);dummy.rotation.set(0,0,0);dummy.scale.set(1,1,1);dummy.updateMatrix();mesh.setMatrixAt(j,dummy.matrix);
-const shade=.91+hash(cx*17+j,cz*13+j,57)*.16;mesh.setColorAt(j,new T.Color(shade,shade,shade))});
-mesh.instanceMatrix.needsUpdate=true;mesh.instanceColor.needsUpdate=true;root.add(mesh);
-});
+groundGeometry.setAttribute('color',new T.Float32BufferAttribute(vertexColors,3));
+const floor=new T.Mesh(groundGeometry,new T.MeshLambertMaterial({vertexColors:true}));
+floor.position.set(x0+CH/2,-.025,z0+CH/2);
+floor.rotation.y=0;floor.receiveShadow=true;
+root.add(floor);
 decorations(cx,cz,root);buildWheatField(cx,cz,root);scene.add(root);
 world.set(key,{root,nodes,hasNodes:false})
 }
@@ -237,7 +247,7 @@ if(c){
 const [x,z]=key.split(',').map(Number);
 if(Math.abs(x-cx)>R+1||Math.abs(z-cz)>R+1){
 scene.remove(c.root);
-c.root.traverse(o=>{if(o.isInstancedMesh)o.dispose()});
+c.root.traverse(o=>{if(o.isInstancedMesh)o.dispose();else if(o===c.root.children[0]&&o.geometry)o.geometry.dispose()});
 for(const n of c.nodes){
 scene.remove(n.mesh);
 n.mesh.traverse(o=>{if(o.isMesh)o.geometry?.dispose()});
@@ -257,6 +267,10 @@ let heading=0,pitch=.38,dist=10,active=0,keys={},current=null,placing=null,carri
 let buildingPreview=null,previewMaterials=[],lastPlacementValid=null;
 let harvesting=null,harvestProgress=0,stepPhase=0;
 const sound=createSound();const atmosphere=createAtmosphere(T,scene,player,biome);
+const baseCamp=createBaseCamp(T,scene);
+sound.setVolume(settings.volume);
+sound.setEnabled(!settings.muted);
+applyQuality(renderer,sun,settings.quality);
 let audioActive=true,atmosphereActive=true;
 const maxStamina=()=>100+Math.max(0,st.staminaLevel||0)*32;
 const staminaRegen=()=>16+Math.max(0,st.staminaLevel||0)*4;
@@ -748,6 +762,7 @@ if(harvestProgress>=interval){harvestProgress-=interval;strikeHarvest()}
 }
 }
 animatePlayer(dt,moving);
+baseCamp.update(elapsed);
 if(audioActive){
 try{sound.update(biome(player.position.x,player.position.z),dt)}
 catch(err){audioActive=false;console.warn('Audio subsystem stopped',err)}
