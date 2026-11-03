@@ -14,8 +14,7 @@ const bindings={market:'KeyC',build:'KeyB',talents:'KeyT'};
 let passed=0;
 const check=(name,ok)=>{assert.ok(ok,name);passed++;console.log('✓ '+name)};
 function harness(){
-  let panel=null,lockRestored=0,switches=0;
-  const source=shortcutsSource+
+  const source='let panel=null,lockRestored=0,switches=0;'+shortcutsSource+
     'function close(){panel=null;lockRestored++}'+
     'function openPanel(k){if(panel===k){close();return} panel=k;switches++}'+
     'function press(code,bindings){const settings={bindings};const e={code,preventDefault(){}};'+keyBranch+'}'+
