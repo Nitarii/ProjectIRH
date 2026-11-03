@@ -1,6 +1,6 @@
 import {makeStructure} from './structures.js?v=20261106d';
 import {createRouter} from './navigation.js?v=20261106d';
-import {workstation,storagePoint,yardPoint} from './factory-tasks.js?v=20261104b';
+import {workstation,storagePoint,yardPoint,factoryWorkPath,factoryOutputPath} from './factory-tasks.js?v=20261107aisle1';
 import {worldPoint,rotateOffset,normalizeRotation,pointInOrientedRect} from './facility-layout.js';
 import {prepareWarehouse,warehouseRoom,chooseWarehouseSale,pickupWarehouse,selectTransportJob,transportSpace,deliverTransport} from './logistics.js?v=20261106e';
 
@@ -461,8 +461,25 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     hooks.roads?.release(a.id);
     a.roadTask=null;
     release(a);a.state='idle';a.goal=null;a.targetBuilding=null;a.receiver=null;a.route=null;a.waypoint=0;a.routeGoal=null;
+    a.factoryPath=null;a.factoryPathIndex=0;
     a.timer=0;a.selectionCooldown=delay;a.wait=0;a.goalKey='';
     a.blockedAge=0;a.noPathAge=0;a.stagnationAge=0;a.navWatch=0;
+  }
+  function startFactoryPath(a,path,nextState){
+    a.factoryPath=path;a.factoryPathIndex=0;
+    a.goal=path[0];a.state=nextState;
+    a.route=null;a.routeGoal=null;a.goalKey='';
+  }
+  function followFactoryPath(a,dt,speed=2.35){
+    if(!a.factoryPath?.length)return walk(a,a.goal,dt,speed);
+    if(!walk(a,a.goal,dt,speed))return false;
+    a.factoryPathIndex++;
+    if(a.factoryPathIndex<a.factoryPath.length){
+      a.goal=a.factoryPath[a.factoryPathIndex];
+      return false;
+    }
+    a.factoryPath=null;a.factoryPathIndex=0;
+    return true;
   }
   function beginHarvester(a){
     if(a.home.stockRaw>=totalCapacity){
@@ -554,8 +571,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
         if(a.home.inputRaw>0&&a.home.stockProcessed<totalCapacity){
           a.goal=stockAccess(a.home,false,a.slot);a.state='factoryPickup';
         }else {
-          a.goal=yardPoint(a.home,task.point);
-          a.state='factoryStandby';
+          startFactoryPath(a,factoryWorkPath(a.home,a.slot),'factoryToStandby');
         }
       }
       a.selectionCooldown=.7;return;
@@ -575,6 +591,10 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       if(status==='done'||status==='cancelled')idle(a,.35);
       return;
     }
+    if(a.state==='factoryToStandby'){
+      if(followFactoryPath(a,dt)){a.state='factoryStandby';a.timer=0}
+      return;
+    }
     if(a.state==='factoryStandby'){
       // Five assigned workstations prevent workers from queuing on a single spot.
       if(a.home.inputRaw>0&&a.home.stockProcessed<totalCapacity){
@@ -592,12 +612,10 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       a.timer+=dt;if(a.timer<.55)return;
       if(a.home.inputRaw<1){idle(a,.6);return}
       a.home.inputRaw--;a.carry=1;a.processed=false;
-      const task=workstation(a.home.type,a.slot);
-      a.goal=yardPoint(a.home,task.point);
-      a.state='factoryToWork';return;
+      startFactoryPath(a,factoryWorkPath(a.home,a.slot),'factoryToWork');return;
     }
     if(a.state==='factoryToWork'){
-      if(walk(a,a.goal,dt,2.35)){
+      if(followFactoryPath(a,dt)){
         a.workMotion=workstation(a.home.type,a.slot).motion;
         a.state='factoryWork';a.timer=0;a.angle=normalizeRotation(a.home.rotation)+Math.PI;
       }
@@ -608,11 +626,13 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       a.timer+=dt;
       if(a.timer<workstation(a.home.type,a.slot).duration)return;
       a.timer=0;a.processed=true;
-      a.state='factoryToOutput';a.goal=stockAccess(a.home,true,a.slot);
+      const path=factoryOutputPath(a.home,a.slot);
+      path[path.length-1]=stockAccess(a.home,true,a.slot);
+      startFactoryPath(a,path,'factoryToOutput');
       return;
     }
     if(a.state==='factoryToOutput'){
-      if(!walk(a,a.goal,dt,2.35))return;
+      if(!followFactoryPath(a,dt))return;
       a.state='factoryOutput';a.timer=0;a.angle=normalizeRotation(a.home.rotation)+Math.PI;return;
     }
     if(a.state==='factoryOutput'){
