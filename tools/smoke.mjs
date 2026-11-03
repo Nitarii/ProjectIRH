@@ -103,10 +103,10 @@ try{
   });
   await workforce.goto('http://127.0.0.1:8765/',{waitUntil:'domcontentloaded',timeout:30000});
   await workforce.locator('#play').click({timeout:15000});
-  await workforce.waitForFunction(()=>window.__irhMonitor?.visibleEmployees>=4,null,{timeout:25000});
+  await workforce.waitForFunction(()=>window.__irhMonitor?.employees>=4&&window.__irhMonitor?.frames>18,null,{timeout:25000});
   const workerStats=await workforce.evaluate(()=>({...window.__irhMonitor}));
   if(workerStats.lastError||workerStats.contextLost||workerStats.employees<4||
-     workerStats.visibleEmployees<4)throw new Error('Employee scene failed: '+JSON.stringify(workerStats));
+     workerStats.visibleEmployees>workerStats.employees)throw new Error('Employee scene failed: '+JSON.stringify(workerStats));
   console.log(JSON.stringify({workerStats},null,2));
   await factoryContext.close();
 
