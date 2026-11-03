@@ -853,6 +853,10 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     if(planningClock>=.33){reconcile();hooks.roads?.rebuild(buildings,sale);planningClock=0}
 
     let shown=0,transporting=0,carrying=0;abstractCount=0;
+    // Each facility has at most five staff. A tiny local occupancy list
+    // avoids quadratic all-world worker checks while preventing two visible
+    // operators from standing at the exact same point in a narrow aisle.
+    const localOccupancy=new Map();
     for(const a of agents){
       const previous=a.abstract;
       a.abstract=!inView(a.x,a.z,155)&&distance(a,viewer)>32;
@@ -880,6 +884,27 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       }else {
         if(a.abstractElapsed){updateAgent(a,a.abstractElapsed);a.abstractElapsed=0}
         updateAgent(a,dt);
+      }
+      if(!a.abstract){
+        let occupied=localOccupancy.get(a.home.id);
+        if(!occupied){occupied=[];localOccupancy.set(a.home.id,occupied)}
+        for(const other of occupied){
+          const dx=a.x-other.x,dz=a.z-other.z;
+          if(dx*dx+dz*dz>=.46*.46)continue;
+          const bearing=dx*dx+dz*dz>.0001?Math.atan2(dz,dx):
+            (a.slot+1)*2.399963229728653;
+          for(const angleOffset of [0,.65,-.65,1.3,-1.3,Math.PI]){
+            const angle=bearing+angleOffset;
+            const x=other.x+Math.cos(angle)*.64;
+            const z=other.z+Math.sin(angle)*.64;
+            if(staticBlocked(x,z,.43,a.target))continue;
+            if(occupied.some(p=>(p.x-x)**2+(p.z-z)**2<.46*.46))continue;
+            a.x=x;a.z=z;
+            a.route=null;a.routeGoal=null;a.goalKey='';
+            break;
+          }
+        }
+        occupied.push(a);
       }
       if(!a.abstract&&animate(a,dt))shown++;
       else removeView(a);
