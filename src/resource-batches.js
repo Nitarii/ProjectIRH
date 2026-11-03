@@ -24,6 +24,17 @@ export function batchResourceNodes(T,chunk){
     const mesh=new T.InstancedMesh(group.geometry,group.material,group.items.length);
     mesh.castShadow=group.shadow;mesh.receiveShadow=false;
     mesh.frustumCulled=true;
+    let minX=Infinity,minY=Infinity,minZ=Infinity,maxX=-Infinity,maxY=-Infinity,maxZ=-Infinity;
+    for(const {matrix} of group.items){
+      const e=matrix.elements,x=e[12],y=e[13],z=e[14];
+      minX=Math.min(minX,x);maxX=Math.max(maxX,x);
+      minY=Math.min(minY,y);maxY=Math.max(maxY,y);
+      minZ=Math.min(minZ,z);maxZ=Math.max(maxZ,z);
+    }
+    // Fixed conservative bounds also cover newly revealed instances; no expensive
+    // bounding-sphere recomputation every time a node enters or leaves LOD.
+    const center=new T.Vector3((minX+maxX)/2,(minY+maxY)/2,(minZ+maxZ)/2);
+    mesh.boundingSphere=new T.Sphere(center,Math.hypot((maxX-minX)/2,(maxY-minY)/2,(maxZ-minZ)/2)+6.5);
     group.items.forEach(({node,matrix},index)=>{
       mesh.setMatrixAt(index,hidden);
       node.batchSlots.push({mesh,index,matrix});
