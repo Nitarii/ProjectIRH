@@ -411,7 +411,7 @@ avatar.position.y=T.MathUtils.damp(avatar.position.y,
   moving?Math.abs(Math.sin(stepPhase))*(sprinting?.115:.07):0,12,dt);
 for(const variants of toolModels)for(const model of variants)model.visible=false;
 if(bikeRiding){
-  const rhythm=stepPhase*.59;
+  const rhythm=bicycle.distance/2.0;
   avatar.position.y=T.MathUtils.damp(avatar.position.y,.31,9,dt);
   avatar.rotation.x=T.MathUtils.damp(avatar.rotation.x,.25+(sprinting?.08:0),8,dt);
   avatar.rotation.y=T.MathUtils.damp(avatar.rotation.y,0,10,dt);
