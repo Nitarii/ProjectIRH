@@ -1421,20 +1421,51 @@ $('play').onclick=()=>{
 const exploration=createExplorationMap({canvas:$('worldMapCanvas'),overlay:$('worldMap'),player,biome,buildings:()=>st.buildings,settings,onDiscover:cells=>{st.explored=cells;}});
 exploration.load(st.explored);
 const minimap=$('map').getContext('2d');
-let lastMapX=Infinity,lastMapZ=Infinity,lastMapAt=-Infinity,lastExplorationSave=0;
+// Cache the biome raster independently of rotation; heading updates are cheap.
+const minimapTiles=document.createElement('canvas');
+minimapTiles.width=minimapTiles.height=252;
+const tileCtx=minimapTiles.getContext('2d',{alpha:false});
+let lastMapX=Infinity,lastMapZ=Infinity,lastMapAt=-Infinity,lastMapDrawAt=-Infinity,lastMapHeading=Infinity,lastExplorationSave=0;
 function map(){
-const px=player.position.x,pz=player.position.z;
-if(Math.hypot(px-lastMapX,pz-lastMapZ)<.65&&elapsed-lastMapAt<1.8)return;
-lastMapX=px;lastMapZ=pz;lastMapAt=elapsed;
-exploration.visit(px,pz);
-if(elapsed-lastExplorationSave>22){lastExplorationSave=elapsed;save()}
-minimap.clearRect(0,0,168,168);minimap.save();minimap.beginPath();minimap.arc(84,84,82,0,7);minimap.clip();for(let x=0;x<24;x++)for(let z=0;z<24;z++){let b=biome(player.position.x+(x-12)*9,player.position.z+(z-12)*9);minimap.fillStyle=b<0?'#598654':colors[b];minimap.fillRect(x*7,z*7,8,8)}minimap.fillStyle='white';minimap.beginPath();minimap.arc(84,84,4,0,7);minimap.fill();
-const vx=-px,vz=-pz,vl=Math.hypot(vx,vz);
-if(vl>14){const ax=84+vx/vl*73,az=84+vz/vl*73,angle=Math.atan2(vz,vx);
-minimap.save();minimap.translate(ax,az);minimap.rotate(angle);
-minimap.fillStyle='#ffd27b';minimap.strokeStyle='#192621';minimap.lineWidth=2;
-minimap.beginPath();minimap.moveTo(9,0);minimap.lineTo(-5,-5);minimap.lineTo(-3,0);minimap.lineTo(-5,5);minimap.closePath();minimap.fill();minimap.stroke();minimap.restore()}
-minimap.restore()}
+ const px=player.position.x,pz=player.position.z;
+ const moved=Math.hypot(px-lastMapX,pz-lastMapZ)>1.8;
+ const refresh=moved||elapsed-lastMapAt>1.8;
+ const turn=Math.abs(Math.atan2(Math.sin(heading-lastMapHeading),Math.cos(heading-lastMapHeading)));
+ if(!refresh&&(turn<.014||elapsed-lastMapDrawAt<.045))return;
+ if(refresh){
+   lastMapX=px;lastMapZ=pz;lastMapAt=elapsed;
+   exploration.visit(px,pz);
+   if(elapsed-lastExplorationSave>22){lastExplorationSave=elapsed;save()}
+   for(let x=0;x<36;x++)for(let z=0;z<36;z++){
+     const b=biome(px+(x-18)*9,pz+(z-18)*9);
+     tileCtx.fillStyle=b<0?'#598654':colors[b]||colors[0];
+     tileCtx.fillRect(x*7,z*7,7,7);
+   }
+ }
+ lastMapHeading=heading;lastMapDrawAt=elapsed;
+ minimap.clearRect(0,0,168,168);
+ minimap.save();minimap.beginPath();minimap.arc(84,84,82,0,Math.PI*2);minimap.clip();
+ minimap.fillStyle='#17332c';minimap.fillRect(0,0,168,168);
+ minimap.translate(84,84);minimap.rotate(heading);
+ minimap.drawImage(minimapTiles,-126,-126);minimap.rotate(-heading);
+ // Player arrow is always pointed toward the top of the moving minimap.
+ minimap.fillStyle='#f9fff5';minimap.strokeStyle='#102b24';minimap.lineWidth=2;
+ minimap.beginPath();minimap.moveTo(0,-10);minimap.lineTo(7,7);
+ minimap.lineTo(0,3);minimap.lineTo(-7,7);minimap.closePath();minimap.fill();minimap.stroke();
+ const dx=-px,dz=-pz,d=Math.hypot(dx,dz);
+ if(d>14){
+   // Rotate the actual bearing to home with the same camera transform.
+   const rx=Math.cos(heading)*dx-Math.sin(heading)*dz;
+   const rz=Math.sin(heading)*dx+Math.cos(heading)*dz;
+   const angle=Math.atan2(rz,rx);
+   minimap.save();minimap.translate(rx/d*73,rz/d*73);minimap.rotate(angle);
+   minimap.fillStyle='#ffd27b';minimap.strokeStyle='#192621';minimap.lineWidth=2;
+   minimap.beginPath();minimap.moveTo(9,0);minimap.lineTo(-5,-5);
+   minimap.lineTo(-3,0);minimap.lineTo(-5,5);minimap.closePath();minimap.fill();minimap.stroke();
+   minimap.restore();
+ }
+ minimap.restore();
+}
 
 const monitor={frames:0,drawCalls:0,chunks:0,resources:0,lastError:'',contextLost:false};
 Object.defineProperty(window,'__irhMonitor',{value:monitor,configurable:false});
@@ -1633,8 +1664,8 @@ monitor.buildingLabels=industry.getLabels();
 monitor.resourceGeometries=resourceGraphics.geometryCount;
 monitor.batchedChunks=0;
 for(const c of world.values())if(c.resourceBatches?.length)monitor.batchedChunks++;
-map()
 }
+map();
 if(st.gold!==observedGold){
   if(st.gold>observedGold){
     const difference=st.gold-observedGold,indicator=$('goldGain');
