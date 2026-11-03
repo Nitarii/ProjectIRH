@@ -115,10 +115,25 @@ for(let type=0;type<5;type++){
       }
       else {g.add(cube(.82,.25,.22,m.shirt,0,-.7,0),cube(.68,.11,.06,metal,.33,-.85,0))}
     }else if(type===1){
-      if(tier<3)g.add(cube(.65+tier*.12,.19,.16,metal,0,-.65,0));
+      if(tier<3){
+        g.add(cube(.57+tier*.12,.17,.16,metal,0,-.65,0));
+        // The sharpened +X pick point is turned toward the resource (+Z)
+        // by the animated tool holder when the head swings forward.
+        const tip=new T.Mesh(new T.ConeGeometry(.115+tier*.025,.38+tier*.09,5),metal);
+        tip.rotation.z=-Math.PI/2;
+        tip.position.set(.38+tier*.095,-.65,0);
+        tip.castShadow=true;g.add(tip);
+        const heel=new T.Mesh(new T.ConeGeometry(.09,.20,5),metal);
+        heel.rotation.z=Math.PI/2;heel.position.set(-.30,-.65,0);g.add(heel);
+      }
       else {g.add(cube(.72,.4,.32,m.shirt,0,-.62,0),cy(.09,.4,metal,0,-.9,0))}
     }else if(type===2){
-      if(tier<2)g.add(cube(.65,.18,.18,metal,0,-.64,0));
+      if(tier<2){
+        g.add(cube(.66,.18,.18,metal,0,-.64,0));
+        const tip=new T.Mesh(new T.ConeGeometry(.13,.46,5),metal);
+        tip.rotation.z=-Math.PI/2;tip.position.set(.45,-.64,0);
+        tip.castShadow=true;g.add(tip);
+      }
       else {g.add(cy(.19+tier*.03,.58,m.shirt,0,-.56,0),cy(.075,.52,metal,0,-.92,0))}
     }else if(type===3){
       if(tier<2)g.add(cube(.30,.43,.09,metal,0,-.78,0));
@@ -576,12 +591,12 @@ if(tier<0){
   }else if(type===1){
     pose(rightArm,heavy?-1.25+stroke:-1.00-reach*swing,0,-.2-stroke*.3);
     pose(leftArm,-.7-.6*lift,0,-.26);
-    toolHolder.rotation.set(heavy?-.8:-.75+.36*lift,0,0);
+    toolHolder.rotation.set(heavy?-.8:-.75+.36*lift,heavy?-.23:-Math.PI/2,.04*impact);
     avatar.rotation.x=.1*impact;
   }else if(type===2){
     pose(rightArm,mechanical?-1.42+stroke:-.94-reach*swing,.06,-.1);
     pose(leftArm,mechanical?-1.37:-.7,0,.12);
-    toolHolder.rotation.set(mechanical?-1.1+.06*impact:-.8+.24*lift,0,.03*impact);
+    toolHolder.rotation.set(mechanical?-1.1+.06*impact:-.8+.24*lift,mechanical?0:-Math.PI/2,.03*impact);
     avatar.rotation.x=mechanical?.07:.10*impact;
   }else if(type===3){
     pose(rightArm,heavy?-1.0+stroke:-.55-reach*swing,0,-.17);
