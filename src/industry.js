@@ -154,10 +154,36 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     const p=storagePoint(b,processed);
     return {x:p.x+(slot-2)*.72,z:p.z+Math.abs(slot-2)*.12};
   }
-  function nearPoint(target,approach=1.25,from=null){
-    const fx=from?.x??0,fz=from?.z??0;
-    const dx=fx-target.x,dz=fz-target.z,len=Math.max(.001,Math.hypot(dx,dz));
-    return {x:target.x+dx/len*approach,z:target.z+dz/len*approach};
+  function approachNode(agent,target,attempt=0){
+    const distanceFromTarget=Math.hypot(agent.x-target.x,agent.z-target.z);
+    const angle=Math.atan2(agent.z-target.z,agent.x-target.x);
+    // Keep a real body-width corridor between the worker and the tree or rock.
+    const radius=[1.52,1.72,1.65,1.42,1.24][target.type];
+    const offsets=[0,Math.PI/3,-Math.PI/3,2*Math.PI/3,-2*Math.PI/3,
+      Math.PI,Math.PI/6,-Math.PI/6,Math.PI/2,-Math.PI/2];
+    const start=attempt%offsets.length;
+    for(let j=0;j<offsets.length;j++){
+      const offset=offsets[(start+j)%offsets.length];
+      for(const expansion of [0,.55,1.15]){
+        const x=target.x+Math.cos(angle+offset)*(radius+expansion);
+        const z=target.z+Math.sin(angle+offset)*(radius+expansion);
+        if(staticBlocked(x,z,.42))continue;
+        if(distanceFromTarget<.01)continue;
+        return {x,z};
+      }
+    }
+    return null;
+  }
+  function clearStockAccess(agent,goal){
+    if(!staticBlocked(goal.x,goal.z,.40))return goal;
+    for(const r of [.65,1.0,1.5,2.15]){
+      for(let i=0;i<16;i++){
+        const a=(i/16)*Math.PI*2+agent.slot*.23;
+        const p={x:goal.x+Math.cos(a)*r,z:goal.z+Math.sin(a)*r};
+        if(!staticBlocked(p.x,p.z,.40))return p;
+      }
+    }
+    return null;
   }
 
   const gridSize=12,sourceCells=new Map(),buildingCells=new Map();
@@ -269,7 +295,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     const b=a.home;
     let best=null,score=Infinity;
     for(const r of resources){
-      if(r.dead||r.type!==b.type||r.workerClaim&&r.workerClaim!==a.id)continue;
+      if(r.dead||r.type!==b.type||(r.unreachableUntil||0)>time||r.workerClaim&&r.workerClaim!==a.id)continue;
       const d=distance(r,b);
       if(d>55||d<2.5)continue;
       if(d<score){best=r;score=d}
@@ -301,7 +327,11 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     if(a.home.stockRaw>=totalCapacity)return;
     const target=reserveResource(a);
     if(!target){if(distance(a.home,viewer)>80){a.state='remoteGather';a.timer=0}return}
-    a.target=target;a.goal=nearPoint(target,[.95,1.3,1.2,1.1,.85][a.home.type],a);
+    a.target=target;a.approachAttempts=0;
+    a.goal=approachNode(a,target,0);
+    if(!a.goal){
+      target.unreachableUntil=time+25;release(a);a.selectionCooldown=1.5;return;
+    }
     a.state='toResource';a.timer=0;
   }
   function findTransport(a){
