@@ -134,3 +134,9 @@ Run `node tests/auto-harvest-priority.mjs` to verify selection and fallback beha
 - New regression suite: `node tests/ai-cargo-factory-paths.mjs` checks cargo retention, 100 refinery/rotation/employee cases, 800 ground-level movement segments and 20 real route solutions. Updated nature tests check that camera motion does not change cloud placement and that moving the player does not shift fixed ambient particles.
 
 These simulation tests cannot replace testing all on-screen WebGL collision silhouettes and animations on actual devices.
+
+## Default camera after closing any interface
+
+On desktop, exiting a menu (button, Escape/Tab, same-menu shortcut), completing a storage transaction, starting building placement, leaving the avatar editor or closing the explored-world map now **requests camera pointer lock automatically** and clears the free-cursor state. The explicit right-click cursor toggle remains available during gameplay. A delayed pointer-lock release event is prevented from undoing this transition. Mobile touch controls never request mouse lock.
+
+Run `node tests/camera-lock-after-menus.mjs` to check overlay closing, map controls and simulated browser event races. Some browsers restrict pointer lock immediately after Escape; when permission is denied, a left click on the game resumes camera capture.
