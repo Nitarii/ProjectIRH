@@ -40,6 +40,16 @@ try{
   const counts=progress.map(p=>p.marker?.frames??0);
   if(counts.every(n=>n>0)&&counts.slice(1).some((n,i)=>n<=counts[i]))throw new Error('Frame rendering stalled');
   if(progress.every(p=>!p.coords))throw new Error('World position did not update');
+  const rendering=progress.at(-1)?.marker;
+  if(!rendering||rendering.lastError||rendering.contextLost)
+    throw new Error('World rendering diagnostics failed: '+JSON.stringify(rendering));
+  if(rendering.resourceGeometries>180||!rendering.batchedChunks)
+    throw new Error('Resource batch or geometry reuse regression: '+JSON.stringify(rendering));
+  console.log(JSON.stringify({rendering:{
+    frames:rendering.frames,drawCalls:rendering.drawCalls,chunks:rendering.chunks,
+    resources:rendering.resources,batchedChunks:rendering.batchedChunks,
+    sharedGeometryCount:rendering.resourceGeometries,estimatedFps:rendering.estimatedFps
+  }},null,2));
   await context.close();
   const checkContext=await browser.newContext({viewport:{width:1280,height:800}});
   const salePage=await checkContext.newPage();
