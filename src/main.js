@@ -1338,6 +1338,12 @@ addEventListener('keydown',e=>{
   }
   if(!$('creator').classList.contains('hidden')||
      !$('welcome').classList.contains('hidden'))return;
+  if(exploration.visible){
+    if(e.code===settings.bindings.map||e.code==='Escape'||e.code==='Tab'){
+      e.preventDefault();exploration.setVisible(false);
+    }
+    return;
+  }
   keys[e.code]=true;
   if(!panel&&!exploration.visible&&['forward','backward','left','right'].some(k=>isPressed(keys,settings,k))){
     autoPilot.setEnabled(false);stopHarvest();
@@ -1345,7 +1351,6 @@ addEventListener('keydown',e=>{
   if(e.repeat)return;
   if(e.code==='Escape'||e.code==='Tab'){
     e.preventDefault();
-    if(exploration.visible){exploration.setVisible(false);return}
     if(placing){cancelPlacement();if(e.code==='Tab')openPanel('settings');}
     else if(panel)close();
     else openPanel('settings');
@@ -1362,9 +1367,8 @@ addEventListener('keydown',e=>{
       return;
     }
   }
-  if(exploration.visible)return;
   if(panel)return;
-  if(e.code===settings.bindings.map){e.preventDefault();exploration.setVisible(true);document.exitPointerLock?.();return}
+  if(e.code===settings.bindings.map){e.preventDefault();openWorldMap();return}
   if(e.code===settings.bindings.auto){if(bikeRiding){bikeRiding=false;bicycle.group.visible=false}autoPilot.toggle();return}
   if(e.code===settings.bindings.jump&&player.position.y<.01){
     autoPilot.setEnabled(false);
@@ -1388,7 +1392,7 @@ $('hud').querySelector('.keyline').addEventListener('click',e=>{
     if(bikeRiding){bikeRiding=false;bicycle.group.visible=false}
     autoPilot.toggle();return;
   }
-  if(action==='map'){exploration.setVisible(true);document.exitPointerLock?.();return}
+  if(action==='map'){openWorldMap();return}
   if(['market','build','talents','settings'].includes(action))openPanel(action);
 });
 addEventListener('keyup',e=>keys[e.code]=false);
@@ -1517,7 +1521,17 @@ $('play').onclick=()=>{
   if(!st.avatar)openAvatarBuilder();
   else finishWelcome();
 };
-const exploration=createExplorationMap({canvas:$('worldMapCanvas'),overlay:$('worldMap'),player,biome,buildings:()=>st.buildings,settings,onDiscover:cells=>{st.explored=cells;}});
+function openWorldMap(){
+  keys={}; // Never keep a held movement key while the atlas owns input.
+  exploration.setVisible(true);
+  document.exitPointerLock?.();
+}
+let mapAgents=[],lastAgentSample=-Infinity;
+const exploration=createExplorationMap({
+  canvas:$('worldMapCanvas'),overlay:$('worldMap'),player,biome,
+  buildings:()=>st.buildings,agents:()=>mapAgents,settings,
+  onDiscover:cells=>{st.explored=cells;}
+});
 exploration.load(st.explored);
 const minimap=$('map').getContext('2d');
 // Cache the biome raster independently of rotation; heading updates are cheap.
@@ -1527,10 +1541,15 @@ const tileCtx=minimapTiles.getContext('2d',{alpha:false});
 let lastMapX=Infinity,lastMapZ=Infinity,lastMapAt=-Infinity,lastMapDrawAt=-Infinity,lastMapHeading=Infinity,lastExplorationSave=0;
 function map(){
  const px=player.position.x,pz=player.position.z;
+ const newAgents=elapsed-lastAgentSample>.32;
+ if(newAgents){
+   lastAgentSample=elapsed;
+   mapAgents=industry.snapshot();
+ }
  const moved=Math.hypot(px-lastMapX,pz-lastMapZ)>1.8;
  const refresh=moved||elapsed-lastMapAt>1.8;
  const turn=Math.abs(Math.atan2(Math.sin(heading-lastMapHeading),Math.cos(heading-lastMapHeading)));
- if(!refresh&&(turn<.014||elapsed-lastMapDrawAt<.045))return;
+ if(!refresh&&!newAgents&&(turn<.014||elapsed-lastMapDrawAt<.045))return;
  if(refresh){
    lastMapX=px;lastMapZ=pz;lastMapAt=elapsed;
    exploration.visit(px,pz);
@@ -1546,7 +1565,17 @@ function map(){
  minimap.save();minimap.beginPath();minimap.arc(84,84,82,0,Math.PI*2);minimap.clip();
  minimap.fillStyle='#17332c';minimap.fillRect(0,0,168,168);
  minimap.translate(84,84);minimap.rotate(heading);
- minimap.drawImage(minimapTiles,-126,-126);minimap.rotate(-heading);
+ minimap.drawImage(minimapTiles,-126,-126);
+ // Shared with the atlas: gold = building and cyan = active/abstract worker.
+ const point=(x,z,radius,color)=>{
+   const xpx=(x-px)*7/9,zpx=(z-pz)*7/9;
+   if(Math.abs(xpx)>110||Math.abs(zpx)>110)return;
+   minimap.fillStyle=color;minimap.beginPath();
+   minimap.arc(xpx,zpx,radius,0,Math.PI*2);minimap.fill();
+ };
+ for(const b of st.buildings)point(b.x,b.z,3.1,'#ffe0a1');
+ for(const agent of mapAgents)point(agent.x,agent.z,1.8,'#80f2f3');
+ minimap.rotate(-heading);
  // Player arrow is always pointed toward the top of the moving minimap.
  minimap.fillStyle='#f9fff5';minimap.strokeStyle='#102b24';minimap.lineWidth=2;
  minimap.beginPath();minimap.moveTo(0,-10);minimap.lineTo(7,7);
@@ -1767,6 +1796,7 @@ monitor.batchedChunks=0;
 for(const c of world.values())if(c.resourceBatches?.length)monitor.batchedChunks++;
 }
 map();
+exploration.update(dt);
 if(st.gold!==observedGold){
   if(st.gold>observedGold){
     const difference=st.gold-observedGold,indicator=$('goldGain');
