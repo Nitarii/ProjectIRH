@@ -457,9 +457,9 @@ return best
 
 function sell({notifyEmpty=true,includeCarried=isSelling(player.position.x,player.position.z)}={}){
   stopHarvest();
-  const bagValue=st.inv.reduce((sum,n,i)=>sum+n*values[i],0);
-  const productValue=st.products.reduce((sum,n,i)=>sum+n*values[i]*3,0);
-  const oldStorage=st.stock.reduce((sum,i)=>sum+(i===0?65:values[i]*4),0);
+  const bagValue=st.inv.reduce((sum,n,i)=>sum+Math.round(n*values[i]*expertiseMultiplier(st,i)),0);
+  const productValue=st.products.reduce((sum,n,i)=>sum+Math.round(n*values[i]*3*expertiseMultiplier(st,i)),0);
+  const oldStorage=st.stock.reduce((sum,i)=>sum+Math.round((i===0?65:values[i]*4)*expertiseMultiplier(st,i)),0);
   const logValue=includeCarried&&carried?65:0;
   const amount=bagValue+productValue+oldStorage+logValue;
   if(amount<=0){if(notifyEmpty)pop('Aucune marchandise à vendre');return 0}
@@ -691,25 +691,36 @@ function interact(){
 
 function buy(cost,fn){if(st.gold<cost){sound.effect('exhausted');return pop('Or insuffisant')}st.gold-=cost;sound.effect('buy');fn();updateInventory();save();renderPanel()}
 const industry=createIndustry(T,scene,st,resources,biome,SALE,values,{
-onSale(amount){save()},blocked:sceneryBlocked,
+onSale(amount){save()},
+priceMultiplier(type){return expertiseMultiplier(st,type)},
+onResourceHit(node){
+  resourceLife.hit(node);
+  harvestFx.emit(node,player.position);
+},
+onResourceDepleted(node){
+  resourceLife.deplete(node);
+  setDistantResource(T,node,false);
+  save();
+},
+blocked:sceneryBlocked,
 onMove(id,x,z){trails.recordMovement(id,x,z)}
 });
 function addBuilding(b){return industry.register(b)}
 st.buildings.forEach(addBuilding);
 
-const panels={market:'COMPTOIR',build:'CONSTRUCTION',talents:'PROGRESSION',inventory:'INVENTAIRE',settings:'PARAMÈTRES'};
+const panels={market:'COMPTOIR',build:'CONSTRUCTION',talents:'PROGRESSION',settings:'PARAMÈTRES'};
 let panel=null;
 const biomeIcons=['♧','◆','◈','◒','✺'];
 const add=(title,sub,cost,action,off=false,biomeId=-1)=>`<article class="shop-card ${biomeId>=0?'biome-'+biomeId:''}">
 <div class="shop-card-head"><span class="item-icon">${biomeId>=0?biomeIcons[biomeId]:'✦'}</span><div><strong>${title}</strong><small>${sub}</small></div></div>
 <button data-action="${action}" ${off?'disabled':''}>${cost}</button></article>`;
 const section=(title,kicker,content)=>`<section class="catalog-section"><div class="catalog-heading"><h3>${title}</h3><span>${kicker}</span></div><div class="catalog-grid">${content}</div></section>`;
-function openPanel(k){stopHarvest();sound.effect('ui');panel=panel===k?null:k;renderPanel();if(panel)document.exitPointerLock?.()}
+function openPanel(k){sound.effect('ui');panel=panel===k?null:k;renderPanel();if(panel)document.exitPointerLock?.()}
 function renderPanel(){
 const box=$('panel');box.classList.toggle('hidden',!panel);if(!panel)return;
 $('panelTitle').textContent=panel==='settings'?UI[settings.language].settings:tr(panels[panel],settings.language);
 $('panelTag').textContent='FRONTIER CAPITAL';
-$('tabs').innerHTML=(panel==='settings'?['settings']:['market','build','talents','inventory']).map(k=>'<button data-tab="'+k+'" '+(panel===k?'class="active"':'')+'>'+tr(panels[k],settings.language)+'</button>').join(' ');
+$('tabs').innerHTML=(panel==='settings'?['settings']:['market','build','talents']).map(k=>'<button data-tab="'+k+'" '+(panel===k?'class="active"':'')+'>'+tr(panels[k],settings.language)+'</button>').join(' ');
 $('resume').textContent=UI[settings.language].back;
 if(panel==='settings'){
   $('shopbody').innerHTML=optionsMarkup(settings,awaitingBinding);
@@ -731,7 +742,7 @@ if(level<4)utility+=add('Condition physique','Endurance '+maxStamina()+' → '+(
 if(!st.cart)utility+=add('Chariot utilitaire','Transport de petites charges',ECONOMY.cart+' OR','cart');
 if(!st.truck)utility+=add('Camion de ressources','Grand volume de transport',ECONOMY.truck+' OR','truck');
 out+=section('Équipement','CONSERVATION & MOBILITÉ',utility||'<p class="catalog-empty">Équipement entièrement amélioré.</p>');
-out+=section('Comptoir','TRANSACTIONS',add('Vendre le chargement','Inventaire et zone de vente','VENDRE','sell'));
+
 }
 if(panel==='build'){
 for(let i=0;i<5;i++){
@@ -751,11 +762,15 @@ return add(title,'Employés : '+b.workers+'/'+industry.limit+' · '+stock,b.work
 if(panel==='talents'){
 const level=st.staminaLevel||0;
 out+=section('Endurance & sprint','PERFORMANCES',level<4?add('Endurance '+(level+1),'Réserve '+maxStamina()+' → '+(maxStamina()+32)+' · récupération +4/s',ECONOMY.stamina[level]+' OR','stamina'):add('Endurance MAX','Capacité maximale atteinte','MAX','noop',true));
-out+=section('Expertise des métiers','SPÉCIALISATIONS',types.map((name,i)=>add(name+' · Palier '+st.talents[i],'+10 % à la valeur de vente (développement)',ECONOMY.talent+' OR','talent:'+i,false,i)).join(''));
-}
-if(panel==='inventory'){
-out+=section('Contenu transporté',count()+' / '+st.bag+' EMPLACEMENTS',types.map((name,i)=>add(raw[i],st.inv[i]+' unité(s) · '+processed[i]+' : '+st.products[i],values[i]+' / unité','noop',true,i)).join(''));
-out+=section('Stock en dépôt','ZONE DE VENTE',add('Marchandises à vendre',st.stock.length+' tronc(s) enregistré(s)','VENDRE','sell'));
+out+=section('Expertise des métiers','SPÉCIALISATIONS',types.map((name,i)=>{
+  const tier=Math.max(0,Math.min(MAX_EXPERTISE,st.talents[i]||0));
+  const label=settings.language==='fr'
+    ?'+12 % valeur de vente et +4,5 % vitesse de récolte par niveau'
+    :'+12% sale value and +4.5% harvesting speed per level';
+  return add(name+' · '+(settings.language==='fr'?'Niveau ':'Level ')+tier+'/'+MAX_EXPERTISE,
+    label,tier>=MAX_EXPERTISE?'MAX':expertiseCost(i,tier)+' OR',
+    'talent:'+i,tier>=MAX_EXPERTISE,i);
+}).join(''));
 }
 $('shopbody').innerHTML=out;translateTree($('shopbody'),settings.language);
 $('panelhint').textContent=tr(st.gold.toLocaleString(settings.language==='fr'?'fr-FR':'en-US')+' pièces d’or',settings.language);
@@ -821,7 +836,11 @@ if(kind==='carry'){
   if(!building||(building.carryLevel||0)>=5)return;
   return buy(workerCarryCost(building.carryLevel||0),()=>{building.carryLevel=(building.carryLevel||0)+1;industry.sync()});
 }
-if(kind==='talent')return buy(ECONOMY.talent,()=>st.talents[i]++);
+if(kind==='talent'){
+  const tier=st.talents[i]||0;
+  if(tier>=MAX_EXPERTISE)return;
+  return buy(expertiseCost(i,tier),()=>st.talents[i]++);
+}
 if(['factory','worker','transport','seller'].includes(kind)){
   const price=buildingCost(kind,i);
   return buy(price,()=>beginPlacement(kind,i,price));
@@ -867,7 +886,7 @@ storeSettings(settings);
 if(id==='settingLanguage')applyLocale();
 renderPanel();
 };
-const close=()=>{stopHarvest();panel=null;renderPanel()};$('close').onclick=close;$('resume').onclick=close;
+const close=()=>{panel=null;renderPanel()};$('close').onclick=close;$('resume').onclick=close;
 function applyLocale(){
 document.documentElement.lang=settings.language;
 signCtx.clearRect(0,0,640,180);
@@ -901,7 +920,7 @@ addEventListener('keydown',e=>{
     awaitingBinding=null;storeSettings(settings);renderPanel();applyLocale();return;
   }
   keys[e.code]=true;
-  if(['forward','backward','left','right'].some(k=>isPressed(keys,settings,k)))stopHarvest();
+  if(!panel&&['forward','backward','left','right'].some(k=>isPressed(keys,settings,k)))stopHarvest();
   if(e.repeat)return;
   if(e.code==='Escape'||e.code==='Tab'){
     e.preventDefault();
@@ -918,7 +937,7 @@ addEventListener('keydown',e=>{
   if(e.code===settings.bindings.drop&&carried){sound.effect('ui');drop()}
   if(e.code===settings.bindings.build)openPanel('build');
   if(e.code===settings.bindings.talents)openPanel('talents');
-  if(e.code===settings.bindings.inventory)openPanel('inventory');
+  if(e.code===settings.bindings.market)openPanel('market');
   if(e.code===settings.bindings.vehicle)pop(st.truck?'Truck owned':'Buy a truck at the market');
 });
 addEventListener('keyup',e=>keys[e.code]=false);
