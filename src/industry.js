@@ -1,5 +1,5 @@
-import {makeStructure} from './structures.js?v=20261103v';
-import {createRouter} from './navigation.js';
+import {makeStructure} from './structures.js?v=20261103w';
+import {createRouter} from './navigation.js?v=20261103w';
 import {workstation,storagePoint} from './factory-tasks.js?v=20261103v';
 
 export function createIndustry(T, scene, st, resources, biome, sale, values, hooks={}) {
