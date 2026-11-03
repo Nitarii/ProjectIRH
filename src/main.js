@@ -852,6 +852,8 @@ if(fps<19&&!p.reduced){
 p.reduced=true;
 renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,settings.quality==='low'?.72:.8));
 renderer.shadowMap.enabled=false;
+R=Math.min(R,settings.quality==='low'?1:2);
+streamingCenter='';
 monitor.lowPowerMode=true;
 console.warn('Reduced graphics load for stable rendering');
 }
