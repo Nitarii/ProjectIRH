@@ -1654,8 +1654,11 @@ function positionInteractionTooltip(){
      Math.abs(tooltipPosition.x)>1.04||Math.abs(tooltipPosition.y)>1.04){
     prompt.classList.add('hidden');return;
   }
-  prompt.style.left=Math.round((tooltipPosition.x+1)*.5*window.innerWidth)+'px';
-  prompt.style.top=Math.round((1-tooltipPosition.y)*.5*window.innerHeight)+'px';
+  // The HUD is transformed, so viewport coordinates must be converted back
+  // to its unscaled coordinate system before positioning a world-space tooltip.
+  const hudFactor=Math.max(.7,Math.min(1.4,settings.hudScale||1));
+  prompt.style.left=Math.round((tooltipPosition.x+1)*.5*window.innerWidth/hudFactor)+'px';
+  prompt.style.top=Math.round((1-tooltipPosition.y)*.5*window.innerHeight/hudFactor)+'px';
   const key=keyLabel(carried&&!isSelling(player.position.x,player.position.z)
   ?settings.bindings.drop:settings.bindings.interact);
 if(prompt.textContent!==key)prompt.textContent=key;
