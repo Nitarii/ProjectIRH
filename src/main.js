@@ -1439,17 +1439,21 @@ function resizeGame(){
 addEventListener('resize',resizeGame);
 if(window.visualViewport)window.visualViewport.addEventListener('resize',resizeGame);
 renderer.domElement.addEventListener('contextmenu',e=>e.preventDefault());
+// Any ordinary left click on gameplay (not an open menu or active control)
+// restores pointer lock, even if the user previously enabled the free cursor.
+document.addEventListener('pointerdown',e=>{
+  if(e.button!==0||e.pointerType==='touch'||touchControls?.enabled||panel||
+      exploration.visible||!$('welcome').classList.contains('hidden')||
+      !$('creator').classList.contains('hidden'))return;
+  if(e.target.closest?.('button,a,input,select,textarea,[role="dialog"],.panel,.world-map,.creator,.welcome,.mobile-controls'))return;
+  mouseFree=false;document.body.classList.remove('mouse-free');
+  if(document.pointerLockElement!==renderer.domElement)
+    renderer.domElement.requestPointerLock?.();
+},{capture:true});
 renderer.domElement.addEventListener('mousedown',e=>{
-  if(touchControls?.enabled||panel||exploration.visible||
+  if(e.button!==2||touchControls?.enabled||panel||exploration.visible||
     !$('welcome').classList.contains('hidden'))return;
-  if(e.button===0){
-    if(!$('creator').classList.contains('hidden'))return;
-    e.preventDefault();mouseFree=false;document.body.classList.remove('mouse-free');
-    renderer.domElement.requestPointerLock?.();return;
-  }
-  if(e.button!==2)return;
-  e.preventDefault();
-  mouseFree=!mouseFree;
+  e.preventDefault();mouseFree=!mouseFree;
   if(mouseFree)document.exitPointerLock?.();
   else renderer.domElement.requestPointerLock?.();
   document.body.classList.toggle('mouse-free',mouseFree);
