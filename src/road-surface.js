@@ -34,8 +34,8 @@ export function createRoadSurfaces(T,scene,roads,player,{
     mat.onBeforeCompile=shader=>{
       shader.vertexShader=shader.vertexShader.replace('#include <common>',
         '#include <common>\nvarying vec2 roadUv;');
-      shader.vertexShader=shader.vertexShader.replace('#include <uv_vertex>',
-        '#include <uv_vertex>\nroadUv=uv;');
+      shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>',
+        '#include <begin_vertex>\nroadUv=position.xz+vec2(.5);');
       shader.fragmentShader=shader.fragmentShader.replace('#include <common>',
         '#include <common>\nvarying vec2 roadUv;');
       shader.fragmentShader=shader.fragmentShader.replace('#include <alphatest_fragment>',
@@ -90,7 +90,7 @@ export function createRoadSurfaces(T,scene,roads,player,{
           const has=(ax,az)=>stage(tiles[key(ax,az)])>0;
           const horizontal=Number(has(ix+1,iz))+Number(has(ix-1,iz))>=
             Number(has(ix,iz+1))+Number(has(ix,iz-1));
-          if(nb+2<=borders.instanceMatrix.count||nb+2<MAX*2){
+          if(nb+2<=MAX*2){
             if(horizontal){
               pose(borders,nb++,x,z-1.24,cell*.85,.065,.029);
               pose(borders,nb++,x,z+1.24,cell*.85,.065,.029);
