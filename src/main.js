@@ -344,7 +344,7 @@ function updateResourceVisibility(){
   }
 }
 const count=()=>st.inv.reduce((a,b)=>a+b,0)+st.products.reduce((a,b)=>a+b,0);
-let heading=0,pitch=.38,dist=10,active=0,keys={},current=null,placing=null,carried=null,elapsed=0,workerClock=0;
+let heading=0,pitch=.38,dist=10,active=0,keys={},current=null,placing=null,carried=null,carriedSource=null,elapsed=0,workerClock=0;
 let buildingPreview=null,previewMaterials=[],lastPlacementValid=null;
 let harvesting=null,harvestProgress=0,stepPhase=0,autoMode=false;
 function* nearbyResourceNodes(){
@@ -548,7 +548,7 @@ function sell({notifyEmpty=true,includeCarried=isSelling(player.position.x,playe
   const amount=bagValue+productValue+oldStorage+logValue;
   if(amount<=0){if(notifyEmpty)pop('Aucune marchandise à vendre');return 0}
   st.inv.fill(0);st.products.fill(0);st.stock=[];
-  if(logValue){scene.remove(carried);carried=null}
+  if(logValue){scene.remove(carried);carried=null;carriedSource=null}
   st.gold+=amount;sound.effect('sale');
   pop('Vendu · +'+amount+' or');
   updateInventory();save();
@@ -746,10 +746,12 @@ function drop(){
   sound.effect('step');
   carried.position.set(player.position.x,0.47,player.position.z);
   const item=carried;
-  const src=resources.find(o=>o.dead&&!o.log&&Math.hypot(o.x-player.position.x,o.z-player.position.z)<20);
+  const src=carriedSource&&resources.includes(carriedSource)?carriedSource:
+    resources.find(o=>o.type===0&&o.dead&&!o.log&&
+      Math.hypot(o.x-player.position.x,o.z-player.position.z)<20);
   if(src){src.log=item;src.logPlacedAt=elapsed;}
   else scene.remove(item);
-  carried=null;
+  carried=null;carriedSource=null;
   pop('Tronc déposé');save();
 }
 function nearbyBuildingEntrance(){
@@ -771,7 +773,7 @@ function interact(){
   const fallen=resources.find(n=>n.log&&n.dead&&Math.hypot(n.log.position.x-px,n.log.position.z-pz)<3.2);
   if(!carried&&fallen){
     stopHarvest();sound.effect('ui');
-    carried=fallen.log;fallen.log=null;
+    carried=fallen.log;carriedSource=fallen;fallen.log=null;
     pop('Transportez le tronc vers la zone VENDRE');return;
   }
   if(carried)return pop(settings.language==='fr'?'Appuyez sur X pour déposer le rondin':'Press X to drop the log');
@@ -953,7 +955,7 @@ $('panelhint').textContent=tr(st.gold.toLocaleString(settings.language==='fr'?'f
 }
 function clearCarriedInventory(){
   st.inv=[0,0,0,0,0];st.products=[0,0,0,0,0];st.stock=[];
-  if(carried){scene.remove(carried);carried=null}
+  if(carried){scene.remove(carried);carried=null;carriedSource=null}
   stopHarvest();updateInventory();save();
 }
 function safeRespawn(){
