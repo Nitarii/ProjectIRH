@@ -1477,7 +1477,7 @@ if(goldHideAt&&elapsed>goldHideAt){$('goldGain').classList.remove('visible');gol
 renderer.render(scene,cam);
 monitor.frames++;monitor.drawCalls=renderer.info.render.calls;
 monitor.playerX=player.position.x;monitor.playerZ=player.position.z;
-monitor.autoMode=autoMode;monitor.music=sound.currentMusic;
+monitor.autoMode=autoMode;monitor.bikeRiding=bikeRiding;monitor.bicycleDistance=bicycle.distance;monitor.bagCapacity=st.bag;monitor.music=sound.currentMusic;
 monitor.resourceExhausted=Object.keys(resourceLife.exhausted).length;
 monitor.chunks=world.size;monitor.resources=resources.length;
 monitor.inventoryCount=count();monitor.cameraDistance=dist;monitor.constructionActive=!!placing;
