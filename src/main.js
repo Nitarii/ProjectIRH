@@ -1008,7 +1008,7 @@ function resetEntireGame(){
     buildings:[],stock:[],bicycle:false,staminaLevel:0,
     gameMinutes:0,x:0,z:9,
     seed:Math.floor(Math.random()*2000000000)+10000,worldVersion:2,
-    avatar:null,exhausted:{},trails:{}
+    avatar:null,exhausted:{},explored:[],autoLevel:0,trails:{}
   };
   vault.save(fresh).then(()=>location.reload()).catch(e=>{
     console.error('Cannot reset encrypted progress',e);pop('Save unavailable');
@@ -1172,6 +1172,8 @@ $('rotationHint').innerHTML='<kbd>'+keyLabel('KeyQ')+' / '+keyLabel('KeyE')+'</k
  (settings.language==='fr'?'TOURNER':'ROTATE');
 $('autoShortcut').innerHTML='<kbd>'+keyLabel(settings.bindings.auto)+'</kbd> AUTO';
 $('mapShortcut').textContent=keyLabel(settings.bindings.map);
+$('worldMapTitle').textContent=settings.language==='fr'?'CARTE DU MONDE':'WORLD MAP';
+$('worldMapHelp').textContent=settings.language==='fr'?'Glisser pour déplacer · molette pour zoomer · zones sombres inexplorées':'Drag to pan · wheel to zoom · dark areas unexplored';
 updateAutoIndicator();
 
 }
@@ -1188,7 +1190,7 @@ addEventListener('keydown',e=>{
   if(!$('creator').classList.contains('hidden')||
      !$('welcome').classList.contains('hidden'))return;
   keys[e.code]=true;
-  if(!panel&&['forward','backward','left','right'].some(k=>isPressed(keys,settings,k))){
+  if(!panel&&!exploration.visible&&['forward','backward','left','right'].some(k=>isPressed(keys,settings,k))){
     autoPilot.setEnabled(false);stopHarvest();
   }
   if(e.repeat)return;
