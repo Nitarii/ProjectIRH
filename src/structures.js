@@ -1,5 +1,5 @@
 import {normalizeRotation} from './facility-layout.js';
-import {decorateFacility} from './factory-scene.js?v=20261106c';
+import {decorateFacility} from './factory-scene.js?v=20261106d';
 // Small industrial structures share materials and geometry detail budgets.
 export function makeStructure(T, scene, building) {
   const palette=[
