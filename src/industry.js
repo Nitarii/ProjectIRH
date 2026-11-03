@@ -210,6 +210,10 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     else if(a.role==='transport'&&isPresent(source))
       source.stockRaw=limited(source.stockRaw+a.carry);
     else if(a.role==='worker')a.home.stockRaw=limited(a.home.stockRaw+a.carry);
+    else if(a.role==='factory'&&a.carry){
+      if(a.processed)a.home.stockProcessed=limited(a.home.stockProcessed+a.carry);
+      else a.home.inputRaw=limited(a.home.inputRaw+a.carry);
+    }
     else if(isPresent(source))source.stockRaw=limited(source.stockRaw+a.carry);
     a.carry=0;
   }
@@ -285,21 +289,59 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       if(a.role==='worker')beginHarvester(a);
       else if(a.role==='transport')findTransport(a);
       else if(a.role==='seller')findSeller(a);
-      else if(a.role==='factory'){a.state='operate';a.goal={x:a.home.x+1.1,z:a.home.z+2.5}}
+      else if(a.role==='factory'){
+        const task=workstation(a.home.type,a.slot);
+        a.workMotion=task.motion;
+        if(a.home.inputRaw>0&&a.home.stockProcessed<totalCapacity){
+          a.goal=storagePoint(a.home,false);a.state='factoryPickup';
+        }else {
+          a.goal={x:a.home.x+task.point[0],z:a.home.z+task.point[1]};
+          a.state='factoryStandby';
+        }
+      }
       a.selectionCooldown=.7;return;
     }
-    if(a.wait>9){if(a.carry)refundCargo(a);idle(a,1.8);a.wait=0;return}
-    if(a.state==='operate'){
-      if(!walk(a,a.goal,dt,2.1))return;
+    if(a.wait>7){
+      if(a.carry)refundCargo(a);
+      idle(a,1.25);a.wait=0;a.route=null;return
+    }
+    if(a.state==='factoryStandby'){
+      // Five assigned workstations prevent workers from queuing on a single spot.
       if(a.home.inputRaw>0&&a.home.stockProcessed<totalCapacity){
-        a.timer+=dt;
-        if(a.timer>=2.8){
-          const n=Math.min(Math.floor(a.timer/2.8),a.home.inputRaw,totalCapacity-a.home.stockProcessed);
-          a.home.inputRaw-=n;a.home.stockProcessed+=n;a.timer%=2.8;
-          lastStats.processed+=n;hooks.onProcess?.(a.home,n);
-        }
-      }else a.timer=0;
+        a.state='factoryPickup';a.goal=storagePoint(a.home,false);a.timer=0;return;
+      }
+      if(distance(a,a.goal)>.40)walk(a,a.goal,dt,2.3);
       return;
+    }
+    if(a.state==='factoryPickup'){
+      if(a.home.inputRaw<=0||a.home.stockProcessed>=totalCapacity){idle(a,1);return}
+      if(!walk(a,a.goal,dt,2.4))return;
+      a.home.inputRaw--;a.carry=1;a.processed=false;
+      const task=workstation(a.home.type,a.slot);
+      a.goal={x:a.home.x+task.point[0],z:a.home.z+task.point[1]};
+      a.state='factoryToWork';return;
+    }
+    if(a.state==='factoryToWork'){
+      if(walk(a,a.goal,dt,2.35)){
+        a.workMotion=workstation(a.home.type,a.slot).motion;
+        a.state='factoryWork';a.timer=0;a.angle=Math.PI;
+      }
+      return;
+    }
+    if(a.state==='factoryWork'){
+      a.workElapsed+=dt;
+      a.timer+=dt;
+      if(a.timer<workstation(a.home.type,a.slot).duration)return;
+      a.timer=0;a.processed=true;
+      a.state='factoryToOutput';a.goal=storagePoint(a.home,true);
+      return;
+    }
+    if(a.state==='factoryToOutput'){
+      if(!walk(a,a.goal,dt,2.35))return;
+      if(a.home.stockProcessed>=totalCapacity)return;
+      a.home.stockProcessed++;a.carry=0;
+      lastStats.processed++;hooks.onProcess?.(a.home,1);
+      idle(a,.4);return;
     }
     if(a.state==='toResource'){
       if(!a.target||a.target.dead||!resources.includes(a.target)){idle(a,.6);return}
