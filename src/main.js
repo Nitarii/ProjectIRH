@@ -1,6 +1,8 @@
 import * as T from 'three';
 import {createSound} from './sound.js?v=20261103s6';
-import {createAtmosphere} from './atmosphere.js?v=20261103ad';
+import {createAtmosphere} from './atmosphere.js?v=20261106wild1';
+import {createWildlife} from './wildlife.js?v=20261106wild1';
+import {createSkyWeather} from './sky-weather.js?v=20261106wild1';
 import {createIndustry} from './industry.js?v=20261106e';
 import {inventoryIcon} from './item-icons.js?v=20261103k';
 import {createResourceGraphics} from './resource-visuals.js?v=20261103ac';
@@ -15,7 +17,7 @@ import {createTrails} from './trails.js?v=20261106d';
 import {createRoadNetwork} from './road-network.js?v=20261106f';
 import {decorationCollider} from './decor-collision.js?v=20261103p4';
 import {batchResourceNodes,setDistantResource} from './resource-batches.js?v=20261103p4';
-import {createResourceLifecycle} from './resource-life.js?v=20261103s6';
+import {createResourceLifecycle} from './resource-life.js?v=20261106wild1';
 import {createHarvestEffects} from './harvest-fx.js?v=20261103s6';
 import {createAutoPilot} from './auto-pilot.js?v=20261106d';
 import {openingBiome,startingBiomes} from './spawn-biomes.js?v=20261103p8';
@@ -27,9 +29,9 @@ import {worldPoint,facilityFootprint,footprintsOverlap,pointInOrientedRect,norma
 import {createBicycle} from './bicycle.js?v=20261104c';
 import {createExplorationMap} from './exploration-map.js?v=20261105d';
 import {createMobileControls} from './mobile-controls.js?v=20261105a';
-const $=id=>document.getElementById(id), scene=new T.Scene();scene.background=new T.Color('#a6cbd1');scene.fog=new T.FogExp2('#a6cbd1',.0039);
+const $=id=>document.getElementById(id), scene=new T.Scene();scene.background=new T.Color('#a6cbd1');scene.fog=new T.Fog('#a6cbd1',80,125);
 const cam=new T.PerspectiveCamera(65,innerWidth/innerHeight,.1,450),renderer=new T.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.25));renderer.shadowMap.enabled=true;$('game').append(renderer.domElement);
-scene.add(new T.HemisphereLight(0xffffff,0x657449,2.4));const sun=new T.DirectionalLight(0xffe7bc,2.3);sun.position.set(70,95,40);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.bias=-.0004;sun.shadow.normalBias=.024;sun.shadow.radius=2;sun.shadow.camera.left=-60;sun.shadow.camera.right=60;sun.shadow.camera.top=60;sun.shadow.camera.bottom=-60;scene.add(sun);
+const hemisphere=new T.HemisphereLight(0xffffff,0x657449,2.4);scene.add(hemisphere);const sun=new T.DirectionalLight(0xffe7bc,2.3);sun.position.set(70,95,40);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.bias=-.0004;sun.shadow.normalBias=.024;sun.shadow.radius=2;sun.shadow.camera.left=-60;sun.shadow.camera.right=60;sun.shadow.camera.top=60;sun.shadow.camera.bottom=-60;scene.add(sun);
 const M=c=>new T.MeshLambertMaterial({color:c}),m={grass:M(0x658b55),forest:M(0x3a784e),mountain:M(0x858b83),mine:M(0x94775c),desert:M(0xd7bd7d),field:M(0xb2b75e),tree:M(0x845b35),leaf:M(0x388653),rock:M(0x888e90),ore:M(0x709fad),wheat:M(0xebbb53),skin:M(0xe8b997),shirt:M(0x275c70),wood:M(0xac7852),roof:M(0x965e46),gold:M(0xffd068)};
 function cube(w,h,d,mat,x=0,y=0,z=0){let q=new T.Mesh(new T.BoxGeometry(w,h,d),mat);q.position.set(x,y,z);q.castShadow=true;q.receiveShadow=true;return q}function orb(r,mat,x=0,y=0,z=0){let q=new T.Mesh(new T.IcosahedronGeometry(r,1),mat);q.position.set(x,y,z);q.castShadow=true;return q}function cy(r,h,mat,x=0,y=0,z=0){let q=new T.Mesh(new T.CylinderGeometry(r,r,h,8),mat);q.position.set(x,y,z);q.castShadow=true;return q}
 const types=['FORÊT','MONTAGNE','EXCAVATION','DÉSERT','CHAMPS'],raw=['Bois','Pierre','Minerai','Sable','Blé'],processed=['Planches','Pierre taillée','Lingots','Verre','Farine'],tools=EQUIPMENT_FR,worksites=['Cabane de bûcheron','Carrière','Mine','Camp de terrassiers','Ferme'],factories=['Scierie','Atelier de taille','Fonderie','Verrerie','Moulin'],values=[12,12,12,12,12],colors=['#488756','#87938b','#b88f6b','#e3c67c','#c8b64e'];
@@ -420,7 +422,8 @@ atmosphere.setEnabled(settings.effects&&settings.quality!=='low');
 sound.setVolume(settings.volume);
 sound.setEnabled(!settings.muted);
 applyQuality(renderer,sun,settings.quality,settings.renderScale);
-scene.fog.density=.60/settings.viewDistance;
+scene.fog.near=settings.viewDistance*.71;
+scene.fog.far=settings.viewDistance*.96;
 let audioActive=true,atmosphereActive=true;
 const maxStamina=()=>100+Math.max(0,st.staminaLevel||0)*32;
 const staminaRegen=()=>16+Math.max(0,st.staminaLevel||0)*4;
@@ -644,31 +647,13 @@ function collectSaleZone(){
 }
 
 
-function safeResourceRespawn(o){
-  if(o.log||carried&&Math.hypot(carried.position.x-o.x,carried.position.z-o.z)<2.7)return false;
-  if(Math.hypot(player.position.x-o.x,player.position.z-o.z)<1.7)return false;
-  if(Math.hypot(o.x,o.z)<7)return false;
-  for(const b of st.buildings)
-    if(pointInOrientedRect(o.x,o.z,facilityFootprint(b),1))return false;
-  if(Math.abs(o.x-SALE.x)<SALE.w/2+1.4&&
-     Math.abs(o.z-SALE.z)<SALE.d/2+1.4)return false;
-  if(sceneryBlocked(o.x,o.z,1.05))return false;
-  for(const other of resources){
-    if(other===o||other.dead)continue;
-    const radius=other.type===0?2.05:other.type===1?1.75:1.38;
-    if((o.x-other.x)**2+(o.z-other.z)**2<radius*radius)return false;
-  }
-  return true;
-}
-let nextResourceRegeneration=0;
+// No respawn or retry queue: exhausted world resource nodes are permanent.
+// Continue passive HP recovery only for nodes that have not been exhausted.
+let nextResourceRecovery=0;
 function renewResources(){
-  if(elapsed<nextResourceRegeneration)return;
-  nextResourceRegeneration=elapsed+2;
-  const {revived}=resourceLife.update(resources,safeResourceRespawn,o=>{
-    o.mesh.rotation.set(0,0,0);
-    o.mesh.visible=true;o.workerClaim=null;o.recoverAt=0;
-  });
-  if(revived)save();
+  if(elapsed<nextResourceRecovery)return;
+  nextResourceRecovery=elapsed+2;
+  resourceLife.update(resources);
 }
 function strikeHarvest(){
   const o=harvesting;
@@ -1246,7 +1231,7 @@ if(id==='settingVolume'){
   settings.viewDistance=value;
   $('distanceLabel').textContent=value+' m';
   R=Math.max(2,Math.min(8,Math.ceil(value/CH)));
-  scene.fog.density=.60/value;
+  scene.fog.near=value*.71;scene.fog.far=value*.96;
   streamingCenter='';
   updateResourceVisibility();
 }else if(id==='settingSensitivity'){
