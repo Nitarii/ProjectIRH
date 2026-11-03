@@ -1,9 +1,9 @@
 // Persistent exploration at 12m resolution: cheap to save and independent of loaded chunks.
-export function createExplorationMap({canvas,overlay,player,biome,buildings,settings,onDiscover}){
+export function createExplorationMap({canvas,overlay,player,biome,buildings,agents=()=>[],settings,onDiscover}){
   const ctx=canvas.getContext('2d',{alpha:false});
   const cell=12,discovered=new Set();
   let viewX=player.position.x,viewZ=player.position.z,scale=2.0,visible=false;
-  let pressed=false,pointerX=0,pointerY=0,lastVisitX=Infinity,lastVisitZ=Infinity;
+  let pressed=false,pointerX=0,pointerY=0,lastVisitX=Infinity,lastVisitZ=Infinity,refreshClock=0;
   const colors=['#488756','#87938b','#b88f6b','#e3c67c','#c8b64e'];
   const key=(x,z)=>x+','+z;
   function load(saved){
@@ -37,13 +37,17 @@ export function createExplorationMap({canvas,overlay,player,biome,buildings,sett
       ctx.fillStyle=b<0?'#598654':colors[b]||colors[0];
       ctx.fillRect(Math.floor(px),Math.floor(py),Math.ceil(cell*scale)+1,Math.ceil(cell*scale)+1);
     }
-    // Discovered building footprints remain readable when zoomed out.
-    for(const b of buildings()){
-      if(!discovered.has(key(Math.floor(b.x/cell),Math.floor(b.z/cell))))continue;
-      const x=(b.x-left)*scale,y=(b.z-top)*scale;
-      if(x<-15||y<-15||x>w+15||y>h+15)continue;
-      ctx.fillStyle='#ffdb90';ctx.fillRect(x-3,y-3,6,6);
-    }
+    // Mark only explored, visible places; live agents update without revealing fog.
+    const dot=(item,color,radius)=>{
+      if(!Number.isFinite(item.x)||!Number.isFinite(item.z))return;
+      if(!discovered.has(key(Math.floor(item.x/cell),Math.floor(item.z/cell))))return;
+      const x=(item.x-left)*scale,y=(item.z-top)*scale;
+      if(x<0||y<0||x>w||y>h)return;
+      ctx.fillStyle=color;ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle='#11282a';ctx.lineWidth=1;ctx.stroke();
+    };
+    for(const b of buildings())dot(b,'#ffe08e',3.7);
+    for(const agent of agents())dot(agent,'#77e8ed',2.4);
     function marker(x,z,color,radius){
       const px=(x-left)*scale,py=(z-top)*scale;
       if(px<0||py<0||px>w||py>h)return;
@@ -58,9 +62,14 @@ export function createExplorationMap({canvas,overlay,player,biome,buildings,sett
     document.getElementById('worldMapCoords').textContent=
       'X '+Math.round(viewX)+' · Z '+Math.round(viewZ)+' · '+Math.round(scale*100)+'%';
   }
+  function update(dt){
+    if(!visible)return;
+    refreshClock+=Math.max(0,dt||0);
+    if(refreshClock>=.20){refreshClock=0;paint()}
+  }
   function setVisible(value){
     visible=!!value;overlay.classList.toggle('hidden',!visible);
-    if(visible){viewX=player.position.x;viewZ=player.position.z;paint()}
+    if(visible){refreshClock=0;viewX=player.position.x;viewZ=player.position.z;paint()}
   }
   function zoom(delta){
     scale=Math.min(8,Math.max(.35,scale*(delta>0?1.25:.8)));paint();
@@ -83,5 +92,5 @@ export function createExplorationMap({canvas,overlay,player,biome,buildings,sett
   document.getElementById('worldMapZoomIn').onclick=()=>zoom(1);
   document.getElementById('worldMapZoomOut').onclick=()=>zoom(-1);
   document.getElementById('worldMapCenter').onclick=()=>{viewX=player.position.x;viewZ=player.position.z;paint()};
-  return {load,visit,paint,setVisible,get visible(){return visible},get count(){return discovered.size}};
+  return {load,visit,paint,update,setVisible,get visible(){return visible},get count(){return discovered.size}};
 }
