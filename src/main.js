@@ -800,10 +800,10 @@ out+=section('Équipement','CONSERVATION & MOBILITÉ',utility||'<p class="catalo
 
 }
 if(panel==='build'){
-for(let i=0;i<5;i++){
+out+=section('Logistique','TRANSPORT & COMMERCE',add('Dépôt de transport','Déplacements des ressources',buildingCost('transport')+' OR','transport:0')+add('Comptoir vendeur','Vente automatisée',buildingCost('seller')+' OR','seller:0'));for(let i=0;i<5;i++){
 out+=section(types[i]+' · '+raw[i].toUpperCase(),'CHAÎNE DE PRODUCTION',add(worksites[i],'Collecte automatique · stockage',buildingCost('worker',i)+' OR','worker:'+i,false,i)+add(factories[i],raw[i]+' → '+processed[i],buildingCost('factory',i)+' OR','factory:'+i,false,i));
 }
-out+=section('Logistique','TRANSPORT & COMMERCE',add('Dépôt de transport','Déplacements des ressources',buildingCost('transport')+' OR','transport:0')+add('Comptoir vendeur','Vente automatisée',buildingCost('seller')+' OR','seller:0'));
+
 }
 if(panel==='employees'){
   const chosen=employeeFilterId?st.buildings.filter(b=>b.id===employeeFilterId):st.buildings;
@@ -1157,6 +1157,8 @@ function interactionAnchor(){
       return [log.log.position.x,1.6,log.log.position.z];
   if(carried)return [px,2.9,pz];
   if(Math.hypot(px,pz)<7)return [0,3.4,2.25];
+  const pile=nearestStock(st.buildings,player.position,b=>industry.buildingGeometry(b.id)?.stockPoints);
+  if(pile)return [pile.point.x,1.6,pile.point.z];
   const nearby=closest();
   if(!nearby)return null;
   if(nearby.kind)return [nearby.x,3.1,nearby.z];
