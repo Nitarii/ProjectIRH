@@ -29,13 +29,13 @@ export function createRouter(isBlocked,{cell=1.2,maxVisits=1900}={}){
     if(Math.hypot(gx-sx,gz-sz)>118)return null;
     const probes=new Map(),cells=new Map(),costs=new Map(),heap=new Heap();
     const clear=(x,z)=>{
-      const k=Math.round(x*4)+','+Math.round(z*4);
+      const k=Math.round(x*8)+','+Math.round(z*8);
       if(!probes.has(k))probes.set(k,!isBlocked(x,z));
       return probes.get(k);
     };
     const corridor=(x0,z0,x1,z1)=>{
       const dist=Math.hypot(x1-x0,z1-z0);
-      const n=Math.max(1,Math.ceil(dist/.30));
+      const n=Math.max(1,Math.ceil(dist/.15));
       for(let i=1;i<=n;i++){
         const t=i/n;if(!clear(x0+(x1-x0)*t,z0+(z1-z0)*t))return false;
       }
