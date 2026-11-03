@@ -1213,6 +1213,9 @@ if(st.gold!==observedGold){
 if(goldHideAt&&elapsed>goldHideAt){$('goldGain').classList.remove('visible');goldHideAt=0}
 renderer.render(scene,cam);
 monitor.frames++;monitor.drawCalls=renderer.info.render.calls;
+monitor.playerX=player.position.x;monitor.playerZ=player.position.z;
+monitor.autoMode=autoMode;monitor.music=sound.currentMusic;
+monitor.resourceExhausted=Object.keys(resourceLife.exhausted).length;
 monitor.chunks=world.size;monitor.resources=resources.length;
 monitor.inventoryCount=count();monitor.cameraDistance=dist;monitor.constructionActive=!!placing;
 monitor.gameMinutes=st.gameMinutes;monitor.terrainPaths=trails.count;
