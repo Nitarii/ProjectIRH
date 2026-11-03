@@ -65,26 +65,34 @@ export function deliverTransport(destination,type,processed,amount,capacity=100)
 }
 export function selectTransportJob(home,buildings,capacity=100){
   let best=null,bestScore=Infinity;
-  const sellers=buildings.filter(b=>b.kind==='seller'&&warehouseRoom(b)>0);
-  const factories=buildings.filter(b=>b.kind==='factory');
+  const sellers=[],factories=[],sellerRooms=new Map();
+  for(const b of buildings){
+    if(b.kind==='factory')factories.push(b);
+    else if(b.kind==='seller'){
+      const room=warehouseRoom(b);
+      if(room>0){sellers.push(b);sellerRooms.set(b,room)}
+    }
+  }
   for(const origin of buildings){
     if(origin.kind!=='worker'&&origin.kind!=='factory')continue;
     const processed=origin.kind==='factory';
     const amount=processed?origin.stockProcessed:origin.stockRaw;
-    if(amount<1||d(home,origin)>215)continue;
-    const destinations=processed?sellers:[...factories,...sellers];
-    for(const dest of destinations){
-      if(dest===origin||d(origin,dest)>240)continue;
-      if(transportSpace(dest,origin.type,processed,capacity)<=0)continue;
+    const homeDistance=d(home,origin);
+    if(amount<1||homeDistance>215)continue;
+    const examine=dest=>{
+      if(dest===origin)return;
       const separation=d(origin,dest);
-      // Prefer completing the production chain; clear full raw stock as a fallback.
+      if(separation>240)return;
+      const room=dest.kind==='seller'?(sellerRooms.get(dest)||0):
+        transportSpace(dest,origin.type,processed,capacity);
+      if(room<=0)return;
+      // Production beats speculative sale; finished goods get delivery priority.
       const premium=processed?-32:dest.kind==='factory'?-21:(amount>=capacity*.8?-10:28);
-      const score=d(home,origin)+separation*.75+premium;
-      if(score<bestScore){
-        bestScore=score;
-        best={origin,dest,processed,type:origin.type};
-      }
-    }
+      const score=homeDistance+separation*.75+premium;
+      if(score<bestScore){bestScore=score;best={origin,dest,processed,type:origin.type}}
+    };
+    if(!processed)for(const dest of factories)examine(dest);
+    for(const dest of sellers)examine(dest);
   }
   return best;
 }
