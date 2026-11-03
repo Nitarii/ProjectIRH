@@ -506,8 +506,8 @@ cargo.rotation.z=moving?Math.sin(stepPhase)*(sprinting?.065:.04):0;
 function syncHudDimensions(){
   const mini=$('miniInventory');
   if(!mini)return;
-  document.documentElement.style.setProperty('--inventory-panel-height',Math.ceil(mini.getBoundingClientRect().height)+'px');
-  document.documentElement.style.setProperty('--inventory-panel-width',Math.ceil(mini.getBoundingClientRect().width)+'px');
+  $('hud').style.setProperty('--inventory-panel-height',Math.ceil(mini.getBoundingClientRect().height)+'px');
+  $('hud').style.setProperty('--inventory-panel-width',Math.ceil(mini.getBoundingClientRect().width)+'px');
 }
 function updateInventory(){
 const grid=$('inventoryGrid');if(!grid)return;
