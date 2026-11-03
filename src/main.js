@@ -27,7 +27,7 @@ import {avatarBuilderMarkup} from './avatar-ui.js?v=20261103p7';
 import {nearestStock,transferStock} from './stock-interaction.js?v=20261103p7';
 import {worldPoint,facilityFootprint,footprintsOverlap,pointInOrientedRect,normalizeRotation} from './facility-layout.js';
 import {createBicycle} from './bicycle.js?v=20261104c';
-import {createExplorationMap} from './exploration-map.js?v=20261105d';
+import {createExplorationMap} from './exploration-map.js?v=20261103camera1';
 import {createMobileControls} from './mobile-controls.js?v=20261105a';
 const $=id=>document.getElementById(id), scene=new T.Scene();scene.background=new T.Color('#a6cbd1');scene.fog=new T.Fog('#a6cbd1',80,125);
 const cam=new T.PerspectiveCamera(65,innerWidth/innerHeight,.1,450),renderer=new T.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.25));
