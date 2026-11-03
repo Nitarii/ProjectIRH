@@ -8,7 +8,7 @@ const actionText={
  sprint:'Sprint',interact:'Interact',market:'Market',auto:'Auto gathering',build:'Construction',talents:'Progression',
  drop:'Drop',vehicle:'Vehicle',jump:'Jump'}
 };
-export function optionsMarkup(settings,awaiting){
+export function optionsMarkup(settings,awaiting,vaultId=''){
  const t=UI[settings.language],actions=actionText[settings.language];
  const buttons=ACTIONS.map(k=>'<div class="option-key-row"><span>'+actions[k]+'</span><button type="button" data-bind="'+k+'" class="'+(awaiting===k?'binding-active':'')+'">'+(awaiting===k?t.rebinding:keyLabel(settings.bindings[k]))+'</button></div>').join('');
  return '<div class="options-layout">'+
@@ -30,5 +30,16 @@ export function optionsMarkup(settings,awaiting){
  '<div id="resetConfirm" class="reset-confirm hidden"><strong>'+t.resetQuestion+'</strong><p>'+t.resetWarning+'</p>'+
  '<div class="reset-actions"><button type="button" data-system="cancelReset">'+t.cancel+'</button>'+
  '<button type="button" class="danger" data-system="confirmReset">'+t.confirm+'</button></div></div>'+
- '<button type="button" class="utility-control danger" data-system="requestReset">'+t.resetGame+'</button></div></section></div>';
+ '<button type="button" class="utility-control danger" data-system="requestReset">'+t.resetGame+'</button></div>'+
+ '<div class="vault-info"><h3>'+(settings.language==='fr'?'Sauvegarde chiffrée':'Encrypted save')+'</h3>'+
+ '<p>'+(settings.language==='fr'?'Ce navigateur possède sa propre sauvegarde. Conservez votre code de récupération privé pour transférer votre partie. Aucun compte ni synchronisation cloud.':'This browser has its own save. Keep your private recovery code safe to transfer progress. No account or cloud sync.')+'</p>'+
+ '<div class="vault-code">'+vaultId+'</div>'+
+ '<div class="vault-actions"><button type="button" data-system="saveExport">'+(settings.language==='fr'?'Copier le code de sauvegarde':'Copy recovery code')+'</button>'+
+ '<button type="button" data-system="requestImport">'+(settings.language==='fr'?'Importer une sauvegarde':'Import a save')+'</button></div>'+
+ '<div id="vaultExport" class="hidden"><textarea id="vaultExportCode" readonly aria-label="Encrypted recovery code"></textarea></div>'+
+ '<div id="vaultImport" class="hidden"><textarea id="vaultRecoveryCode" placeholder="'+(settings.language==='fr'?'Collez votre code chiffré IRH1…':'Paste your encrypted IRH1 recovery code…')+'"></textarea>'+
+ '<div class="vault-actions"><button type="button" data-system="cancelImport">'+t.cancel+'</button>'+
+ '<button type="button" data-system="confirmImport">'+(settings.language==='fr'?'Remplacer cette partie':'Replace this save')+'</button></div>'+
+ '<p>'+(settings.language==='fr'?'Attention : cette action remplace la progression stockée sur ce navigateur.':'Warning: this replaces the progress stored in this browser.')+'</p></div>'+
+ '<div id="vaultMessage" class="vault-message" aria-live="polite"></div></div></section></div>';
 }
