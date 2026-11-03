@@ -7,7 +7,7 @@ import {createResourceGraphics} from './resource-visuals.js?v=20261103ac';
 import {createFieldBuilder} from './wheat-fields.js?v=20261103k';
 import {makeStructure} from './structures.js?v=20261104c';
 import {EQUIPMENT,EQUIPMENT_FR,TOOL_SPEED,TOOL_YIELD,ECONOMY,toolCost,buildingCost,workerCarryCost,MAX_EXPERTISE,expertiseCost,expertiseMultiplier,expertiseHarvestSpeed} from './balance.js?v=20261104c';
-import {loadSettings,storeSettings,keyLabel,isPressed,applyQuality,ACTIONS,detectKeyboardLayout} from './settings.js?v=20261104a';
+import {loadSettings,storeSettings,keyLabel,isPressed,applyQuality,ACTIONS,detectKeyboardLayout} from './settings.js?v=20261104g';
 import {tr,translateTree,UI} from './language.js?v=20261103p7';
 import {createBaseCamp} from './basecamp.js';
 import {optionsMarkup} from './options-ui.js?v=20261104c';
