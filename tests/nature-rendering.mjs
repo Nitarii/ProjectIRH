@@ -55,7 +55,7 @@ class Object3D{
   }
   add(...items){this.children.push(...items)}
   remove(item){this.children=this.children.filter(x=>x!==item)}
-  updateMatrix(){}
+  updateMatrix(){this.matrix=[this.position.x,this.position.y,this.position.z] }
 }
 class Geo{dispose(){}}
 class Mat{constructor(opts={}){Object.assign(this,opts)}dispose(){}}
@@ -64,7 +64,7 @@ class Mesh extends Object3D{
 }
 class InstancedMesh extends Mesh{
   constructor(g,m,n){super(g,m);this.count=n;this.instanceMatrix={needsUpdate:false}}
-  setMatrixAt(){}
+  setMatrixAt(i,matrix){(this.instances||(this.instances=[]))[i]=matrix.slice()}
 }
 const T={Group:Object3D,Object3D,Mesh,InstancedMesh,
   MeshLambertMaterial:Mat,MeshBasicMaterial:Mat,ShaderMaterial:Mat,
@@ -117,10 +117,36 @@ check('sky includes sun, moon and stars without a post-process pass',
 const cloudShader=skyScene.children.find(o=>o.material?.fragmentShader?.includes('for(int i=0;i<6;i++'))?.material?.fragmentShader;
 check('bounded six-step cloud density integration',
   !!cloudShader&&cloudShader.includes('1.0-smoothstep(.60,1.04,shape)'));
+// Clouds may drift with the global clock, but neither the camera nor player
+// movement may rotate or physically drag an existing world-space cloud.
+skyWeather.update(.12,700,240);
+const cloudPose=()=>skyScene.children.slice(1).filter(c=>c.visible)
+  .map(c=>[c.position.x,c.position.y,c.position.z,
+    c.rotation.x,c.rotation.y,c.rotation.z]);
+const beforeClouds=cloudPose();
+camera.position.set(45,15,78);
+camera.rotation.set(.41,1.23,.06);
+player.x+=.5;player.z+=.5;
+skyWeather.update(.12,700,240);
+check('cloud orientation and world position ignore camera or player movement',
+  beforeClouds.length>0&&JSON.stringify(beforeClouds)===JSON.stringify(cloudPose()));
 skyWeather.dispose();
-const atmosphere=new Function(plain(read('src/atmosphere.js'))+
-  '\nreturn createAtmosphere;')()(T,new Object3D(),{position:player},()=>0,()=>[]);
-for(let i=0;i<10;i++)atmosphere.update(.065,i*.065,[]);
+const atmosphereApi=new Function(plain(read('src/atmosphere.js'))+
+  '\nreturn {createAtmosphere,atmosphereSite};')();
+const aSite=atmosphereApi.atmosphereSite(7,8,1);
+check('particle sites derive entirely from stable world cell identifiers',
+  JSON.stringify(aSite)===JSON.stringify(atmosphereApi.atmosphereSite(7,8,1)));
+const ambientScene=new Object3D();
+const atmosphere=atmosphereApi.createAtmosphere(T,ambientScene,
+  {position:player},()=>0,()=>[]);
+atmosphere.update(.07,777);
+const particlePoses=()=>ambientScene.children.flatMap(mesh=>
+  (mesh.instances||[]).slice(0,mesh.count));
+const firstParticles=particlePoses();
+player.x+=.7;player.z+=.7;
+atmosphere.update(.07,777);
+check('environment particles never move with a small player displacement',
+  firstParticles.length>0&&JSON.stringify(firstParticles)===JSON.stringify(particlePoses()));
 check('ambient particles use instancing',atmosphere.particleCount<=32);
 atmosphere.setEnabled(false);
 check('ambient effects can be disabled completely',atmosphere.particleCount===0);
