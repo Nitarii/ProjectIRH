@@ -591,6 +591,7 @@ const target=new T.Vector3(player.position.x,1.5,player.position.z);
 const offset=new T.Vector3(Math.sin(heading)*Math.cos(pitch),Math.sin(pitch),Math.cos(heading)*Math.cos(pitch));
 cam.position.copy(target.clone().addScaledVector(offset,dist));
 cam.lookAt(target);
+positionInteractionTooltip();
 sun.position.set(player.position.x+70,95,player.position.z+40);
 sun.target.position.set(player.position.x,0,player.position.z);sun.target.updateMatrixWorld();
 workerClock+=dt;
@@ -614,7 +615,6 @@ $('biomeName').textContent=biomeId<0?'CAMP CENTRAL':types[biomeId];
 $('clock').textContent='JOUR '+String(1+Math.floor(elapsed/600)).padStart(2,'0')+' · '+String(8+Math.floor(elapsed/60)%16).padStart(2,'0')+':00';
 $('objective').textContent=st.tools.every(t=>t<0)?'ACHETEZ VOTRE PREMIER OUTIL':'DÉVELOPPEZ VOTRE EMPIRE';
 $('detail').textContent=st.tools.every(t=>t<0)?'Approchez du comptoir et appuyez sur F':'Récoltez, transformez et automatisez';
-positionInteractionTooltip();
 const highlighted=harvesting;
 if(highlighted){
 $('targetTitle').textContent=raw[highlighted.type];
