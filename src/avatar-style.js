@@ -37,6 +37,9 @@ export function attachAvatarDesigner(T,avatar,parts){
   }
   for(const leg of [leftLeg,rightLeg])if(leg.children[0])leg.children[0].material=trousers;
   const garments=new T.Group();avatar.add(garments);
+  const legExtras=[leftLeg,rightLeg].map(leg=>{
+    const holder=new T.Group();leg.add(holder);return holder;
+  });
   const mesh=(geometry,material,x,y,z,parent=garments)=>{
     const item=new T.Mesh(geometry,material);
     item.position.set(x,y,z);item.castShadow=true;parent.add(item);return item;
@@ -45,9 +48,11 @@ export function attachAvatarDesigner(T,avatar,parts){
   const sphere=(r,mat,x,y,z)=>mesh(new T.IcosahedronGeometry(r,1),mat,x,y,z);
   let profile=normalizeAvatar();
   function clear(){
-    for(const child of [...garments.children]){
-      garments.remove(child);
-      child.traverse(o=>{if(o.isMesh&&o.geometry)o.geometry.dispose()});
+    for(const holder of [garments,...legExtras]){
+      for(const child of [...holder.children]){
+        holder.remove(child);
+        child.traverse(o=>{if(o.isMesh&&o.geometry)o.geometry.dispose()});
+      }
     }
   }
   function apply(incoming){
@@ -56,8 +61,12 @@ export function attachAvatarDesigner(T,avatar,parts){
     hair.color.set(profile.hairColor);skin.color.set(profile.skinColor);
     glasses.color.set(profile.glassesColor);shoes.color.set(profile.shoeColor);
     clear();
-    const trim=new T.MeshLambertMaterial({color:profile.topColor});
     // Garment cutouts actually modify the visible silhouette.
+    for(const leg of [leftLeg,rightLeg]){
+      const base=leg.children[0];
+      base.scale.y=profile.bottomStyle===1?.48:1;
+      base.position.y=profile.bottomStyle===1?-.215:-.43;
+    }
     if(profile.topStyle===1){
       const hood=sphere(.38,shirt,0,2.05,-.22);
       hood.scale.set(1.18,.85,.72);
@@ -75,19 +84,18 @@ export function attachAvatarDesigner(T,avatar,parts){
       box(.59,.13,.10,shirt,0,.91,.14);
     }
     if(profile.bottomStyle===1){
-      box(.34,.18,.31,trousers,-.23,.28,0);
-      box(.34,.18,.31,trousers,.23,.28,0);
-      // Exposed lower legs use the skin tone.
-      box(.25,.32,.24,skin,-.23,.15,.01);
-      box(.25,.32,.24,skin,.23,.15,.01);
+      for(const holder of legExtras){
+        box(.28,.40,.27,skin,0,-.65,0,holder);
+        box(.32,.08,.31,trousers,0,-.44,0,holder);
+      }
     }else if(profile.bottomStyle===2){
-      for(const sign of [-1,1]){
-        box(.20,.28,.21,trousers,sign*.40,.44,.09);
-        box(.22,.065,.22,shoes,sign*.40,.36,.10);
+      for(let i=0;i<2;i++){
+        const sign=i===0?-1:1;
+        box(.14,.27,.22,trousers,sign*.15,-.44,.08,legExtras[i]);
+        box(.17,.06,.24,shoes,sign*.15,-.50,.08,legExtras[i]);
       }
     }
-    box(.33,.15,.45,shoes,-.23,.06,.16);
-    box(.33,.15,.45,shoes,.23,.06,.16);
+    for(const holder of legExtras)box(.33,.15,.45,shoes,0,-.82,.16,holder);
     if(profile.hairStyle===1){
       const cap=sphere(.33,hair,0,2.37,-.03);cap.scale.set(1.13,.54,1.1);
       box(.24,.12,.14,hair,0,2.26,.29);
@@ -119,7 +127,6 @@ export function attachAvatarDesigner(T,avatar,parts){
       }
       box(.10,.025,.055,glasses,0,2.18,.385);
     }
-    trim.dispose();
     return profile;
   }
   apply(profile);
