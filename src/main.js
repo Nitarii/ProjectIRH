@@ -12,6 +12,7 @@ import {tr,translateTree,UI} from './language.js?v=20261103r2';
 import {createBaseCamp} from './basecamp.js';
 import {optionsMarkup} from './options-ui.js?v=20261103r2';
 import {createTrails} from './trails.js?v=20261103r1';
+import {decorationCollider} from './decor-collision.js';
 const $=id=>document.getElementById(id), scene=new T.Scene();scene.background=new T.Color('#a6cbd1');scene.fog=new T.FogExp2('#a6cbd1',.0039);
 const cam=new T.PerspectiveCamera(65,innerWidth/innerHeight,.1,450),renderer=new T.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.25));renderer.shadowMap.enabled=true;$('game').append(renderer.domElement);
 scene.add(new T.HemisphereLight(0xffffff,0x657449,2.4));const sun=new T.DirectionalLight(0xffe7bc,2.3);sun.position.set(70,95,40);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.bias=-.0004;sun.shadow.normalBias=.024;sun.shadow.radius=2;sun.shadow.camera.left=-60;sun.shadow.camera.right=60;sun.shadow.camera.top=60;sun.shadow.camera.bottom=-60;scene.add(sun);
@@ -141,6 +142,7 @@ resources.push(obj);return obj;
 }
 
 const floorGeometry=new T.BoxGeometry(4.08,.16,4.08);
+const terrainMaterial=new T.MeshLambertMaterial({vertexColors:true});
 const accentGeometry=new T.IcosahedronGeometry(.19,0);
 const weedGeometry=new T.ConeGeometry(.16,.62,3);
 const stalkGeometry=new T.CylinderGeometry(.04,.055,.75,4);
@@ -162,8 +164,8 @@ if(b===4)kind=h<.72?4:5;
 if(b===-1)kind=h<.55?1:0;
 const scale=.55+hash(cx+n,cz+n,49)*1.5;
 items[kind].push({x,z,scale,turn:hash(cx+n,cz,48)*6.28});
-if((kind===0||kind===2||kind===3||kind===5)&&scale>.95)
-  colliders.push({x,z,r:.18+scale*(kind===3?.28:.31)});
+const solid=decorationCollider(kind,scale);
+if(solid)colliders.push({x,z,r:solid.r});
 }
 root.userData.decorationColliders=colliders;
 items.forEach((batch,i)=>{
@@ -199,7 +201,7 @@ for(let i=0;i<positions.count;i++){
   vertexColors.push(color.r,color.g,color.b);
 }
 groundGeometry.setAttribute('color',new T.Float32BufferAttribute(vertexColors,3));
-const floor=new T.Mesh(groundGeometry,new T.MeshLambertMaterial({vertexColors:true}));
+const floor=new T.Mesh(groundGeometry,terrainMaterial);
 floor.position.set(x0+CH/2,-.025,z0+CH/2);
 floor.rotation.y=0;floor.receiveShadow=true;
 root.add(floor);
@@ -304,11 +306,7 @@ function sceneryBlocked(x,z,radius=.35){
 }
 function blocked(x,z){
 if(industry.blocked(x,z,PLAYER_RADIUS))return true;
-const box=(bx,bz,w,d)=>Math.abs(x-bx)<w/2+PLAYER_RADIUS&&Math.abs(z-bz)<d/2+PLAYER_RADIUS;
-if(box(0,0,5,4))return true;
-for(const b of st.buildings)if(box(b.x,b.z,3.5,3.3))return true;
-for(const o of resources){if(o.dead)continue;const r=[.78,1.1,1.05,.88,.65][o.type]+PLAYER_RADIUS;if((x-o.x)**2+(z-o.z)**2<r*r)return true}
-return false;
+return Math.abs(x)<2.5+PLAYER_RADIUS&&Math.abs(z)<2+PLAYER_RADIUS;
 }
 function movePlayer(dx,dz){const x=player.position.x,z=player.position.z;
 // Separate-axis checks permit natural sliding without passing through solid objects.
