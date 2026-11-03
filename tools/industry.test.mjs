@@ -157,3 +157,24 @@ assert.ok(unreachableCrew.snapshot()[0].blockedAge<8,
 assert.ok(recovered.replans<90,'unreachable targets must not trigger endless A* calculations');
 console.log(JSON.stringify({unreachableTree:recovered,blacklistedUntil:enclosedTree.unreachableUntil}));
 console.log('Impassable resource recovery verified');
+
+
+const oldLog={type:0,x:13,z:40,hp:0,max:40,dead:true,
+  log:{kind:'fallen trunk'},mesh:{visible:false},logPlacedAt:0};
+const reclaimedState={gold:0,buildings:[{
+  id:'reclaimer',kind:'worker',type:0,x:23,z:35,rotation:Math.PI/2,
+  workers:1,carryLevel:1,stockRaw:0
+}]};
+let loggingAge=0,brokenLogs=0;
+const reclaim=createIndustry(T,scene2,reclaimedState,[oldLog],()=>0,
+  {x:200,z:200,w:10,d:9},[12,15,22,10,14],{
+    canBreakLog(node){return node===oldLog&&!!node.log&&loggingAge>=60},
+    onLogCut(node){node.log=null;brokenLogs++}
+  });
+reclaim.sync();
+for(let i=0;i<290;i++){loggingAge+=.20;reclaim.update(.20,23,35)}
+assert.equal(brokenLogs,0,'loggers must not collect player logs before one minute');
+for(let i=0;i<320;i++){loggingAge+=.20;reclaim.update(.20,23,35)}
+assert.equal(brokenLogs,1,'logger must cut an unattended log exactly once');
+assert.ok(reclaimedState.buildings[0].stockRaw>0,'chopped trunk must become stock of raw wood');
+console.log('Minute-old abandoned log recovery and correct reprocessing verified');
