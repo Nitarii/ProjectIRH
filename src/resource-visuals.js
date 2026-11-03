@@ -79,14 +79,20 @@ export function createResourceGraphics(T){
       }
     }else if(type===4){
       const amount=12+v*3;
+      const stems=new T.InstancedMesh(new T.CylinderGeometry(.025,.034,1,5),materials.wheatGreen,amount);
+      const grain=new T.InstancedMesh(new T.ConeGeometry(.092,.4,5),materials.wheat,amount);
+      stems.castShadow=false;grain.castShadow=false;
+      const dummy=new T.Object3D();
       for(let i=0;i<amount;i++){
         const a=i*2.399,r=.18+.55*Math.sqrt((i+.5)/amount),x=Math.sin(a)*r,z=Math.cos(a)*r;
-        const h=.99+rnd(seed+i)*.31;
-        const stem=cyl(g,.025,.034,h,materials.wheatGreen,x,h*.5,z,5);
-        stem.rotation.z=(rnd(i+seed*3)-.5)*.2;
-        const grain=cone(g,.092,.4,i%5===0?materials.wheatLight:materials.wheat,x,h+.12,z,5);
-        grain.rotation.z=(rnd(seed+i*5)-.5)*.4;
+        const h=.99+rnd(seed+i)*.31,lean=(rnd(i+seed*3)-.5)*.2;
+        dummy.position.set(x,h*.5,z);dummy.rotation.set(0,0,lean);
+        dummy.scale.set(1,h,1);dummy.updateMatrix();stems.setMatrixAt(i,dummy.matrix);
+        dummy.position.set(x+lean*.15,h+.12,z);dummy.rotation.set(0,0,(rnd(seed+i*5)-.5)*.4);
+        dummy.scale.set(1,1,1);dummy.updateMatrix();grain.setMatrixAt(i,dummy.matrix);
       }
+      stems.instanceMatrix.needsUpdate=true;grain.instanceMatrix.needsUpdate=true;
+      g.add(stems,grain);
     }
     return g;
   }
