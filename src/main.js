@@ -503,8 +503,15 @@ toolHolder.rotation.set(smooth(toolHolder.rotation.x),smooth(toolHolder.rotation
 }
 cargo.rotation.z=moving?Math.sin(stepPhase)*(sprinting?.065:.04):0;
 }
+function syncHudDimensions(){
+  const mini=$('miniInventory');
+  if(!mini)return;
+  document.documentElement.style.setProperty('--inventory-panel-height',Math.ceil(mini.getBoundingClientRect().height)+'px');
+  document.documentElement.style.setProperty('--inventory-panel-width',Math.ceil(mini.getBoundingClientRect().width)+'px');
+}
 function updateInventory(){
 const grid=$('inventoryGrid');if(!grid)return;
+$('miniInventory').dataset.capacity=String(st.bag);
 const items=[];for(let i=0;i<5;i++)for(let j=0;j<st.inv[i];j++)items.push(i);
 for(let i=0;i<5;i++)for(let j=0;j<st.products[i];j++)items.push(i+5);
 const signature=st.bag+':'+items.join(',');if(grid.dataset.signature===signature)return;grid.dataset.signature=signature;
@@ -513,7 +520,7 @@ const type=items[i],title=type===undefined?'':tr(type<5?raw[type]:processed[type
 return '<div class="inventory-slot'+(type===undefined?' empty':'')+'"'+(type===undefined?'':' title="'+title+'"')+'>'+
 (type===undefined?'':'<span class="inventory-symbol resource-'+(type%5)+'">'+inventoryIcon(type)+'</span>')+'</div>';
 }).join('');
-$('inventoryCapacity').textContent=count()+' / '+st.bag;updateCargo()
+$('inventoryCapacity').textContent=count()+' / '+st.bag;updateCargo();syncHudDimensions()
 }function pop(s){let e=$('notice');e.textContent=tr(s,settings.language);e.classList.add('show');clearTimeout(pop.t);pop.t=setTimeout(()=>e.classList.remove('show'),2200)}
 function closest(){
 let best=null,score=Infinity,px=player.position.x,pz=player.position.z;
@@ -1123,6 +1130,8 @@ industry.setLanguage(settings.language);
 $('inventoryGrid').dataset.signature='';
 updateInventory();
 const prompt=$('prompt');if(!prompt.classList.contains('hidden'))prompt.textContent=keyLabel(settings.bindings.interact);
+$('rotationHint').innerHTML='<kbd>'+keyLabel('KeyQ')+' / '+keyLabel('KeyE')+'</kbd> '+
+ (settings.language==='fr'?'TOURNER':'ROTATE');
 $('autoShortcut').innerHTML='<kbd>'+keyLabel(settings.bindings.auto)+'</kbd> AUTO';
 updateAutoIndicator();
 
@@ -1180,7 +1189,7 @@ addEventListener('mousemove',e=>{
   e.preventDefault();
   if(placing){rotatePlacement(Math.sign(e.deltaY));return}
   dist=T.MathUtils.clamp(dist+Math.sign(e.deltaY),5,18);
-},{passive:false});addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});renderer.domElement.onclick=()=>{if(!panel)renderer.domElement.requestPointerLock?.()};let creatorPreview=null;
+},{passive:false});addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);syncHudDimensions()});renderer.domElement.onclick=()=>{if(!panel)renderer.domElement.requestPointerLock?.()};let creatorPreview=null;
 function finishWelcome(){
   sound.boot();
   $('creator').classList.add('hidden');
