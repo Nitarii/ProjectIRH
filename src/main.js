@@ -925,9 +925,28 @@ function updateAutoIndicator(){
     (autoSpeedMultiplier(st.autoLevel)===1?(fr?'Aucun malus':'No penalty'):(autoSpeedMultiplier(st.autoLevel)>1?'+':'−')+Math.round(Math.abs(autoSpeedMultiplier(st.autoLevel)-1)*100)+'% '+(fr?'vitesse et récolte':'movement and harvest speed'))+
     '</small>';
 }
-const jobNames={worker:['bûcheron','carrier','mineur','terrassier','agriculteur'],factory:['scieur','tailleur de pierre','fondeur','verrier','meunier'],transport:['logisticien'],seller:['vendeur']};
-const facilityName=b=>b.kind==='worker'?worksites[b.type]:b.kind==='factory'?factories[b.type]:b.kind==='seller'?'Comptoir vendeur':'Dépôt de transport';
-const recruitName=b=>jobNames[b.kind]?.[b.kind==='worker'||b.kind==='factory'?b.type:0]||'employé';
+const facilityNames={
+  fr:{worker:worksites,factory:factories,transport:['Dépôt de transport'],seller:['Comptoir vendeur']},
+  en:{worker:['Logging hut','Quarry','Mine','Earthworkers camp','Farm'],
+    factory:['Sawmill','Stone workshop','Foundry','Glassworks','Mill'],
+    transport:['Freight depot'],seller:['Trade house']}
+};
+const employeeNames={
+  fr:{worker:['bûcheron','carrier','mineur','terrassier','agriculteur'],
+    factory:['scieur','tailleur de pierre','fondeur','verrier','meunier'],
+    transport:['logisticien'],seller:['vendeur']},
+  en:{worker:['logger','quarry worker','miner','earthworker','farmer'],
+    factory:['sawyer','stonemason','smelter','glassmaker','miller'],
+    transport:['logistics operator'],seller:['salesperson']}
+};
+const facilityName=b=>{
+  const names=facilityNames[settings.language]?.[b.kind]||facilityNames.fr.worker;
+  return names[b.kind==='worker'||b.kind==='factory'?b.type:0]||names[0];
+};
+const recruitName=b=>{
+  const names=employeeNames[settings.language]?.[b.kind]||employeeNames.fr.worker;
+  return names[b.kind==='worker'||b.kind==='factory'?b.type:0]||names[0];
+};
 const panels={market:'COMPTOIR',build:'CONSTRUCTION',employees:'EMPLOYÉS',storage:'DÉPÔT',talents:'PROGRESSION',settings:'PARAMÈTRES'};
 let employeeFilterId=null,activeStorage=null;
 let panel=null;
@@ -979,10 +998,12 @@ if(panel==='employees'){
     settings.language==='fr'?'RECRUTEMENT ET AMÉLIORATIONS':'HIRING AND UPGRADES',chosen.map(b=>{
     const i=st.buildings.indexOf(b);
     const title=facilityName(b)+' #'+(i+1);
-    const stock=b.kind==='worker'?'Brut : '+b.stockRaw
-      :b.kind==='factory'?'Entrée : '+b.inputRaw+' · Transformé : '+b.stockProcessed
-      :'Logistique automatisée';
-    return add('Recruter un '+recruitName(b),title+' · '+b.workers+'/'+industry.limit+' employés · '+stock,
+    const fr=settings.language==='fr';
+    const stock=b.kind==='worker'?(fr?'Brut : ':'Raw: ')+b.stockRaw
+      :b.kind==='factory'?(fr?'Entrée : ':'Input: ')+b.inputRaw+' · '+(fr?'Transformé : ':'Processed: ')+b.stockProcessed
+      :(fr?'Logistique automatisée':'Automated logistics');
+    return add((fr?'Recruter un ':'Hire a ')+recruitName(b),
+      title+' · '+b.workers+'/'+industry.limit+' '+(fr?'employés':'staff')+' · '+stock,
       b.workers>=industry.limit?'MAX':ECONOMY.hire+' OR','hire:'+i,
       b.workers>=industry.limit,b.type)
       +add(UI[settings.language].capacity,
