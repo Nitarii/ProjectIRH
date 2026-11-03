@@ -1120,28 +1120,34 @@ out+=section(types[i]+' · '+raw[i].toUpperCase(),'CHAÎNE DE PRODUCTION',add(wo
 }
 if(panel==='employees'){
   const chosen=employeeFilterId?st.buildings.filter(b=>b.id===employeeFilterId):st.buildings;
-  if(!chosen.length)out+=section('Personnel','RECRUTEMENT',
-    '<p class="catalog-empty">'+(settings.language==='fr'?'Construisez un bâtiment pour recruter du personnel.':'Build a facility to hire workers.')+'</p>');
-  else out+=section(settings.language==='fr'?'Recrutement et transport':'Recruitment and transport',
-    settings.language==='fr'?'BÂTIMENTS':'FACILITIES',chosen.map(b=>{
-    const i=st.buildings.indexOf(b);
-    const title=focus?(settings.language==='fr'?'Recruter : ':'Hire: ')+recruitName(b):facilityName(b)+' #'+(i+1);
-    const fr=settings.language==='fr';
-    const stock=b.kind==='worker'?(fr?'Brut : ':'Raw: ')+b.stockRaw
-      :b.kind==='factory'?(fr?'Entrée : ':'Input: ')+b.inputRaw+' · '+(fr?'Transformé : ':'Processed: ')+b.stockProcessed
-      :b.kind==='seller'?(fr?'Stock à vendre : ':'Goods awaiting sale: ')+
-        ((b.warehouseRaw||[]).reduce((n,v)=>n+v,0)+(b.warehouseProcessed||[]).reduce((n,v)=>n+v,0))
-      :b.kind==='road'?(fr?'Chemins construits : ':'Completed paths: ')+roads.completed+'/'+roads.plannedCount
-      :(fr?'Livraisons inter-bâtiments':'Inter-building deliveries');
-    return add(title,
-      (focus?'':(fr?'Recruter un ':'Hire a ')+recruitName(b)+' · ')+b.workers+'/'+industry.limit+' '+(fr?'employés':'staff')+' · '+stock,
-      b.workers>=industry.limit?'MAX':ECONOMY.hire+' OR','hire:'+i,
-      b.workers>=industry.limit,b.type)
-      +(b.kind==='road'?'':add(fr?'Capacité de charge':'Cargo capacity',
-        (fr?'Niveau ':'Level ')+(b.carryLevel||0)+'/5 · '+(6+3*(b.carryLevel||0))+' unités',
-        (b.carryLevel||0)>=5?'MAX':workerCarryCost(b.carryLevel||0)+' OR',
-        'carry:'+i,(b.carryLevel||0)>=5,b.type));
-  }).join(''));
+  const fr=settings.language==='fr';
+  if(!chosen.length)out+=section(fr?'Personnel':'Staff',fr?'AUCUN BÂTIMENT':'NO BUILDINGS',
+    '<p class="catalog-empty">'+(fr?'Construisez un bâtiment pour recruter du personnel.':'Build a facility to hire workers.')+'</p>');
+  else for(const b of chosen){
+    const i=st.buildings.indexOf(b),limit=industry.workerLimit(b);
+    const staff=Math.min(limit,b.workers),carrying=b.carryLevel||0;
+    const name=facilityName(b),employee=recruitName(b);
+    const stock=b.kind==='worker'?(fr?'Ressources brutes':'Raw materials')+': '+b.stockRaw
+      :b.kind==='factory'?(fr?'Entrée':'Input')+': '+b.inputRaw+' · '+(fr?'Produits':'Products')+': '+b.stockProcessed
+      :b.kind==='seller'?(fr?'En attente de vente':'Awaiting sale')+': '+
+         ((b.warehouseRaw||[]).reduce((n,v)=>n+v,0)+(b.warehouseProcessed||[]).reduce((n,v)=>n+v,0))
+      :b.kind==='road'?(fr?'Chemins actifs':'Active paths')+': '+roads.completed+'/'+roads.plannedCount
+      :(fr?'Livraisons entre bâtiments':'Inter-building deliveries');
+    const recruiting=add(fr?'Recrutement':'Recruitment',
+      (fr?'Embaucher un ':'Hire a ')+employee+' · '+staff+' / '+limit,
+      staff>=limit?'MAX':ECONOMY.hire+' OR','hire:'+i,staff>=limit,b.type);
+    const cargoUpgrade=b.kind==='road'?'':add(fr?'Capacité de transport':'Transport capacity',
+      (fr?'Niveau ':'Level ')+carrying+'/5 · '+(6+3*carrying)+' '+(fr?'unités':'units'),
+      carrying>=5?'MAX':workerCarryCost(carrying)+' OR',
+      'carry:'+i,carrying>=5,b.type);
+    out+='<section class="facility-management biome-'+b.type+'">'+
+      '<header class="facility-management-heading"><div><span class="facility-index">'+
+      (fr?'BÂTIMENT ':'BUILDING ')+String(i+1).padStart(2,'0')+'</span>'+
+      '<h3>'+name+'</h3></div><span class="facility-staff-count">'+
+      staff+' / '+limit+' '+(fr?'employés':'workers')+'</span></header>'+
+      '<p class="facility-production">'+stock+'</p>'+
+      '<div class="facility-upgrade-grid">'+recruiting+cargoUpgrade+'</div></section>';
+  }
 }
 if(panel==='storage'){
   const building=storageBuilding;
@@ -1284,7 +1290,7 @@ if(kind==='tool'){
 }
 if(kind==='hire'){
   if(!st.buildings[i])return;
-  if(st.buildings[i].workers>=industry.limit)return pop('Maximum employees reached');
+  if(st.buildings[i].workers>=industry.workerLimit(st.buildings[i]))return pop('Maximum employees reached');
   return buy(ECONOMY.hire,()=>{st.buildings[i].workers++;industry.sync()});
 }
 if(kind==='carry'){
