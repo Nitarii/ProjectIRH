@@ -674,3 +674,8 @@ body.touch-placement .touch-action-pad{grid-template-columns:repeat(3,minmax(0,1
  .map-legend{font-size:8px}
  .world-map-footer{flex-wrap:wrap}
 }
+
+/* Gameplay notices and reticle follow the HUD density without affecting menus
+   or the minimum touch target sizes on phones. */
+.notice{transform:translateX(-50%) scale(var(--nim-hud-scale,1));transform-origin:top center}
+#reticle{transform:translate(-50%,-50%) scale(var(--nim-hud-scale,1));transform-origin:center}
