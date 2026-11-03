@@ -2,11 +2,11 @@ import {UI} from './language.js?v=20261103r2';
 import {keyLabel,ACTIONS} from './settings.js?v=20261103r2';
 const actionText={
  fr:{forward:'Avancer',backward:'Reculer',left:'Aller à gauche',right:'Aller à droite',
- sprint:'Sprint',interact:'Interagir / vendre',build:'Construction',talents:'Progression',
- inventory:'Inventaire',drop:'Déposer',vehicle:'Véhicule',jump:'Sauter'},
+ sprint:'Sprint',interact:'Interagir',market:'Comptoir',auto:'Mode automatique',build:'Construction',talents:'Progression',
+ drop:'Déposer',vehicle:'Véhicule',jump:'Sauter'},
  en:{forward:'Move forward',backward:'Move backward',left:'Strafe left',right:'Strafe right',
- sprint:'Sprint',interact:'Interact / sell',build:'Construction',talents:'Progression',
- inventory:'Inventory',drop:'Drop',vehicle:'Vehicle',jump:'Jump'}
+ sprint:'Sprint',interact:'Interact',market:'Market',auto:'Auto gathering',build:'Construction',talents:'Progression',
+ drop:'Drop',vehicle:'Vehicle',jump:'Jump'}
 };
 export function optionsMarkup(settings,awaiting){
  const t=UI[settings.language],actions=actionText[settings.language];
