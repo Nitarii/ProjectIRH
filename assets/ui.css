@@ -188,3 +188,18 @@ border:1px solid #7cc9ac85;border-radius:13px;padding:15px 18px;box-shadow:0 14p
 .option-key-row button{min-width:55px;background:#294c46;border:1px solid #7faba04a;color:#e8f7df;border-radius:5px;padding:7px;font:800 12px 'Barlow Condensed',sans-serif;cursor:pointer}
 .option-key-row button:hover,.option-key-row button.binding-active{background:#9dd7ac;color:#16312c}
 @media(max-width:760px){.options-layout{grid-template-columns:1fr;gap:9px}.options-box{padding:12px}.option-key-row{font-size:10px}.gold-gain{font-size:12px;margin-left:3px}}
+
+
+/* Destructive settings require a two-step, clearly labeled confirmation. */
+.options-safety{margin-top:28px;padding-top:16px;border-top:1px solid #ffffff24}
+.options-safety h3{margin:0 0 12px!important;padding:0!important;border:0!important}
+.utility-control{display:block;width:100%;padding:11px 13px;margin-top:12px;border-radius:8px;text-align:center;background:#274a40;color:#f5f5e8;border:1px solid #8ad9ad61;font:700 12px 'DM Sans',sans-serif;transition:background .15s}
+.utility-control:hover{background:#366b52}
+.utility-control.danger,.reset-actions .danger{background:#5b2b2b;border-color:#f39a8b85;color:#fff2ed}
+.utility-control.danger:hover,.reset-actions .danger:hover{background:#813936}
+.reset-confirm{margin:14px 0 8px;padding:14px;border:1px solid #e8a48a85;border-radius:9px;background:#432527e8;line-height:1.5}
+.reset-confirm strong{display:block;color:#ffe1ce;font-size:13px}
+.reset-confirm p{font-size:11px;color:#edd2c9;margin:10px 0}
+.reset-actions{display:flex;gap:9px}
+.reset-actions button{flex:1;min-width:0;padding:11px 9px;border-radius:6px;background:#304647;color:#f5f5e8;border:1px solid #ffffff2a;font-weight:700;font-size:11px}
+@media(max-width:720px){.reset-actions{flex-direction:column}.options-safety{margin-top:18px}}
