@@ -35,7 +35,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     if(b.id.startsWith('b'))nextId=Math.max(nextId,(Number(b.id.slice(1))||0)+1);
     b.type=Number.isInteger(b.type)?Math.max(0,Math.min(4,b.type)):Math.max(0,biome(b.x,b.z));
     b.rotation=normalizeRotation(b.rotation);
-    b.workers=limited(Math.floor(num(b.workers)),employeeLimit);
+    b.workers=limited(Math.floor(num(b.workers)),b.kind==='road'?2:employeeLimit);
     b.carryLevel=Math.min(5,Math.floor(num(b.carryLevel)));
     b.stockRaw=limited(num(b.stockRaw??(b.kind==='worker'?b.stock:0)));
     b.inputRaw=limited(num(b.inputRaw));
@@ -905,5 +905,5 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     colliders:model.colliders.length,workstations:model.workstations.length,
     stockPoints:model.stockPoints
   }:null}
-  return {register,update,sync,setLanguage,getLabels,readStats,snapshot,buildingGeometry,dispose,blocked,capacity:totalCapacity,limit:employeeLimit};
+  return {register,update,sync,setLanguage,getLabels,readStats,snapshot,buildingGeometry,dispose,blocked,capacity:totalCapacity,limit:employeeLimit,workerLimit:b=>b?.kind==='road'?2:employeeLimit};
 }
