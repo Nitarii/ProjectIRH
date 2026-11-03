@@ -27,26 +27,41 @@ export function loadSettings(){
  let stored={};
  try{stored=JSON.parse(localStorage.getItem('irh-options')||'{}')}catch{}
  const clamp=(v,min,max,base)=>Number.isFinite(Number(v))?Math.max(min,Math.min(max,Number(v))):base;
- const bindings={...defaults.bindings,...(stored.bindings||{})};
+ const previouslySaved=stored.bindings&&typeof stored.bindings==='object'
+   ?stored.bindings:{};
+ const bindings={...defaults.bindings,...previouslySaved};
  delete bindings.inventory;
- // Migrate the shipped defaults, never arbitrary player-defined remaps.
- if(bindings.forward==='KeyZ')bindings.forward='KeyW';
- if(bindings.left==='KeyQ')bindings.left='KeyA';
- if(bindings.auto==='KeyA')bindings.auto='KeyR';
- if(bindings.vehicle==='KeyR')bindings.vehicle='KeyV';
- if(bindings.drop==='KeyG')bindings.drop='KeyX';
- // An older user-defined mapping can collide with a new reserved command.
- const used=new Set();
+ // Migrate only recognisable historic shipped layouts. Explicit custom
+ // bindings must survive subsequent reloads, even when they use Z or Q.
+ if(!stored.controlsVersion){
+   const oldAzerty=previouslySaved.forward==='KeyZ'&&
+     previouslySaved.left==='KeyQ';
+   if(oldAzerty){bindings.forward='KeyW';bindings.left='KeyA'}
+   if(previouslySaved.auto==='KeyA'&&
+      (oldAzerty||previouslySaved.vehicle==='KeyR'))bindings.auto='KeyR';
+   if(previouslySaved.vehicle==='KeyR'&&previouslySaved.auto==='KeyA')
+     bindings.vehicle='KeyV';
+   if(previouslySaved.drop==='KeyG'&&previouslySaved.auto==='KeyA')
+     bindings.drop='KeyX';
+ }
+ // Never leave duplicated bindings after migrating a pre-existing saved game.
+ const assigned=new Set();
+ const alternatives=['KeyR','KeyC','KeyV','KeyX','KeyU','KeyB',
+   'KeyG','KeyH','KeyJ','KeyK','KeyL','KeyP','KeyO','KeyI','KeyN','KeyM'];
  for(const action of ACTIONS){
-  if(used.has(bindings[action]))bindings[action]=defaults.bindings[action];
-  used.add(bindings[action]);
+   const candidate=bindings[action];
+   if(typeof candidate!=='string'||!candidate||assigned.has(candidate)){
+     const fallback=[defaults.bindings[action],...alternatives].find(k=>!assigned.has(k));
+     bindings[action]=fallback||defaults.bindings[action];
+   }
+   assigned.add(bindings[action]);
  }
  return {...defaults,...stored,
    volume:clamp(stored.volume,0,1,defaults.volume),
    mouseSensitivity:clamp(stored.mouseSensitivity,.2,3,defaults.mouseSensitivity),
    renderScale:clamp(stored.renderScale,.5,1.5,defaults.renderScale),
    viewDistance:clamp(stored.viewDistance,64,256,defaults.viewDistance),
-   bindings,
+   bindings,controlsVersion:2,
    language:stored.language==='fr'?'fr':stored.language==='en'?'en':defaults.language};
 }
 export function storeSettings(settings){
