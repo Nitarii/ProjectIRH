@@ -1,5 +1,5 @@
 // Persistent exploration at 12m resolution: cheap to save and independent of loaded chunks.
-export function createExplorationMap({canvas,overlay,player,biome,buildings,agents=()=>[],settings,onDiscover}){
+export function createExplorationMap({canvas,overlay,player,biome,buildings,agents=()=>[],settings,onDiscover,onClose=()=>{}}){
   const ctx=canvas.getContext('2d',{alpha:false});
   const cell=12,discovered=new Set();
   let viewX=player.position.x,viewZ=player.position.z,scale=2.0,visible=false;
@@ -68,8 +68,10 @@ export function createExplorationMap({canvas,overlay,player,biome,buildings,agen
     if(refreshClock>=.20){refreshClock=0;paint()}
   }
   function setVisible(value){
+    const wasVisible=visible;
     visible=!!value;overlay.classList.toggle('hidden',!visible);
     if(visible){refreshClock=0;viewX=player.position.x;viewZ=player.position.z;paint()}
+    else if(wasVisible)onClose();
   }
   function zoom(delta){
     scale=Math.min(8,Math.max(.35,scale*(delta>0?1.25:.8)));paint();
