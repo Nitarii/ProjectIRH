@@ -627,6 +627,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
   }
   function sync(){for(const b of buildings)ensure(b);reconcile()}
   function setLanguage(lang){for(const model of models.values())model.setLanguage?.(lang)}
+  function getLabels(){return Array.from(models,([id,view])=>({id,label:view.labelText}))}
   function readStats(){return {...lastStats}}
   function dispose(){for(const a of agents)removeView(a)}
   function blocked(x,z,radius=.43){rebuildSpatialIndex();return staticBlocked(x,z,radius)}
@@ -638,5 +639,5 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     colliders:model.colliders.length,workstations:model.workstations.length,
     stockPoints:model.stockPoints
   }:null}
-  return {register,update,sync,setLanguage,readStats,snapshot,buildingGeometry,dispose,blocked,capacity:totalCapacity,limit:employeeLimit};
+  return {register,update,sync,setLanguage,getLabels,readStats,snapshot,buildingGeometry,dispose,blocked,capacity:totalCapacity,limit:employeeLimit};
 }
