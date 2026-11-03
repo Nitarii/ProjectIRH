@@ -49,7 +49,7 @@ export function createWildlife(T,scene,{
   };
   const eyes=material(0x111a1b);
   const active=new Map(),inactive=[],birds=new Map(),inactiveBirds=[];
-  let sampleClock=0,clock=0,rebuildCount=0;
+  let sampleClock=0,clock=0,rebuildCount=0,stepAccumulator=0;
   const make=(geo,mat,parent,x,y,z,sx,sy,sz)=>{
     const mesh=new T.Mesh(geo,mat);
     mesh.position.set(x,y,z);mesh.scale.set(sx,sy,sz);
@@ -111,9 +111,8 @@ export function createWildlife(T,scene,{
     scene.add(group);return {group,wings,species:s};
   }
   function acquire(b,v){
-    const reuse=inactive.pop();
-    if(reuse&&reuse.biome===b&&reuse.variant===v)return reuse;
-    if(reuse){reuse.model.group.visible=false;inactive.push(reuse)}
+    const index=inactive.findIndex(item=>item.biome===b&&item.variant===v);
+    if(index>=0)return inactive.splice(index,1)[0];
     return {biome:b,variant:v,model:creatureModel(b,v)};
   }
   function acquireBird(b){
@@ -159,7 +158,9 @@ export function createWildlife(T,scene,{
       a.model.group.visible=true;active.set(site.id,a);
     }
     for(const [id,a] of active)if(!wanted.has(id)){
-      active.delete(id);a.model.group.visible=false;inactive.push(a);
+      active.delete(id);a.model.group.visible=false;
+      if(inactive.length<26)inactive.push(a);
+      else scene.remove(a.model.group);
     }
     for(const site of airCandidates.slice(0,maxAir)){
       wantedBirds.add(site.id);
@@ -172,12 +173,18 @@ export function createWildlife(T,scene,{
       a.model.group.visible=true;birds.set(site.id,a);
     }
     for(const [id,a] of birds)if(!wantedBirds.has(id)){
-      birds.delete(id);a.model.group.visible=false;inactiveBirds.push(a);
+      birds.delete(id);a.model.group.visible=false;
+      if(inactiveBirds.length<12)inactiveBirds.push(a);
+      else scene.remove(a.model.group);
     }
     rebuildCount++;
   }
   function update(dt){
     if(dt<=0)return;
+    stepAccumulator+=dt;
+    const mode=quality(),interval=mode==='low'?.093:mode==='high'?.033:.050;
+    if(stepAccumulator<interval)return;
+    dt=Math.min(.18,stepAccumulator);stepAccumulator=0;
     clock+=dt;sampleClock+=dt;
     if(sampleClock>=1.7){sampleClock=0;refresh()}
     const player=playerPosition(),visible=Math.min(180,viewDistance()*.84);
