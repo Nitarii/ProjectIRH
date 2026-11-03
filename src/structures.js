@@ -117,10 +117,10 @@ export function makeStructure(T, scene, building) {
   }
   // The nameplate is an integrated material that can change language in place.
   const industries={
-    en:[['LOGGING HUT','QUARRY','MINE SHAFT','SAND YARD','FARM'],
-      ['SAWMILL','STONEWORKS','SMELTER','GLASSWORKS','WINDMILL']],
-    fr:[['BÛCHERONS','CARRIÈRE','MINE','SABLIÈRE','FERME'],
-      ['SCIERIE','TAILLE DE PIERRE','FONDERIE','VERRERIE','MOULIN']]
+    en:[['LOGGING HUT','QUARRY','MINE','EARTHWORKERS CAMP','FARM'],
+      ['SAWMILL','STONE WORKSHOP','FOUNDRY','GLASSWORKS','MILL']],
+    fr:[['CABANE DE BÛCHERON','CARRIÈRE','MINE','CAMP DE TERRASSIERS','FERME'],
+      ['SCIERIE','ATELIER DE TAILLE','FONDERIE','VERRERIE','MOULIN']]
   };
   const names={en:['FREIGHT DEPOT','TRADE HOUSE'],fr:['DÉPÔT','COMPTOIR']};
   function labelFor(language){
