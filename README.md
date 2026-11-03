@@ -80,3 +80,7 @@ Right mouse button toggles pointer lock/free cursor. The bottom-left keyboard sh
 - Settings include independent **Minimap size (72–260 px)** and **In-game HUD scale (70–140%)** controls. Both persist in the existing local settings and update immediately. Mobile portrait/landscape placement remains responsive.
 - While automatic mode is enabled, the player's eyes display a lightweight animated chromatic wave shader. They revert to dark eyes when automation is disabled.
 - Storage, focused building management and sound settings use simpler labels to avoid repeating the same instructions in headings, buttons and footers.
+
+## UI regression checks
+
+Run `node tests/ui-regressions.mjs` in a local checkout to verify persistent slider bounds, AZERTY labels, resource transfers, map unpause, chromatic auto-mode wiring and visible worker/building dots. These smoke tests do not replace in-browser or real-device checks.
