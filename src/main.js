@@ -31,6 +31,7 @@ import {worldPoint,facilityFootprint,footprintsOverlap,pointInOrientedRect,norma
 import {createBicycle} from './bicycle.js?v=20261104c';
 import {createExplorationMap} from './exploration-map.js?v=20261103camera1';
 import {createMobileControls} from './mobile-controls.js?v=20261105a';
+import {createScreenImmersion} from './screen-immersive.js?v=20261103visual2';
 const $=id=>document.getElementById(id), scene=new T.Scene();scene.background=new T.Color('#a6cbd1');scene.fog=new T.Fog('#a6cbd1',80,125);
 const cam=new T.PerspectiveCamera(65,innerWidth/innerHeight,.1,450),renderer=new T.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.25));
 renderer.outputColorSpace=T.SRGBColorSpace;
@@ -437,6 +438,8 @@ function updateResourceVisibility(){
 }
 const count=()=>st.inv.reduce((a,b)=>a+b,0)+st.products.reduce((a,b)=>a+b,0);
 let touchControls=null,mouseFree=false,cameraRecoveryRequested=false;
+const immersion=createScreenImmersion({button:$('fullscreenButton'),
+  isMobile:()=>!!touchControls?.enabled||navigator.maxTouchPoints>0});
 let heading=0,pitch=.38,dist=10,active=0,keys={},current=null,placing=null,carried=null,carriedSource=null,elapsed=0,workerClock=0;
 let buildingPreview=null,previewMaterials=[],lastPlacementValid=null;
 let harvesting=null,harvestProgress=0,stepPhase=0,autoMode=false;
@@ -636,7 +639,16 @@ function applyHudSettings(){
   hud.style.height=Math.ceil(window.innerHeight/factor)+'px';
   syncHudDimensions();
 }
+const mobileVehicleButton=$('mobileControls')?.querySelector('[data-touch-action="vehicle"]');
+let lastMobileBikeAvailable=null;
+function syncMobileVehicle(){
+  const available=!!st.bicycle;
+  if(lastMobileBikeAvailable===available)return;
+  lastMobileBikeAvailable=available;
+  mobileVehicleButton?.classList.toggle('hidden',!available);
+}
 function updateInventory(){
+syncMobileVehicle();
 const grid=$('inventoryGrid');if(!grid)return;
 $('miniInventory').dataset.capacity=String(st.bag);
 const items=[];for(let i=0;i<5;i++)for(let j=0;j<st.inv[i];j++)items.push(i);
@@ -1585,6 +1597,7 @@ function finishWelcome(){
   $('welcome').classList.add('hidden');
   $('hud').classList.remove('hidden');
   applyHudSettings();
+  immersion.start();
   resumeCameraControl();
 }
 function closeAvatarBuilder(){
