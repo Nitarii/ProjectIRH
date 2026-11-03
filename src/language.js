@@ -1,4 +1,10 @@
 const pairs=[
+['Atelier de voirie','Roadworks depot'],
+['Récolte → usine → entrepôt vendeur','Harvest → factory → seller warehouse'],
+['Vend uniquement son propre stock','Only sells goods in its own warehouse'],
+['Chantiers de chemins et routes, jusqu’à +50 % de vitesse','Build paths and paved roads, up to +50% speed'],
+['Bâtiment construit','Building completed'],
+
 ['DÉPÔT','STOCKPILE'],['Employés et équipements','Employees and equipment'],
 ['RECRUTEMENT ET AMÉLIORATIONS','HIRING AND UPGRADES'],
 ['Stockage du bâtiment','Facility stockpile'],['DÉPOSER','DEPOSIT'],['RÉCUPÉRER','WITHDRAW'],
