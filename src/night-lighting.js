@@ -119,7 +119,8 @@ export function createNightLighting(T,scene,{
     const limit=mode==='low'?2:mode==='high'?8:5;
     for(let i=0;i<lightPool.length;i++){
       const light=lightPool[i],site=i<limit?candidates[i]:null;
-      light.visible=!!site;
+      light.nimAssigned=!!site;
+      light.visible=!!site&&night>.02;
       if(site){
         light.position.set(site.x,site.y+.04,site.z);
         light.distance=site.road?14:16;
@@ -146,8 +147,10 @@ export function createNightLighting(T,scene,{
       lastRange=range;lastQuality=mode;
       refresh();
     }
-    for(const light of lightPool)
-      if(light.visible)light.intensity=(light.distance>15?1.65:1.33)*night;
+    for(const light of lightPool){
+      light.visible=!!light.nimAssigned&&night>.02;
+      light.intensity=light.visible?(light.distance>15?1.65:1.33)*night:0;
+    }
   }
   function dispose(){
     for(const mesh of [poles,roadCaps,brackets,bulbs,glows])scene.remove(mesh);
