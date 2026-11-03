@@ -145,7 +145,7 @@ const cactusGeometry=new T.CylinderGeometry(.14,.2,1.13,6);
 const decorMaterials=[M(0x87916f),M(0x54754a),M(0xaf9675),M(0x5e9d67),M(0xd2ae63),M(0x5d8661)];
 const dummy=new T.Object3D();
 function decorations(cx,cz,root){
-const items=[[],[],[],[],[],[]],x0=cx*CH,z0=cz*CH;
+const items=[[],[],[],[],[],[]],colliders=[],x0=cx*CH,z0=cz*CH;
 for(let n=0;n<38;n++){
 const x=x0+.7+hash(cx*71+n,cz,44)*30.6,z=z0+.7+hash(cx,cz*73+n,45)*30.6;
 if(Math.hypot(x,z)<23||isSelling(x,z))continue;
@@ -157,8 +157,12 @@ if(b===2)kind=h<.65?2:0;
 if(b===3)kind=h<.6?3:2;
 if(b===4)kind=h<.72?4:5;
 if(b===-1)kind=h<.55?1:0;
-items[kind].push({x,z,scale:.55+hash(cx+n,cz+n,49)*1.5,turn:hash(cx+n,cz,48)*6.28})
+const scale=.55+hash(cx+n,cz+n,49)*1.5;
+items[kind].push({x,z,scale,turn:hash(cx+n,cz,48)*6.28});
+if((kind===0||kind===2||kind===3||kind===5)&&scale>.95)
+  colliders.push({x,z,r:.18+scale*(kind===3?.28:.31)});
 }
+root.userData.decorationColliders=colliders;
 items.forEach((batch,i)=>{
 if(!batch.length)return;
 const geo=i===0||i===2?accentGeometry:i===3?cactusGeometry:i===4?stalkGeometry:weedGeometry;
@@ -280,6 +284,19 @@ const maxStamina=()=>100+Math.max(0,st.staminaLevel||0)*32;
 const staminaRegen=()=>16+Math.max(0,st.staminaLevel||0)*4;
 let stamina=maxStamina(),sprintLocked=false,footstepTimer=0;
 const PLAYER_RADIUS=.43;
+function sceneryBlocked(x,z,radius=.35){
+  const cx=Math.floor(x/CH),cz=Math.floor(z/CH);
+  for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++){
+    const c=world.get((cx+dx)+','+(cz+dz));
+    if(!c)continue;
+    for(const p of c.root.userData.decorationColliders||[]){
+      const d=p.r+radius;
+      if(Math.abs(p.x-x)>d||Math.abs(p.z-z)>d)continue;
+      if((p.x-x)**2+(p.z-z)**2<d*d)return true;
+    }
+  }
+  return false;
+}
 function blocked(x,z){
 if(industry.blocked(x,z,PLAYER_RADIUS))return true;
 const box=(bx,bz,w,d)=>Math.abs(x-bx)<w/2+PLAYER_RADIUS&&Math.abs(z-bz)<d/2+PLAYER_RADIUS;
@@ -594,7 +611,7 @@ function interact(){
 
 function buy(cost,fn){if(st.gold<cost){sound.effect('exhausted');return pop('Or insuffisant')}st.gold-=cost;sound.effect('buy');fn();updateInventory();save();renderPanel()}
 const industry=createIndustry(T,scene,st,resources,biome,SALE,values,{
-onSale(amount){save()}
+onSale(amount){save()},blocked:sceneryBlocked
 });
 function addBuilding(b){return industry.register(b)}
 st.buildings.forEach(addBuilding);
