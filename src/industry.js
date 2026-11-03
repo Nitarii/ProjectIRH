@@ -213,32 +213,66 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     }
   }
   function staticBlocked(x,z,radius=.35,target=null){
+    // Shared collision rules for A* and physical stepping. Low-height
+    // scenery is already excluded by the supplied decoration probe.
+    if(Math.abs(x)<2.5+radius&&Math.abs(z)<2+radius)return true;
     if(hooks.blocked?.(x,z,radius))return true;
-    for(const b of nearby(buildingCells,x,z)){
-      if(Math.abs(x-b.x)>14||Math.abs(z-b.z)>14)continue;
-      const view=models.get(b.id);
-      if(view?.colliders?.length){
-        for(const c of view.colliders)
-          if(Math.abs(x-c.x)<c.w/2+radius&&Math.abs(z-c.z)<c.d/2+radius)return true;
-      }else if(Math.abs(x-b.x)<2.45+radius&&Math.abs(z-b.z)<2.3+radius)return true;
+    const bx=Math.floor(x/gridSize),bz=Math.floor(z/gridSize);
+    for(let ix=bx-2;ix<=bx+2;ix++)for(let iz=bz-2;iz<=bz+2;iz++){
+      const group=buildingCells.get(ix+','+iz);if(!group)continue;
+      for(const b of group){
+        if(Math.abs(x-b.x)>14||Math.abs(z-b.z)>14)continue;
+        const view=models.get(b.id);
+        if(view?.colliders?.length){
+          for(const c of view.colliders)
+            if(Math.abs(x-c.x)<c.w/2+radius&&Math.abs(z-c.z)<c.d/2+radius)return true;
+        }else if(Math.abs(x-b.x)<2.45+radius&&Math.abs(z-b.z)<2.3+radius)return true;
+      }
     }
-    for(const r of nearby(sourceCells,x,z)){
-      if(r.dead||r===target)continue;
-      const d=[.75,1.05,1,.8,.48][r.type]+radius;
-      if(Math.abs(r.x-x)<d&&Math.abs(r.z-z)<d&&(r.x-x)**2+(r.z-z)**2<d*d)return true;
+    for(let ix=bx-1;ix<=bx+1;ix++)for(let iz=bz-1;iz<=bz+1;iz++){
+      const group=sourceCells.get(ix+','+iz);if(!group)continue;
+      for(const r of group){
+        if(r.dead||r===target)continue;
+        const d=[.75,1.05,1,.8,.48][r.type]+radius;
+        const dx=r.x-x,dz=r.z-z;
+        if(Math.abs(dx)<d&&Math.abs(dz)<d&&dx*dx+dz*dz<d*d)return true;
+      }
     }
     return false;
   }
+  const PERSON_CELL=4.0,agentCells=new Map();
+  const personKey=(x,z)=>Math.floor(x/PERSON_CELL)+','+Math.floor(z/PERSON_CELL);
+  function refreshAgentIndex(){
+    agentCells.clear();
+    for(const a of agents){
+      const key=personKey(a.x,a.z);
+      let list=agentCells.get(key);
+      if(!list)agentCells.set(key,list=[]);
+      list.push(a);
+    }
+  }
+  function updateAgentCell(a,oldX,oldZ){
+    const original=personKey(oldX,oldZ),next=personKey(a.x,a.z);
+    if(original===next)return;
+    const list=agentCells.get(original);
+    if(list){const index=list.indexOf(a);if(index>=0)list.splice(index,1)}
+    let other=agentCells.get(next);
+    if(!other)agentCells.set(next,other=[]);
+    other.push(a);
+  }
   function humanBlocked(x,z,self){
-    // Check the entire movement segment so fast workers cannot cross each other.
     const vx=x-self.x,vz=z-self.z,len2=Math.max(.0001,vx*vx+vz*vz);
-    for(const other of agents){
-      if(other===self)continue;
-      const dx=other.x-self.x,dz=other.z-self.z;
-      if(Math.abs(dx)>1.8&&Math.abs(dz)>1.8)continue;
-      const t=Math.max(0,Math.min(1,(dx*vx+dz*vz)/len2));
-      const px=self.x+t*vx,pz=self.z+t*vz;
-      if((px-other.x)**2+(pz-other.z)**2<.62*.62)return true;
+    const cx=Math.floor(x/PERSON_CELL),cz=Math.floor(z/PERSON_CELL);
+    for(let ix=cx-1;ix<=cx+1;ix++)for(let iz=cz-1;iz<=cz+1;iz++){
+      const candidates=agentCells.get(ix+','+iz);if(!candidates)continue;
+      for(const other of candidates){
+        if(other===self)continue;
+        const dx=other.x-self.x,dz=other.z-self.z;
+        if(Math.abs(dx)>2||Math.abs(dz)>2)continue;
+        const t=Math.max(0,Math.min(1,(dx*vx+dz*vz)/len2));
+        const px=self.x+t*vx,pz=self.z+t*vz;
+        if((px-other.x)**2+(pz-other.z)**2<.62*.62)return true;
+      }
     }
     return false;
   }
@@ -688,11 +722,13 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       cullOrigin.x=camera.position.x;cullOrigin.z=camera.position.z;
     }else camera=null;
     if(planningClock>=.33){reconcile();planningClock=0}
+    refreshAgentIndex();
     for(const r of resources)if(r.dead&&r.recoverAt&&time>=r.recoverAt){
       r.dead=false;r.hp=r.max;r.recoverAt=0;r.workerClaim=null;r.mesh.visible=true;
     }
     let shown=0,transporting=0,carrying=0;abstractCount=0;
     for(const a of agents){
+      const previousX=a.x,previousZ=a.z;
       const previous=a.abstract;
       a.abstract=!inView(a.x,a.z,155)&&distance(a,viewer)>32;
       if(a.abstract)abstractCount++;
@@ -709,6 +745,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
         if(a.abstractElapsed){updateAgent(a,a.abstractElapsed);a.abstractElapsed=0}
         updateAgent(a,dt);
       }
+      updateAgentCell(a,previousX,previousZ);
       if(!a.abstract&&animate(a,dt))shown++;
       else removeView(a);
       if(a.carry>0)carrying++;
