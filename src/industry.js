@@ -264,7 +264,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
   function abandonBlockedTask(a){
     stuckRecoveries++;
     // An unreachable source must not be assigned back to the same worker next frame.
-    if(a.target&&!a.target.dead){
+    if(!a.carry&&a.target&&!a.target.dead){
       a.target.unreachableFailures=(a.target.unreachableFailures||0)+1;
       // An unreachable site is a topology problem rather than a transient
       // character collision. Cache the failure so other workers can keep
