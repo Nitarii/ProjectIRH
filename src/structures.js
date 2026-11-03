@@ -1,3 +1,4 @@
+import {decorateFacility} from './factory-scene.js?v=20261103v';
 // Small industrial structures share materials and geometry detail budgets.
 export function makeStructure(T, scene, building) {
   const palette=[
@@ -166,17 +167,18 @@ const label=(kind==='worker'?names[0][t]:kind==='factory'?names[1][t]:
     if(kind==='transport')box(1.5,.12,1.4,metal,1.65,.35,-1.6);
     if(kind==='seller')box(3.0,.19,.6,trim,0,.95,2.05);
   }
-  if(group.scale?.set)group.scale.set(1+(t%3)*.035,1+(t%4)*.08,1+(t%2)*.04);
+  // Do not change the model scale without changing its collision envelopes.
+  const facility=decorateFacility(T,group,building,[wood,stone,metal,trim,roof,amber]);
   group.position.set(building.x,0,building.z);
   scene.add(group);
   return {
-    group,
+    group,colliders:facility.colliders,workstations:facility.workstations,
+    stockPoints:facility.stockPoints,
     update(time,active){
+      facility.updateStock();
       if(!active)return;
-      for(const item of moving){
-        if(item.mode==='spin')item.mesh.rotation.z=time*item.speed;
-        else item.mesh.rotation.z=time*item.speed;
-      }
+      for(const item of moving)item.mesh.rotation.z=time*item.speed;
+      facility.updateAnimations(time);
     }
   };
 }
