@@ -1,19 +1,24 @@
 const frenchKeyboard=(navigator.language||'en').toLowerCase().startsWith('fr');
 const defaults={
   language:(navigator.language||'en').toLowerCase().startsWith('fr')?'fr':'en',
-  muted:false,volume:.65,quality:'balanced',shadows:true,
+  muted:false,volume:.5,mouseSensitivity:1,renderScale:1,viewDistance:160,quality:'balanced',shadows:true,
   effects:true,
   bindings:{
     forward:frenchKeyboard?'KeyZ':'KeyW',backward:'KeyS',left:frenchKeyboard?'KeyQ':'KeyA',right:'KeyD',
     sprint:'ShiftLeft',interact:'KeyF',build:'KeyB',talents:'KeyU',
-    inventory:'KeyI',drop:'KeyG',vehicle:'KeyR'
+    inventory:'KeyI',drop:'KeyG',vehicle:'KeyR',jump:'Space'
   }
 };
 export const ACTIONS=Object.keys(defaults.bindings);
 export function loadSettings(){
   let stored={};
   try{stored=JSON.parse(localStorage.getItem('irh-options')||'{}')}catch{}
+  const clamp=(v,min,max,base)=>Number.isFinite(Number(v))?Math.max(min,Math.min(max,Number(v))):base;
   return {...defaults,...stored,
+    volume:clamp(stored.volume,0,1,defaults.volume),
+    mouseSensitivity:clamp(stored.mouseSensitivity,.2,3,defaults.mouseSensitivity),
+    renderScale:clamp(stored.renderScale,.5,1.5,defaults.renderScale),
+    viewDistance:clamp(stored.viewDistance,64,256,defaults.viewDistance),
     bindings:{...defaults.bindings,...(stored.bindings||{})},
     language:stored.language==='fr'?'fr':stored.language==='en'?'en':defaults.language};
 }
@@ -36,13 +41,13 @@ export function isPressed(keys,settings,action){
   if(action==='sprint')return !!keys.ShiftRight;
   return false;
 }
-export function applyQuality(renderer,sun,quality){
+export function applyQuality(renderer,sun,quality,renderScale=1){
   const settings={
     low:{pixel:0.72,shadows:false},
     balanced:{pixel:1,shadows:true},
     high:{pixel:1.4,shadows:true}
   }[quality]||{pixel:1,shadows:true};
-  const ratio=Math.min(window.devicePixelRatio||1,settings.pixel);
+  const ratio=Math.max(.45,Math.min(window.devicePixelRatio||1,settings.pixel)*Math.max(.5,Math.min(1.5,renderScale)));
   renderer.setPixelRatio(ratio);
   renderer.shadowMap.enabled=settings.shadows;
   if(sun){sun.castShadow=settings.shadows;sun.shadow.mapSize.set(settings.shadows?1024:512,settings.shadows?1024:512);
