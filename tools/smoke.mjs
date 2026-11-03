@@ -9,7 +9,7 @@ async function startGame(page){
     await page.locator('[data-avatar="topStyle"]').selectOption('2');
     await page.locator('[data-avatar="bottomStyle"]').selectOption('1');
     await page.locator('[data-avatar="glasses"]').check();
-    await page.locator('[data-avatar="hairColor"]').fill('#a17436');
+    await page.locator('[data-avatar="hairColor"]').evaluate(el=>{el.value='#a17436';el.dispatchEvent(new Event('input',{bubbles:true}))});
     await page.locator('#creatorFinish').click({timeout:20000});
   }
   await page.waitForFunction(()=>!document.querySelector('#hud').classList.contains('hidden'),null,{timeout:20000});
