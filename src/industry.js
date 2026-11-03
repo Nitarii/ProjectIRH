@@ -418,10 +418,17 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     if(a.state==='returnHome'&&walk(a,a.goal,dt))idle(a,.5);
   }
   const forward={x:0,z:1},cullOrigin={x:0,z:0};
-  function inView(x,z,range=165){
+  const frustum=T.Frustum&&T.Matrix4&&T.Sphere&&T.Vector3?new T.Frustum():null;
+  const projection=frustum?new T.Matrix4():null;
+  const visibilitySphere=frustum?new T.Sphere(new T.Vector3(),2.4):null;
+  function inView(x,z,range=165,radius=2.4){
     const dx=x-viewer.x,dz=z-viewer.z;
     if(dx*dx+dz*dz>range*range)return false;
     if(!camera||!Number.isFinite(cullOrigin.x))return true;
+    if(frustum){
+      visibilitySphere.center.set(x,1.35,z);visibilitySphere.radius=radius;
+      return frustum.intersectsSphere(visibilitySphere);
+    }
     const ux=x-cullOrigin.x,uz=z-cullOrigin.z,len=Math.hypot(ux,uz);
     // Grace margin prevents popping close to the edges of the screen.
     if(len<18)return true;
@@ -502,6 +509,11 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
   function update(dt,px,pz,cam=null){
     time+=dt;planningClock+=dt;viewer={x:px,z:pz};camera=cam;
     if(camera&&typeof camera.getWorldDirection==='function'&&T.Vector3){
+      if(frustum){
+        camera.updateMatrixWorld();
+        projection.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse);
+        frustum.setFromProjectionMatrix(projection);
+      }
       const temp=new T.Vector3();camera.getWorldDirection(temp);
       const length=Math.hypot(temp.x,temp.z)||1;
       forward.x=temp.x/length;forward.z=temp.z/length;
@@ -538,7 +550,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       b.stock=b.kind==='worker'?b.stockRaw:b.kind==='factory'?b.stockProcessed:0;
       const model=models.get(b.id);
       if(!model)continue;
-      const visible=inView(b.x,b.z,170);
+      const visible=inView(b.x,b.z,170,13);
       model.group.visible=visible;
       if(visible)model.update(time,true);
     }
