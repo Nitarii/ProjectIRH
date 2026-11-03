@@ -575,6 +575,7 @@ function syncHudDimensions(){
 }
 function applyHudSettings(){
   const hud=$('hud'),factor=Math.max(.7,Math.min(1.4,settings.hudScale||1));
+  document.documentElement.style.setProperty('--nim-hud-scale',String(factor));
   hud.style.setProperty('--hud-scale',String(factor));
   hud.style.setProperty('--minimap-size',settings.minimapSize+'px');
   // Transforming a fixed element makes it the viewport for its descendants.
