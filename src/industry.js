@@ -1,4 +1,4 @@
-import {makeStructure} from './structures.js?v=20261103w';
+import {makeStructure} from './structures.js?v=20261103a1';
 import {createRouter} from './navigation.js?v=20261103w';
 import {workstation,storagePoint} from './factory-tasks.js?v=20261103v';
 
@@ -624,6 +624,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     return lastStats;
   }
   function sync(){for(const b of buildings)ensure(b);reconcile()}
+  function setLanguage(lang){for(const model of models.values())model.setLanguage?.(lang)}
   function readStats(){return {...lastStats}}
   function dispose(){for(const a of agents)removeView(a)}
   function blocked(x,z,radius=.43){rebuildSpatialIndex();return staticBlocked(x,z,radius)}
@@ -635,5 +636,5 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     colliders:model.colliders.length,workstations:model.workstations.length,
     stockPoints:model.stockPoints
   }:null}
-  return {register,update,sync,readStats,snapshot,buildingGeometry,dispose,blocked,capacity:totalCapacity,limit:employeeLimit};
+  return {register,update,sync,setLanguage,readStats,snapshot,buildingGeometry,dispose,blocked,capacity:totalCapacity,limit:employeeLimit};
 }
