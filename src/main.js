@@ -960,7 +960,8 @@ const wildlife=createWildlife(T,scene,{
   quality:()=>settings.quality,
   viewDistance:()=>settings.viewDistance,
   playerPosition:()=>player.position,
-  daylight:()=>skyWeather.dayFactor
+  daylight:()=>skyWeather.dayFactor,
+  worldTime:()=>st.gameMinutes
 });
 const autoPilot=createAutoPilot({
   player,blocked,move:movePlayer,resources:()=>resources,
