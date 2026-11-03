@@ -133,7 +133,7 @@ export function createWildlife(T,scene,{
       const az=iz*cell+(random(ix,iz,seed+2)-.5)*cell*.78+cell*.5;
       const d=distance(ax,az,pos.x,pos.z);
       const biome=biomeAt(ax,az);
-      if(biome<0||biome>4||d>range||d<15)continue;
+      if(biome<0||biome>4||d>range)continue;
       if(random(ix,iz,seed+3)>.78)continue;
       if(!blocked(ax,az,.5)){
         const variant=Math.floor(random(ix,iz,seed+4)*3);
@@ -240,8 +240,8 @@ export function createWildlife(T,scene,{
       g.position.y=moving?(hopping?Math.max(0,Math.sin(clock*11*a.speed+a.phase))*.105:
         crawling?.004:Math.abs(gait)*.036):Math.sin(clock*1.3+a.phase)*.012;
       g.rotation.z=crawling?Math.sin(clock*4.6+a.phase)*.027:0;
-      const fade=Math.min(1,a.life,Math.max(0,(visible-distance(a.x,a.z,player.x,player.z))/9));
-      g.scale.setScalar(Math.max(.02,fade));
+      // Physical animal size never changes when the observer approaches.
+      g.scale.setScalar(1);
     }
     for(const a of birds.values()){
       a.life=Math.min(1,a.life+dt*.50);
@@ -263,7 +263,8 @@ export function createWildlife(T,scene,{
       const flap=Math.sin(clock*(soaring?3.8:8.3)*s.speed+a.phase)*
         (gliding?.055:soaring?.32:.48);
       for(const wing of a.model.wings)wing.arm.rotation.z=flap*wing.side;
-      g.scale.setScalar(Math.max(.02,Math.min(1,a.life,(visible-far)/12)));
+      // Bird silhouettes remain at the same scale regardless of camera distance.
+      g.scale.setScalar(1);
     }
   }
   function dispose(){
