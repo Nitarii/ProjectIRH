@@ -3,7 +3,7 @@ import {createRouter} from './navigation.js?v=20261103w';
 import {workstation,storagePoint} from './factory-tasks.js?v=20261103v';
 
 export function createIndustry(T, scene, st, resources, biome, sale, values, hooks={}) {
-  const agents=[], buildings=st.buildings;
+  const agents=[],agentById=new Map(), buildings=st.buildings;
   const byId=new Map(), models=new Map(), totalCapacity=100, employeeLimit=5;
   const colors=[0x438258,0x8c9a9d,0x7d889e,0xd4a772,0xaaa36c];
   const outfits={
@@ -22,6 +22,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
   for(const role of Object.keys(outfits))materials[role]=new T.MeshLambertMaterial({color:outfits[role]});
   const cargoMaterials=resourcesColors.map(color=>new T.MeshLambertMaterial({color}));
   let nextId=1,time=0,planningClock=0,viewer={x:0,z:0},camera=null,abstractCount=0,navReplans=0,separations=0;
+  let navigationBudget=0,stuckRecoveries=0,routeFailures=0,lastDesiredSignature='';
   let lastStats={employees:0,visible:0,carrying:0,transports:0,delivered:0,sold:0,soldRaw:0,soldProcessed:0,processed:0};
   const num=n=>Number.isFinite(+n)?Math.max(0,+n):0;
   const distance=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z);
@@ -123,22 +124,28 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
   }
   function addAgent(b,i){
     const role=b.kind==='worker'?'worker':b.kind==='factory'?'factory':b.kind==='transport'?'transport':'seller';
-    agents.push({id:b.id+'-'+i,home:b,role,x:b.x+(i-2)*.82,z:b.z+3.65,slot:i,
+    const a={id:b.id+'-'+i,home:b,role,x:b.x+(i-2)*.82,z:b.z+3.65,slot:i,
       state:'idle',target:null,targetBuilding:null,receiver:null,goal:null,carry:0,carryType:b.type,
-      processed:false,timer:0,wait:0,walkPhase:i,angle:0,view:null,selectionCooldown:0,route:null,waypoint:0,goalKey:'',routeCooldown:0,abstract:false,workMotion:'inspect',workElapsed:0});
+      processed:false,timer:0,wait:0,walkPhase:i,angle:0,view:null,selectionCooldown:0,route:null,waypoint:0,goalKey:'',routeCooldown:0,abstract:false,workMotion:'inspect',workElapsed:0,
+       blockedAge:0,noPathAge:0,stagnationAge:0,navWatch:0,navStartX:NaN,navStartZ:NaN,
+       routeGoal:null,approachAttempts:0,routeEpoch:0};
+    agents.push(a);agentById.set(a.id,a);
   }
   function reconcile(){
     for(const b of buildings)ensure(b);
+    const signature=buildings.map(b=>b.id+':'+b.workers).join('|');
+    if(signature===lastDesiredSignature)return;
+    lastDesiredSignature=signature;
     const desired=new Set();
     for(const b of buildings)for(let i=0;i<b.workers;i++){
       const id=b.id+'-'+i;desired.add(id);
-      if(!agents.some(a=>a.id===id))addAgent(b,i);
+      if(!agentById.has(id))addAgent(b,i);
     }
     for(let i=agents.length-1;i>=0;i--){
       const a=agents[i];
       if(!desired.has(a.id)){
         if(a.carry>0)refundCargo(a);
-        removeView(a);agents.splice(i,1);
+        removeView(a);agents.splice(i,1);agentById.delete(a.id);
       }
     }
   }
@@ -573,7 +580,8 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
   }
   function register(b){ensure(b);reconcile();return b.mesh}
   function update(dt,px,pz,cam=null){
-    time+=dt;planningClock+=dt;viewer={x:px,z:pz};camera=cam;
+    time+=dt;planningClock+=dt;viewer.x=px;viewer.z=pz;camera=cam;
+    navigationBudget=3;
     rebuildSpatialIndex();
     if(camera&&typeof camera.getWorldDirection==='function'&&T.Vector3){
       if(frustum){
@@ -622,7 +630,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       if(visible)model.update(time,true);
     }
     Object.assign(lastStats,{employees:agents.length,visible:shown,carrying,transports:transporting,
-      abstract:abstractCount,replans:navReplans,separations});
+      abstract:abstractCount,replans:navReplans,separations,stuckRecoveries,routeFailures});
     return lastStats;
   }
   function sync(){for(const b of buildings)ensure(b);reconcile()}
@@ -633,7 +641,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
   function blocked(x,z,radius=.43){rebuildSpatialIndex();return staticBlocked(x,z,radius)}
   function snapshot(){
     return agents.map(a=>({id:a.id,role:a.role,slot:a.slot,state:a.state,workMotion:a.workMotion,
-      x:a.x,z:a.z,abstract:a.abstract,carry:a.carry,home:a.home.id}));
+      x:a.x,z:a.z,abstract:a.abstract,carry:a.carry,home:a.home.id,blockedAge:a.blockedAge,routeEpoch:a.routeEpoch}));
   }
   function buildingGeometry(id){const model=models.get(id);return model?{
     colliders:model.colliders.length,workstations:model.workstations.length,
