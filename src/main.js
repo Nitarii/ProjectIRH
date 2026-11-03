@@ -1060,15 +1060,18 @@ if(panel==='employees'){
     const fr=settings.language==='fr';
     const stock=b.kind==='worker'?(fr?'Brut : ':'Raw: ')+b.stockRaw
       :b.kind==='factory'?(fr?'Entrée : ':'Input: ')+b.inputRaw+' · '+(fr?'Transformé : ':'Processed: ')+b.stockProcessed
-      :(fr?'Logistique automatisée':'Automated logistics');
+      :b.kind==='seller'?(fr?'Stock à vendre : ':'Goods awaiting sale: ')+
+        ((b.warehouseRaw||[]).reduce((n,v)=>n+v,0)+(b.warehouseProcessed||[]).reduce((n,v)=>n+v,0))
+      :b.kind==='road'?(fr?'Chemins tracés : ':'Road tiles: ')+roads.built+'/'+roads.plannedCount
+      :(fr?'Livraisons inter-bâtiments':'Inter-building deliveries');
     return add(title,
       (focus?'':(fr?'Recruter un ':'Hire a ')+recruitName(b)+' · ')+b.workers+'/'+industry.limit+' '+(fr?'employés':'staff')+' · '+stock,
       b.workers>=industry.limit?'MAX':ECONOMY.hire+' OR','hire:'+i,
       b.workers>=industry.limit,b.type)
-      +add(UI[settings.language].capacity,
-        'Niveau '+(b.carryLevel||0)+'/5 · '+(2+2*(b.carryLevel||0))+' / '+(6+3*(b.carryLevel||0)),
+      +(b.kind==='road'?'':add(fr?'Capacité de charge':'Cargo capacity',
+        (fr?'Niveau ':'Level ')+(b.carryLevel||0)+'/5 · '+(6+3*(b.carryLevel||0))+' unités',
         (b.carryLevel||0)>=5?'MAX':workerCarryCost(b.carryLevel||0)+' OR',
-        'carry:'+i,(b.carryLevel||0)>=5,b.type);
+        'carry:'+i,(b.carryLevel||0)>=5,b.type));
   }).join(''));
 }
 if(panel==='storage'){
