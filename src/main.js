@@ -12,7 +12,7 @@ import {tr,translateTree,UI} from './language.js?v=20261106d';
 import {createBaseCamp} from './basecamp.js';
 import {optionsMarkup} from './options-ui.js?v=20261106d';
 import {createTrails} from './trails.js?v=20261106d';
-import {createRoadNetwork} from './road-network.js?v=20261106e';
+import {createRoadNetwork} from './road-network.js?v=20261106f';
 import {decorationCollider} from './decor-collision.js?v=20261103p4';
 import {batchResourceNodes,setDistantResource} from './resource-batches.js?v=20261103p4';
 import {createResourceLifecycle} from './resource-life.js?v=20261103s6';
