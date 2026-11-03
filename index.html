@@ -12,11 +12,11 @@
 <div id="hud" class="hidden">
   <div class="hudhead">
     <div class="brand"><span class="sigil">◆</span><span>IRH <small>FRONTIER CAPITAL</small></span></div>
-    <div class="hudstats"><div class="gold"><span>✦</span> <b id="coins">100</b><span id="goldGain" class="gold-gain" aria-live="polite"></span> <small id="goldUnit">OR</small></div><div class="worldpos" id="coordinates"></div></div>
+    <div class="hudstats"><div class="gold"><span id="goldGain" class="gold-gain" aria-live="polite"></span><span>✦</span> <b id="coins">100</b> <small id="goldUnit">OR</small></div></div>
   </div>
   <div id="location" class="location"><span class="locator">◈</span><span id="biomeName">FORÊT</span></div>
-  <div class="rightcol"><canvas id="map" width="168" height="168"></canvas><div id="clock">JOUR 01 · 08:00</div></div>
-  <div class="stamina"><div class="stamina-head"><span>ENDURANCE <small id="staminaRank">NIV. 1</small></span><span id="staminaCount">100 / 100</span></div><div class="stamina-track"><div id="staminaFill" class="stamina-fill"></div></div></div>
+  <div class="rightcol"><div id="clock">JOUR 01 · 08:00</div><canvas id="map" width="168" height="168"></canvas></div>
+  <div class="stamina hidden" id="staminaHud"><div class="stamina-head"><span>ENDURANCE <small id="staminaRank">NIV. 1</small></span><span id="staminaCount">100 / 100</span></div><div class="stamina-track"><div id="staminaFill" class="stamina-fill"></div></div></div>
   <div class="mission"><strong id="objective">ACHETEZ VOTRE PREMIER OUTIL</strong><span id="detail">Marchand au camp : touche F</span></div>
   <div id="target" class="target hidden"><strong id="targetTitle"></strong><div id="targetLife"></div><span id="targetHint"></span></div>
   <div id="prompt" class="prompt hidden" aria-hidden="true">F</div>
@@ -25,7 +25,7 @@
     <div id="placementStatus" class="placement-status">PLACE DISPONIBLE</div>
     <div class="placement-actions"><span><kbd>F</kbd> PLACER</span><span><kbd>ÉCHAP</kbd> ANNULER</span></div>
   </div>
-  <div class="bottom"><div class="keyline"><span><kbd>F</kbd> INTERAGIR</span><span><kbd>B</kbd> CONSTRUIRE</span><span><kbd>U</kbd> PROGRESSER</span><span><kbd>R</kbd> VÉHICULE</span><span><kbd>TAB</kbd> MENU</span></div></div>
+  <div class="bottom"><div class="keyline"><span><kbd>F</kbd> INTERAGIR</span><span><kbd>C</kbd> COMPTOIR</span><span><kbd>B</kbd> CONSTRUIRE</span><span><kbd>U</kbd> PROGRESSER</span><span id="autoShortcut"><kbd>A</kbd> AUTO</span><span><kbd>TAB</kbd> MENU</span></div></div><div id="autoState" class="auto-state hidden" aria-live="polite">MODE AUTO</div>
   <aside id="miniInventory" class="inventory-mini" aria-label="Inventaire"><div class="inventory-title"><span>INVENTAIRE</span><span id="inventoryCapacity">0 / 8</span></div><div id="inventoryGrid" class="inventory-grid"></div></aside>
 </div>
 <div id="notice" class="notice"></div>
