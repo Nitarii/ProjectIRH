@@ -76,7 +76,7 @@ export function decorateFacility(T,group,b,materials){
     stock('raw',YARD.raw,b.type);stock('processed',YARD.output,b.type);
     FACTORY_TASKS[b.type].forEach((task,i)=>{
       const {x,z}=yardPoint({x:0,z:0},task.point);
-      const bodyZ=z-.92;
+      const bodyZ=z-1.15;
       const color=[wood,metal,stone,roof,trim][i];
       box(1.45,.10,1.34,stone,x,.05,bodyZ);
       // Machine remains behind operator standing point; no worker walks through apparatus.
