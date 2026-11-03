@@ -8,7 +8,7 @@ scene.add(new T.HemisphereLight(0xffffff,0x657449,2.4));const sun=new T.Directio
 const M=c=>new T.MeshLambertMaterial({color:c}),m={grass:M(0x658b55),forest:M(0x3a784e),mountain:M(0x858b83),mine:M(0x94775c),desert:M(0xd7bd7d),field:M(0xb2b75e),tree:M(0x845b35),leaf:M(0x388653),rock:M(0x888e90),ore:M(0x709fad),wheat:M(0xebbb53),skin:M(0xe8b997),shirt:M(0x275c70),wood:M(0xac7852),roof:M(0x965e46),gold:M(0xffd068)};
 function cube(w,h,d,mat,x=0,y=0,z=0){let q=new T.Mesh(new T.BoxGeometry(w,h,d),mat);q.position.set(x,y,z);q.castShadow=true;q.receiveShadow=true;return q}function orb(r,mat,x=0,y=0,z=0){let q=new T.Mesh(new T.IcosahedronGeometry(r,1),mat);q.position.set(x,y,z);q.castShadow=true;return q}function cy(r,h,mat,x=0,y=0,z=0){let q=new T.Mesh(new T.CylinderGeometry(r,r,h,8),mat);q.position.set(x,y,z);q.castShadow=true;return q}
 const types=['FORÊT','MONTAGNE','EXCAVATION','DÉSERT','CHAMPS'],raw=['Bois','Pierre','Minerai','Sable','Blé'],processed=['Planches','Pierre taillée','Lingots','Verre','Farine'],tools=[['Hache','Hache renforcée','Tronçonneuse'],['Pioche','Pioche acier','Brise-roche'],['Pic de mine','Foreuse','Foreuse industrielle'],['Pelle','Pelle renforcée','Excavatrice'],['Faucille','Faux','Moissonneuse']],worksites=['Cabane de bûcheron','Carrière','Mine','Camp de terrassiers','Ferme'],factories=['Scierie','Atelier de taille','Fonderie','Verrerie','Moulin'],prices=[100,120,150,100,100],values=[12,15,22,10,14],colors=['#488756','#87938b','#b88f6b','#e3c67c','#c8b64e'];
-let defaultState={gold:100,bag:8,inv:[0,0,0,0,0],products:[0,0,0,0,0],tools:[-1,-1,-1,-1,-1],talents:[0,0,0,0,0],buildings:[],stock:[],truck:false,cart:false,staminaLevel:0,x:0,z:9,seed:7331};let st={...defaultState};try{let a=JSON.parse(localStorage.getItem('irh-state')||'{}');for(let k in defaultState)if(a[k]!==undefined)st[k]=a[k]}catch{}const save=()=>{st.x=player.position.x;st.z=player.position.z;
+let defaultState={gold:100,bag:8,inv:[0,0,0,0,0],products:[0,0,0,0,0],tools:[-1,-1,-1,-1,-1],talents:[0,0,0,0,0],buildings:[],stock:[],truck:false,cart:false,staminaLevel:0,gameMinutes:0,x:0,z:9,seed:7331};let st={...defaultState};try{let a=JSON.parse(localStorage.getItem('irh-state')||'{}');for(let k in defaultState)if(a[k]!==undefined)st[k]=a[k]}catch{}const save=()=>{st.x=player.position.x;st.z=player.position.z;
 const cleanBuildings=st.buildings.map(b=>({
 id:b.id,kind:b.kind,type:b.type,x:b.x,z:b.z,workers:b.workers,
 stock:b.stock,stockRaw:b.stockRaw,inputRaw:b.inputRaw,stockProcessed:b.stockProcessed,progress:b.progress
@@ -330,7 +330,9 @@ function sell({notifyEmpty=true,includeCarried=isSelling(player.position.x,playe
   return amount;
 }
 function collectSaleZone(){
-  if(!isSelling(player.position.x,player.position.z))return;
+  if(!isSelling(player.position.x,player.position.z)||panel||placing)return;
+  // Independent trader buildings cannot consume player inventory.
+  if(st.buildings.some(b=>b.kind==='seller'&&Math.abs(player.position.x-b.x)<2.2&&Math.abs(player.position.z-b.z)<2.2))return;
   const available=st.inv.some(Boolean)||st.products.some(Boolean)||st.stock.length>0||!!carried;
   if(available)sell({notifyEmpty:false,includeCarried:true});
 }
@@ -390,7 +392,7 @@ const n=Math.min(o.stockRaw,st.bag-count());
 if(!n)return pop(o.stockRaw?'Inventaire plein':'Aucun stock disponible');
 o.stockRaw-=n;st.inv[o.type]+=n;pop(n+' '+raw[o.type]+' récupéré(s)')
 }
-else if(o.kind==='seller')sell();
+else if(o.kind==='seller')pop('Le comptoir vend uniquement les ressources de ses employés.');
 else if(o.kind==='transport')pop('Transporteurs : '+o.workers);
 updateInventory();save();return
 }
@@ -499,7 +501,10 @@ $('panel').onclick=e=>{let b=e.target.closest('button');if(!b)return;if(b.datase
 if(st.buildings[i].workers>=industry.limit)return pop('Capacité de recrutement atteinte');
 return buy(300,()=>{st.buildings[i].workers++;industry.sync()})
 }if(kind==='talent')return buy(500,()=>st.talents[i]++);if(['factory','worker','transport','seller'].includes(kind))return buy(kind==='factory'?480+i*150:kind==='worker'?550+i*160:kind==='transport'?1400:1800,()=>{placing={kind,type:i};panel=null;renderPanel();pop('Allez à l’emplacement, F pour construire')})};const close=()=>{stopHarvest();panel=null;renderPanel()};$('close').onclick=close;$('resume').onclick=close;
-addEventListener('keydown',e=>{keys[e.code]=true;if(['KeyW','KeyZ','KeyA','KeyQ','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))stopHarvest();if(e.repeat)return;if(e.code==='KeyF')interact();if(e.code==='KeyG'&&carried){sound.effect('ui');drop()}if(e.code==='KeyB')openPanel('build');if(e.code==='KeyU')openPanel('talents');if(e.code==='KeyI')openPanel('inventory');if(e.code==='KeyR')pop(st.truck?'Camion possédé':'Achetez un camion au comptoir');if(e.code==='Escape'){if(placing){placing=null;pop('Placement annulé')}close()}});addEventListener('keyup',e=>keys[e.code]=false);addEventListener('mousemove',e=>{if(document.pointerLockElement===renderer.domElement){heading-=e.movementX*.0025;pitch=T.MathUtils.clamp(pitch+e.movementY*.002,-.1,1.15)}});addEventListener('wheel',e=>dist=T.MathUtils.clamp(dist+Math.sign(e.deltaY),5,18),{passive:true});addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});renderer.domElement.onclick=()=>{if(!panel)renderer.domElement.requestPointerLock?.()};$('play').onclick=()=>{sound.boot();$('welcome').classList.add('hidden');$('hud').classList.remove('hidden');renderer.domElement.requestPointerLock?.()};
+addEventListener('keydown',e=>{keys[e.code]=true;if(['KeyW','KeyZ','KeyA','KeyQ','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))stopHarvest();if(e.repeat)return;if(e.code==='KeyF')interact();if(e.code==='KeyG'&&carried){sound.effect('ui');drop()}if(e.code==='KeyB')openPanel('build');if(e.code==='KeyU')openPanel('talents');if(e.code==='KeyI')openPanel('inventory');if(e.code==='KeyR')pop(st.truck?'Camion possédé':'Achetez un camion au comptoir');if(e.code==='Escape'){if(placing){placing=null;pop('Placement annulé')}close()}});addEventListener('keyup',e=>keys[e.code]=false);addEventListener('mousemove',e=>{if(document.pointerLockElement===renderer.domElement){heading-=e.movementX*.0025;pitch=T.MathUtils.clamp(pitch+e.movementY*.002,-.1,1.15)}});addEventListener('wheel',e=>{
+  if(panel||!$('welcome').classList.contains('hidden'))return;
+  dist=T.MathUtils.clamp(dist+Math.sign(e.deltaY),5,18);
+},{passive:true});addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});renderer.domElement.onclick=()=>{if(!panel)renderer.domElement.requestPointerLock?.()};$('play').onclick=()=>{sound.boot();$('welcome').classList.add('hidden');$('hud').classList.remove('hidden');renderer.domElement.requestPointerLock?.()};
 $('soundToggle').onclick=()=>{sound.boot();audioActive=true;const enabled=sound.toggle();$('soundToggle').classList.toggle('muted',!enabled);$('soundToggle').innerHTML=enabled?'♪ <span>SON</span>':'♪ <span>MUET</span>'};
 const minimap=$('map').getContext('2d');function map(){minimap.clearRect(0,0,168,168);minimap.save();minimap.beginPath();minimap.arc(84,84,82,0,7);minimap.clip();for(let x=0;x<24;x++)for(let z=0;z<24;z++){let b=biome(player.position.x+(x-12)*9,player.position.z+(z-12)*9);minimap.fillStyle=b<0?'#598654':colors[b];minimap.fillRect(x*7,z*7,8,8)}minimap.fillStyle='white';minimap.beginPath();minimap.arc(84,84,4,0,7);minimap.fill();minimap.restore()}
 
@@ -568,7 +573,7 @@ console.warn('Reduced graphics load for stable rendering');
 }
 function frame(){
 requestAnimationFrame(frame);
-const dt=Math.min(clock.getDelta(),.05);elapsed+=dt;
+const dt=Math.min(clock.getDelta(),.05);elapsed+=dt;st.gameMinutes=(Number(st.gameMinutes)||0)+dt;
 pumpWorld();
 collectSaleZone();
 const side=Number(!!(keys.KeyD||keys.ArrowRight))-Number(!!(keys.KeyA||keys.KeyQ||keys.ArrowLeft));
@@ -646,7 +651,8 @@ $('coins').textContent=st.gold;
 $('coordinates').textContent=Math.round(player.position.x)+' / '+Math.round(player.position.z);
 const biomeId=biome(player.position.x,player.position.z);
 $('biomeName').textContent=biomeId<0?'CAMP CENTRAL':types[biomeId];
-$('clock').textContent='JOUR '+String(1+Math.floor(elapsed/600)).padStart(2,'0')+' · '+String(8+Math.floor(elapsed/60)%16).padStart(2,'0')+':00';
+const gameClock=Math.floor(st.gameMinutes||0)+8*60;
+$('clock').textContent='JOUR '+String(1+Math.floor(gameClock/1440)).padStart(2,'0')+' · '+String(Math.floor(gameClock/60)%24).padStart(2,'0')+':'+String(gameClock%60).padStart(2,'0');
 $('objective').textContent=st.tools.every(t=>t<0)?'ACHETEZ VOTRE PREMIER OUTIL':'DÉVELOPPEZ VOTRE EMPIRE';
 $('detail').textContent=st.tools.every(t=>t<0)?'Approchez du comptoir et appuyez sur F':'Récoltez, transformez et automatisez';
 const highlighted=harvesting;
