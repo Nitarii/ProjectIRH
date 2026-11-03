@@ -1,10 +1,10 @@
-import {createRouter} from './navigation.js?v=20261104d';
+import {createRouter} from './navigation.js?v=20261106a';
 
 // Autonomous harvest/sell mode uses the same physical obstacles as the player.
 // The navigator performs a bounded plan per objective, never once per frame.
 export function createAutoPilot({
   player,blocked,move,resources,count,capacity,isSelling,sale,
-  harvest,isHarvesting,sell,onChange,speedMultiplier=()=>.8
+  harvest,isHarvesting,sell,onChange,speedMultiplier=()=>.8,terrainSpeed=()=>1,hasRoads=()=>false
 }){
   let enabled=false,route=[],stepIndex=0,target=null,goal=null;
   let selling=false,stalled=0,retry=0,elapsed=0;
@@ -23,7 +23,8 @@ export function createAutoPilot({
     return router.route(player.position,destination,{allowNearby:true,arrivalRadius:.48});
   }
   function plan(){
-    const router=createRouter(blocked,{cell:1.15,maxVisits:1550});
+    const router=createRouter(blocked,{cell:1.15,maxVisits:1550,
+      speedAt:hasRoads()?(x,z)=>terrainSpeed(x,z):null});
     selling=count()>=capacity();
     if(selling){
       // Route toward the market in bounded, obstacle-aware legs when far away.
@@ -107,7 +108,7 @@ export function createAutoPilot({
       }else clearRoute();
       return false;
     }
-    const speed=6.3*Math.max(.5,Math.min(1.5,Number(speedMultiplier())||.8)),speedStep=Math.min(d,dt*speed);
+    const speed=6.3*Math.max(.5,Math.min(1.5,Number(speedMultiplier())||.8))*terrainSpeed(player.position.x,player.position.z),speedStep=Math.min(d,dt*speed);
     const dx=(point.x-player.position.x)/d,dz=(point.z-player.position.z)/d;
     const oldX=player.position.x,oldZ=player.position.z;
     move(dx*speedStep,dz*speedStep);
