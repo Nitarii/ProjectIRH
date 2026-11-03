@@ -344,7 +344,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     const endpoint=a.routeGoal||goal;
     const remaining=distance(a,endpoint);
     if(remaining<.39){a.route=null;a.wait=0;a.blockedAge=0;
-      a.routeGoal=null;return distance(a,goal)<.48}
+      a.routeGoal=null;return distance(a,goal)<.82}
     if(a.abstract){
       const step=Math.min(remaining,dt*speed*(hooks.roads?.speedAt(a.x,a.z)||1));
       a.x+=(endpoint.x-a.x)/remaining*step;
@@ -443,7 +443,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     a.blockedAge=Math.max(0,a.blockedAge-dt*2.8);
     a.wait=0;a.x=nx;a.z=nz;a.angle=Math.atan2(dx,dz);a.walkPhase+=dt*10;
     hooks.onMove?.(a.id,a.x,a.z);
-    return distance(a,goal)<.38;
+    return distance(a,goal)<.82;
   }
   function reserveResource(a){
     const b=a.home,cx=Math.floor(b.x/gridSize),cz=Math.floor(b.z/gridSize);
