@@ -12,7 +12,7 @@ export function optionsMarkup(settings,awaiting){
  const t=UI[settings.language],actions=actionText[settings.language];
  const buttons=ACTIONS.map(k=>'<div class="option-key-row"><span>'+actions[k]+'</span><button type="button" data-bind="'+k+'" class="'+(awaiting===k?'binding-active':'')+'">'+(awaiting===k?t.rebinding:keyLabel(settings.bindings[k]))+'</button></div>').join('');
  return '<div class="options-layout">'+
- '<section class="options-box"><h3>'+t.sound+'</h3><label class="option-check"><input id="settingAudio" type="checkbox" '+(!settings.muted?'checked':'')+'> '+t.sound+' '+(!settings.muted?'ON':'OFF')+'</label>'+
+ '<section class="options-box"><h3>'+t.sound+'</h3><label class="option-check"><input id="settingAudio" type="checkbox" '+(!settings.muted?'checked':'')+'> '+t.sound+' '+(!settings.muted?t.on:t.off)+'</label>'+
  '<label class="option-range"><span>'+t.volume+' <strong id="volumeLabel">'+Math.round(settings.volume*100)+'%</strong></span><input type="range" id="settingVolume" min="0" max="100" step="1" value="'+Math.round(settings.volume*100)+'"></label>'+
  '<h3>'+t.graphics+'</h3><label class="option-label">'+t.quality+'<select id="settingQuality">'+
  ['low','balanced','high'].map(k=>'<option value="'+k+'" '+(settings.quality===k?'selected':'')+'>'+t[k]+'</option>').join('')+'</select></label>'+
