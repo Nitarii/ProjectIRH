@@ -74,6 +74,42 @@ try{
     resources:rendering.resources,batchedChunks:rendering.batchedChunks,
     sharedGeometryCount:rendering.resourceGeometries,estimatedFps:rendering.estimatedFps
   }},null,2));
+  // Responsive HUD regression: key informational elements should retain
+  // independent safe zones on desktop, tablet, phone and short windows.
+  const viewports=[
+    {width:1920,height:1080},{width:1280,height:720},{width:900,height:600},
+    {width:650,height:800},{width:390,height:844},{width:320,height:568},
+    {width:768,height:430}
+  ];
+  for(const viewport of viewports){
+    await page.setViewportSize(viewport);
+    const collisions=await page.evaluate(()=>{
+      const rect=id=>{
+        const element=document.querySelector(id);
+        if(!element)return null;
+        const style=getComputedStyle(element);
+        if(style.display==='none'||style.visibility==='hidden')return null;
+        const r=element.getBoundingClientRect();
+        if(!r.width||!r.height)return null;
+        return r;
+      };
+      const collisions=[];
+      const pairs=[
+        ['.brand','.gold'],['.mission','.rightcol'],
+        ['.rightcol','#miniInventory'],['.mission','#miniInventory'],
+        ['.location','.rightcol']
+      ];
+      for(const [a,b] of pairs){
+        const r=rect(a),s=rect(b);if(!r||!s)continue;
+        const width=Math.max(0,Math.min(r.right,s.right)-Math.max(r.left,s.left));
+        const height=Math.max(0,Math.min(r.bottom,s.bottom)-Math.max(r.top,s.top));
+        if(width*height>80)collisions.push({a,b,area:Math.round(width*height)});
+      }
+      return collisions;
+    });
+    if(collisions.length)throw new Error('HUD overlap '+JSON.stringify({viewport,collisions}));
+  }
+  console.log('Responsive HUD clear at desktop, tablet, phone and short-window sizes');
   await context.close();
   const checkContext=await browser.newContext({viewport:{width:1280,height:800}});
   const salePage=await checkContext.newPage();
