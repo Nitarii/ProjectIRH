@@ -1,6 +1,6 @@
 import * as T from 'three';
 import {createSound} from './sound.js?v=20261103r2';
-import {createAtmosphere} from './atmosphere.js?v=20261103r';
+import {createAtmosphere} from './atmosphere.js?v=20261103ad';
 import {createIndustry} from './industry.js?v=20261103r2';
 import {inventoryIcon} from './item-icons.js?v=20261103k';
 import {createResourceGraphics} from './resource-visuals.js?v=20261103ac';
@@ -305,7 +305,14 @@ const count=()=>st.inv.reduce((a,b)=>a+b,0)+st.products.reduce((a,b)=>a+b,0);
 let heading=0,pitch=.38,dist=10,active=0,keys={},current=null,placing=null,carried=null,elapsed=0,workerClock=0;
 let buildingPreview=null,previewMaterials=[],lastPlacementValid=null;
 let harvesting=null,harvestProgress=0,stepPhase=0;
-const sound=createSound();const atmosphere=createAtmosphere(T,scene,player,biome);
+function* nearbyResourceNodes(){
+  const cx=Math.floor(player.position.x/CH),cz=Math.floor(player.position.z/CH);
+  for(let x=cx-2;x<=cx+2;x++)for(let z=cz-2;z<=cz+2;z++){
+    const c=world.get(x+','+z);
+    if(c)yield* c.nodes;
+  }
+}
+const sound=createSound();const atmosphere=createAtmosphere(T,scene,player,biome,nearbyResourceNodes);
 const baseCamp=createBaseCamp(T,scene);
 atmosphere.setEnabled(settings.effects&&settings.quality!=='low');
 sound.setVolume(settings.volume);
@@ -886,7 +893,13 @@ addEventListener('mousemove',e=>{
   if(panel||!$('welcome').classList.contains('hidden'))return;
   dist=T.MathUtils.clamp(dist+Math.sign(e.deltaY),5,18);
 },{passive:true});addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});renderer.domElement.onclick=()=>{if(!panel)renderer.domElement.requestPointerLock?.()};$('play').onclick=()=>{sound.boot();$('welcome').classList.add('hidden');$('hud').classList.remove('hidden');renderer.domElement.requestPointerLock?.()};
-const minimap=$('map').getContext('2d');function map(){minimap.clearRect(0,0,168,168);minimap.save();minimap.beginPath();minimap.arc(84,84,82,0,7);minimap.clip();for(let x=0;x<24;x++)for(let z=0;z<24;z++){let b=biome(player.position.x+(x-12)*9,player.position.z+(z-12)*9);minimap.fillStyle=b<0?'#598654':colors[b];minimap.fillRect(x*7,z*7,8,8)}minimap.fillStyle='white';minimap.beginPath();minimap.arc(84,84,4,0,7);minimap.fill();minimap.restore()}
+const minimap=$('map').getContext('2d');
+let lastMapX=Infinity,lastMapZ=Infinity,lastMapAt=-Infinity;
+function map(){
+const px=player.position.x,pz=player.position.z;
+if(Math.hypot(px-lastMapX,pz-lastMapZ)<.65&&elapsed-lastMapAt<1.8)return;
+lastMapX=px;lastMapZ=pz;lastMapAt=elapsed;
+minimap.clearRect(0,0,168,168);minimap.save();minimap.beginPath();minimap.arc(84,84,82,0,7);minimap.clip();for(let x=0;x<24;x++)for(let z=0;z<24;z++){let b=biome(player.position.x+(x-12)*9,player.position.z+(z-12)*9);minimap.fillStyle=b<0?'#598654':colors[b];minimap.fillRect(x*7,z*7,8,8)}minimap.fillStyle='white';minimap.beginPath();minimap.arc(84,84,4,0,7);minimap.fill();minimap.restore()}
 
 const monitor={frames:0,drawCalls:0,chunks:0,resources:0,lastError:'',contextLost:false};
 Object.defineProperty(window,'__irhMonitor',{value:monitor,configurable:false});
@@ -921,7 +934,9 @@ function positionInteractionTooltip(){
   if(!anchor){prompt.classList.add('hidden');return}
   tooltipPosition.set(anchor[0],anchor[1],anchor[2]);
   cam.getWorldDirection(tooltipForward);
-  if(tooltipPosition.clone().sub(cam.position).dot(tooltipForward)<.1){
+  if((tooltipPosition.x-cam.position.x)*tooltipForward.x+
+     (tooltipPosition.y-cam.position.y)*tooltipForward.y+
+     (tooltipPosition.z-cam.position.z)*tooltipForward.z<.1){
     prompt.classList.add('hidden');return;
   }
   tooltipPosition.project(cam);
@@ -1059,6 +1074,10 @@ $('targetHint').textContent=tr('RÉCOLTE EN COURS',settings.language);
 $('target').classList.remove('hidden')
 }else $('target').classList.add('hidden');
 document.body.dataset.biome=String(biomeId);
+monitor.buildingLabels=industry.getLabels();
+monitor.resourceGeometries=resourceGraphics.geometryCount;
+monitor.batchedChunks=0;
+for(const c of world.values())if(c.resourceBatches?.length)monitor.batchedChunks++;
 map()
 }
 if(st.gold!==observedGold){
@@ -1076,7 +1095,7 @@ renderer.render(scene,cam);
 monitor.frames++;monitor.drawCalls=renderer.info.render.calls;
 monitor.chunks=world.size;monitor.resources=resources.length;
 monitor.inventoryCount=count();monitor.cameraDistance=dist;monitor.constructionActive=!!placing;
-monitor.gameMinutes=st.gameMinutes;monitor.terrainPaths=trails.count;monitor.buildingLabels=industry.getLabels();
+monitor.gameMinutes=st.gameMinutes;monitor.terrainPaths=trails.count;
 monitor.renderResolution=renderer.getPixelRatio();monitor.viewDistance=settings.viewDistance;
 monitor.jumpHeight=player.position.y;
 controlQuality();
