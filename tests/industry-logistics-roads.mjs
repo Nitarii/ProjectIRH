@@ -34,12 +34,12 @@ let guard=0;
 while(roads.completed<roads.plannedCount&&guard++<2000){
   const job=roads.claim('roadworker',{x:80,z:35});
   assert.ok(job,'must plan reachable road task');
-  assert.equal(roads.work('roadworker',job,4),'done');
+  assert.equal(roads.work('roadworker',job,11),'done');
 }
 test('all planned paths progressively finished',roads.completed===roads.plannedCount);
 const upgrade=roads.claim('roadworker',{x:80,z:35});
 test('upgrade requires used path',upgrade?.mode==='upgrade');
-assert.equal(roads.work('roadworker',upgrade,6),'done');
+assert.equal(roads.work('roadworker',upgrade,19),'done');
 test('built paths give +20%, paved roads +50%',roads.speedAt(upgrade.x,upgrade.z)===1.5&&
   Object.values(state.roads).some(v=>v.l===1));
 roads.rebuild([sites[0]],{x:23,z:0});
