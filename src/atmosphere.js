@@ -1,4 +1,4 @@
-export function createAtmosphere(T,scene,player,biomeAt){
+export function createAtmosphere(T,scene,player,biomeAt,nearbyResources=null){
 const leafColors=[0x81b35a,0xd5b55a,0x82a99b,0xd7c087,0xe8bb67];
 const materials=leafColors.map(color=>new T.MeshBasicMaterial({color,side:T.DoubleSide,transparent:true,opacity:.72,depthWrite:false}));
 const leafGeo=new T.PlaneGeometry(.28,.18),leaves=[],birds=[],clouds=[];
@@ -51,7 +51,7 @@ const a=c.seed*2.7;
 c.g.position.set(px+Math.sin(a)*75+Math.sin(wave*.018+c.seed)*11,40+c.seed*.6,pz+Math.cos(a)*75)
 }
 const wind=Math.sin(wave*1.4)*.016;
-for(const o of resources){if(o.dead||Math.abs(o.x-px)>42||Math.abs(o.z-pz)>42)continue;
+for(const o of (nearbyResources?nearbyResources():resources)){if(o.dead||Math.abs(o.x-px)>42||Math.abs(o.z-pz)>42)continue;
 o.mesh.rotation.z=o.type===0||o.type===4?wind*Math.sin(o.x*.3+o.z*.2+wave):0;
 }
 }
