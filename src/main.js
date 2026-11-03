@@ -51,6 +51,11 @@ const leftLeg=limb(-.23,.88,.86,.26),rightLeg=limb(.23,.88,.86,.26);
 const leftArm=limb(-.53,1.82,.78,.22),rightArm=limb(.53,1.82,.78,.22);
 leftArm.add(orb(.12,m.skin,0,-.78,0));rightArm.add(orb(.12,m.skin,0,-.78,0));
 const toolHolder=new T.Group();toolHolder.position.set(0,-.76,.08);rightArm.add(toolHolder);
+const avatarDesigner=attachAvatarDesigner(T,avatar,{
+  torso:avatar.children[0],head:avatar.children[1],leftArm,rightArm,leftLeg,rightLeg
+});
+let avatarDraft=normalizeAvatar(st.avatar||{});
+avatarDesigner.apply(avatarDraft);
 const toolModels=[];
 for(let type=0;type<5;type++){
   const variants=[];
@@ -1019,7 +1024,73 @@ addEventListener('mousemove',e=>{
 });addEventListener('wheel',e=>{
   if(panel||!$('welcome').classList.contains('hidden'))return;
   dist=T.MathUtils.clamp(dist+Math.sign(e.deltaY),5,18);
-},{passive:true});addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});renderer.domElement.onclick=()=>{if(!panel)renderer.domElement.requestPointerLock?.()};$('play').onclick=()=>{sound.boot();$('welcome').classList.add('hidden');$('hud').classList.remove('hidden');renderer.domElement.requestPointerLock?.()};
+},{passive:true});addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});renderer.domElement.onclick=()=>{if(!panel)renderer.domElement.requestPointerLock?.()};let creatorPreview=null;
+function finishWelcome(){
+  sound.boot();
+  $('creator').classList.add('hidden');
+  $('welcome').classList.add('hidden');
+  $('hud').classList.remove('hidden');
+  renderer.domElement.requestPointerLock?.();
+}
+function closeAvatarBuilder(){
+  if(creatorPreview){
+    creatorPreview.active=false;
+    creatorPreview.renderer.dispose();
+    creatorPreview.renderer.domElement.remove();
+    creatorPreview=null;
+  }
+  st.avatar=normalizeAvatar(avatarDraft);
+  avatarDesigner.apply(st.avatar);
+  save();
+  finishWelcome();
+}
+function openAvatarBuilder(){
+  sound.boot();
+  $('welcome').classList.add('hidden');
+  $('creator').classList.remove('hidden');
+  $('creatorBody').innerHTML=avatarBuilderMarkup(avatarDraft,settings.language);
+  const previewScene=new T.Scene();
+  previewScene.add(new T.HemisphereLight(0xffffff,0x63715e,2.3));
+  const light=new T.DirectionalLight(0xffedd8,2.1);
+  light.position.set(3,7,5);previewScene.add(light);
+  const previewCam=new T.PerspectiveCamera(35,300/330,.1,100);
+  previewCam.position.set(4,2.9,6.8);previewCam.lookAt(0,1.36,0);
+  const previewRenderer=new T.WebGLRenderer({antialias:true,alpha:true,powerPreference:'low-power'});
+  previewRenderer.setPixelRatio(Math.min(devicePixelRatio||1,1.2));
+  previewRenderer.setSize(300,330);
+  $('creatorPreview').appendChild(previewRenderer.domElement);
+  const view={renderer:previewRenderer,active:true,model:null,lastFrame:0};
+  creatorPreview=view;
+  function refreshPreview(){
+    if(view.model)previewScene.remove(view.model);
+    view.model=avatar.clone(true);
+    previewScene.add(view.model);
+  }
+  refreshPreview();
+  const loop=now=>{
+    if(!view.active)return;
+    requestAnimationFrame(loop);
+    if(now-view.lastFrame<60)return;
+    view.lastFrame=now;
+    view.model.rotation.y=.40+Math.sin(now*.00045)*.42;
+    previewRenderer.render(previewScene,previewCam);
+  };
+  requestAnimationFrame(loop);
+  $('creatorBody').addEventListener('input',event=>{
+    const key=event.target.dataset.avatar;
+    if(!key)return;
+    const value=event.target.type==='checkbox'?event.target.checked:
+      event.target.tagName==='SELECT'?Number(event.target.value):event.target.value;
+    avatarDraft=normalizeAvatar({...avatarDraft,[key]:value});
+    avatarDesigner.apply(avatarDraft);
+    refreshPreview();
+  });
+  $('creatorFinish').onclick=closeAvatarBuilder;
+}
+$('play').onclick=()=>{
+  if(!st.avatar)openAvatarBuilder();
+  else finishWelcome();
+};
 const minimap=$('map').getContext('2d');
 let lastMapX=Infinity,lastMapZ=Infinity,lastMapAt=-Infinity;
 function map(){
