@@ -165,7 +165,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     const distanceFromTarget=Math.hypot(agent.x-target.x,agent.z-target.z);
     const angle=Math.atan2(agent.z-target.z,agent.x-target.x);
     // Keep a real body-width corridor between the worker and the tree or rock.
-    const radius=[1.52,1.72,1.65,1.42,1.24][target.type];
+    const radius=[1.80,2.05,1.96,1.71,1.55][target.type];
     const offsets=[0,Math.PI/3,-Math.PI/3,2*Math.PI/3,-2*Math.PI/3,
       Math.PI,Math.PI/6,-Math.PI/6,Math.PI/2,-Math.PI/2];
     const start=attempt%offsets.length;
@@ -174,7 +174,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       for(const expansion of [0,.55,1.15]){
         const x=target.x+Math.cos(angle+offset)*(radius+expansion);
         const z=target.z+Math.sin(angle+offset)*(radius+expansion);
-        if(staticBlocked(x,z,.42))continue;
+        if(staticBlocked(x,z,.59))continue;
         if(distanceFromTarget<.01)continue;
         return {x,z};
       }
@@ -182,12 +182,12 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     return null;
   }
   function clearStockAccess(agent,goal){
-    if(!staticBlocked(goal.x,goal.z,.40))return goal;
-    for(const r of [.65,1.0,1.5,2.15]){
+    if(!staticBlocked(goal.x,goal.z,.58))return goal;
+    for(const r of [.65,1.0,1.5,2.15,2.85,3.55]){
       for(let i=0;i<16;i++){
         const a=(i/16)*Math.PI*2+agent.slot*.23;
         const p={x:goal.x+Math.cos(a)*r,z:goal.z+Math.sin(a)*r};
-        if(!staticBlocked(p.x,p.z,.40))return p;
+        if(!staticBlocked(p.x,p.z,.58))return p;
       }
     }
     return null;
@@ -217,7 +217,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       buildingCells.get(key).push(b);
     }
   }
-  function staticBlocked(x,z,radius=.35,target=null){
+  function staticBlocked(x,z,radius=.57,target=null){
     // Shared collision rules for A* and physical stepping. Low-height
     // scenery is already excluded by the supplied decoration probe.
     if(Math.abs(x)<2.5+radius&&Math.abs(z)<2+radius)return true;
@@ -245,54 +245,15 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     }
     return false;
   }
-  const PERSON_CELL=4.0,agentCells=new Map();
-  const personKey=(x,z)=>Math.floor(x/PERSON_CELL)+','+Math.floor(z/PERSON_CELL);
-  function refreshAgentIndex(){
-    agentCells.clear();
-    for(const a of agents){
-      // Outside the physical simulation radius, employees are data-only.
-      const dx=a.x-viewer.x,dz=a.z-viewer.z;
-      if(dx*dx+dz*dz>185*185){a.inAgentGrid=false;continue}
-      a.inAgentGrid=true;
-      const key=personKey(a.x,a.z);
-      let list=agentCells.get(key);
-      if(!list)agentCells.set(key,list=[]);
-      list.push(a);
-    }
-  }
-  function updateAgentCell(a,oldX,oldZ){
-    if(!a.inAgentGrid)return;
-    const original=personKey(oldX,oldZ),next=personKey(a.x,a.z);
-    if(original===next)return;
-    const list=agentCells.get(original);
-    if(list){const index=list.indexOf(a);if(index>=0)list.splice(index,1)}
-    let other=agentCells.get(next);
-    if(!other)agentCells.set(next,other=[]);
-    other.push(a);
-  }
-  function humanBlocked(x,z,self){
-    const vx=x-self.x,vz=z-self.z,len2=Math.max(.0001,vx*vx+vz*vz);
-    const cx=Math.floor(x/PERSON_CELL),cz=Math.floor(z/PERSON_CELL);
-    for(let ix=cx-1;ix<=cx+1;ix++)for(let iz=cz-1;iz<=cz+1;iz++){
-      const candidates=agentCells.get(ix+','+iz);if(!candidates)continue;
-      for(const other of candidates){
-        if(other===self)continue;
-        const dx=other.x-self.x,dz=other.z-self.z;
-        if(Math.abs(dx)>2||Math.abs(dz)>2)continue;
-        const t=Math.max(0,Math.min(1,(dx*vx+dz*vz)/len2));
-        const px=self.x+t*vx,pz=self.z+t*vz;
-        if((px-other.x)**2+(pz-other.z)**2<.62*.62)return true;
-      }
-    }
-    return false;
-  }
+  // Employees deliberately do not collide with one another. Routing and
+  // steering only account for actual world geometry; no dynamic actor grids.
   function moveAside(a,goal,dt,speed){
     const dx=goal.x-a.x,dz=goal.z-a.z,len=Math.max(.01,Math.hypot(dx,dz));
     const fx=dx/len,fz=dz/len,step=Math.min(.32,dt*speed);
     for(const [sx,sz] of [[-fz,fx],[fz,-fx],[-fx,-fz],
       [fx*.5-fz*.866,fz*.5+fx*.866],[fx*.5+fz*.866,fz*.5-fx*.866]]){
       const x=a.x+sx*step,z=a.z+sz*step;
-      if(!staticBlocked(x,z,.35,a.target)&&!humanBlocked(x,z,a)){
+      if(!staticBlocked(x,z,.59,a.target)){
         a.x=x;a.z=z;a.angle=Math.atan2(sx,sz);a.walkPhase+=dt*9;
         if(!a.abstract)hooks.onMove?.(a.id,a.x,a.z);
         a.wait=0;separations++;return true;
@@ -315,7 +276,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     const sameSpot=a.rescueX!==undefined&&Math.hypot(a.x-a.rescueX,a.z-a.rescueZ)<1;
     a.rescueFailures=sameSpot?(a.rescueFailures||0)+1:1;
     a.rescueX=a.x;a.rescueZ=a.z;
-    if(a.rescueFailures>=2||staticBlocked(a.x,a.z,.36)){
+    if(a.rescueFailures>=2||staticBlocked(a.x,a.z,.59)){
       // Emergency repair is only used after repeated failed routes. Choose a
       // clear position with a full body-width margin instead of an unsafe snap.
       const possible=[homePort(a.home,a.slot)];
@@ -325,7 +286,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
           possible.push({x:a.x+Math.cos(angle)*radius,z:a.z+Math.sin(angle)*radius});
         }
       possible.sort((u,v)=>distance(u,a)-distance(v,a));
-      const safe=possible.find(p=>!staticBlocked(p.x,p.z,.48)&&!humanBlocked(p.x,p.z,a));
+      const safe=possible.find(p=>!staticBlocked(p.x,p.z,.62));
       if(safe){
         a.x=safe.x;a.z=safe.z;
         a.route=null;a.routeGoal=null;a.rescueFailures=0;
@@ -368,16 +329,9 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       if(a.routeCooldown>0)return false;
       if(navigationBudget<=0){a.routeCooldown=.045;return false}
       navigationBudget--;
-      // Dynamic actors only enter the search once a physical encounter occurred.
-      const avoidPeople=a.blockedAge>.30;
-      const nearbyPeople=avoidPeople?agents.filter(other=>other!==a&&!other.abstract&&
-        (distance(other,a)<9||distance(other,goal)<9)).map(other=>({x:other.x,z:other.z})):[];
-      const blockedForPlan=(x,z)=>{
-        if(staticBlocked(x,z,.39))return true;
-        for(const other of nearbyPeople)
-          if((x-other.x)**2+(z-other.z)**2<.77*.77)return true;
-        return false;
-      };
+      // Stable geometry-only clearance: NPCs may freely intersect each other.
+      // No crowd search, agent-agent collision or dynamic replanning needed.
+      const blockedForPlan=(x,z)=>staticBlocked(x,z,.59);
       const router=createRouter(blockedForPlan,{cell:1.15,maxVisits:1420,
         speedAt:hooks.roads?.built?(x,z)=>hooks.roads.speedAt(x,z):null});
       // Stage long routes inside the A* search horizon. Do not report arrival
@@ -431,8 +385,8 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     if(len<.001){a.waypoint++;return false}
     const roadBonus=hooks.roads?.speedAt(a.x,a.z)||1;
     const step=Math.min(len,dt*speed*roadBonus),nx=a.x+dx/len*step,nz=a.z+dz/len*step;
-    const wall=staticBlocked(nx,nz,.36),person=!wall&&humanBlocked(nx,nz,a);
-    if(wall||person){
+    const wall=staticBlocked(nx,nz,.59);
+    if(wall){
       a.blockedAge+=dt;
       if(a.blockedAge>.75){
         a.route=null;a.routeCooldown=Math.max(.15,Math.min(.65,a.blockedAge*.10));
@@ -850,16 +804,13 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       cullOrigin.x=camera.position.x;cullOrigin.z=camera.position.z;
     }else camera=null;
     if(planningClock>=.33){reconcile();hooks.roads?.rebuild(buildings,sale);planningClock=0}
-    refreshAgentIndex();
 
     let shown=0,transporting=0,carrying=0;abstractCount=0;
     for(const a of agents){
-      const previousX=a.x,previousZ=a.z;
       const previous=a.abstract;
       a.abstract=!inView(a.x,a.z,155)&&distance(a,viewer)>32;
       if(a.abstract)abstractCount++;
-      if(previous&&!a.abstract&&
-         (staticBlocked(a.x,a.z,.38)||humanBlocked(a.x,a.z,a))){
+      if(previous&&!a.abstract&&staticBlocked(a.x,a.z,.59)){
         // Data-only workers can share a theoretical pickup point. When they
         // enter view, resolve each into a distinct physically valid spot.
         const locations=[homePort(a.home,a.slot)];
@@ -869,7 +820,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
             locations.push({x:a.x+Math.cos(theta)*radius,z:a.z+Math.sin(theta)*radius});
           }
         locations.sort((u,v)=>distance(u,a)-distance(v,a));
-        const safe=locations.find(p=>!staticBlocked(p.x,p.z,.41)&&!humanBlocked(p.x,p.z,a));
+        const safe=locations.find(p=>!staticBlocked(p.x,p.z,.62));
         if(safe){
           a.x=safe.x;a.z=safe.z;a.route=null;a.routeGoal=null;a.goalKey='';
         }else a.abstract=true;
@@ -883,7 +834,6 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
         if(a.abstractElapsed){updateAgent(a,a.abstractElapsed);a.abstractElapsed=0}
         updateAgent(a,dt);
       }
-      updateAgentCell(a,previousX,previousZ);
       if(!a.abstract&&animate(a,dt))shown++;
       else removeView(a);
       if(a.carry>0)carrying++;
