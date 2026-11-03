@@ -1,8 +1,8 @@
-import {makeStructure} from './structures.js?v=20261105b';
-import {createRouter} from './navigation.js?v=20261104d';
+import {makeStructure} from './structures.js?v=20261106c';
+import {createRouter} from './navigation.js?v=20261106c';
 import {workstation,storagePoint,yardPoint} from './factory-tasks.js?v=20261104b';
 import {worldPoint,rotateOffset,normalizeRotation,pointInOrientedRect} from './facility-layout.js';
-import {prepareWarehouse,warehouseRoom,chooseWarehouseSale,pickupWarehouse,selectTransportJob,transportSpace,deliverTransport} from './logistics.js?v=20261106a';
+import {prepareWarehouse,warehouseRoom,chooseWarehouseSale,pickupWarehouse,selectTransportJob,transportSpace,deliverTransport} from './logistics.js?v=20261106c';
 
 export function createIndustry(T, scene, st, resources, biome, sale, values, hooks={}) {
   const agents=[],agentById=new Map(), buildings=st.buildings;
