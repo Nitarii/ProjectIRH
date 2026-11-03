@@ -18,19 +18,29 @@ import {createResourceLifecycle} from './resource-life.js?v=20261103s6';
 import {createHarvestEffects} from './harvest-fx.js?v=20261103s6';
 import {createRouter} from './navigation.js?v=20261103aa';
 import {createAutoPilot} from './auto-pilot.js?v=20261103s6';
+import {openingBiome,startingBiomes} from './spawn-biomes.js';
+import {openSaveVault} from './save-vault.js';
+import {normalizeAvatar,attachAvatarDesigner} from './avatar-style.js';
+import {avatarBuilderMarkup} from './avatar-ui.js';
 const $=id=>document.getElementById(id), scene=new T.Scene();scene.background=new T.Color('#a6cbd1');scene.fog=new T.FogExp2('#a6cbd1',.0039);
 const cam=new T.PerspectiveCamera(65,innerWidth/innerHeight,.1,450),renderer=new T.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.25));renderer.shadowMap.enabled=true;$('game').append(renderer.domElement);
 scene.add(new T.HemisphereLight(0xffffff,0x657449,2.4));const sun=new T.DirectionalLight(0xffe7bc,2.3);sun.position.set(70,95,40);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.bias=-.0004;sun.shadow.normalBias=.024;sun.shadow.radius=2;sun.shadow.camera.left=-60;sun.shadow.camera.right=60;sun.shadow.camera.top=60;sun.shadow.camera.bottom=-60;scene.add(sun);
 const M=c=>new T.MeshLambertMaterial({color:c}),m={grass:M(0x658b55),forest:M(0x3a784e),mountain:M(0x858b83),mine:M(0x94775c),desert:M(0xd7bd7d),field:M(0xb2b75e),tree:M(0x845b35),leaf:M(0x388653),rock:M(0x888e90),ore:M(0x709fad),wheat:M(0xebbb53),skin:M(0xe8b997),shirt:M(0x275c70),wood:M(0xac7852),roof:M(0x965e46),gold:M(0xffd068)};
 function cube(w,h,d,mat,x=0,y=0,z=0){let q=new T.Mesh(new T.BoxGeometry(w,h,d),mat);q.position.set(x,y,z);q.castShadow=true;q.receiveShadow=true;return q}function orb(r,mat,x=0,y=0,z=0){let q=new T.Mesh(new T.IcosahedronGeometry(r,1),mat);q.position.set(x,y,z);q.castShadow=true;return q}function cy(r,h,mat,x=0,y=0,z=0){let q=new T.Mesh(new T.CylinderGeometry(r,r,h,8),mat);q.position.set(x,y,z);q.castShadow=true;return q}
 const types=['FORÊT','MONTAGNE','EXCAVATION','DÉSERT','CHAMPS'],raw=['Bois','Pierre','Minerai','Sable','Blé'],processed=['Planches','Pierre taillée','Lingots','Verre','Farine'],tools=EQUIPMENT_FR,worksites=['Cabane de bûcheron','Carrière','Mine','Camp de terrassiers','Ferme'],factories=['Scierie','Atelier de taille','Fonderie','Verrerie','Moulin'],values=[12,15,22,10,14],colors=['#488756','#87938b','#b88f6b','#e3c67c','#c8b64e'];
-let defaultState={gold:100,bag:8,inv:[0,0,0,0,0],products:[0,0,0,0,0],tools:[-1,-1,-1,-1,-1],talents:[0,0,0,0,0],buildings:[],stock:[],truck:false,cart:false,staminaLevel:0,gameMinutes:0,x:0,z:9,seed:7331,exhausted:{}};let st={...defaultState};
-const settings=loadSettings();let awaitingBinding=null;let observedGold=st.gold,goldHideAt=0;try{let a=JSON.parse(localStorage.getItem('irh-state')||'{}');for(let k in defaultState)if(a[k]!==undefined)st[k]=a[k]}catch{}observedGold=st.gold;const save=()=>{st.x=player.position.x;st.z=player.position.z;
+const vault=await openSaveVault();
+let defaultState={gold:100,bag:8,inv:[0,0,0,0,0],products:[0,0,0,0,0],tools:[-1,-1,-1,-1,-1],talents:[0,0,0,0,0],buildings:[],stock:[],truck:false,cart:false,staminaLevel:0,gameMinutes:0,x:0,z:9,seed:Math.floor(Math.random()*2000000000)+10000,exhausted:{},avatar:null};let st={...defaultState};
+const settings=loadSettings();let awaitingBinding=null;let observedGold=st.gold,goldHideAt=0;try{
+ const a=vault.state||{};
+ for(const k in defaultState)if(a[k]!==undefined)st[k]=a[k];
+}catch(error){console.warn('Save could not be loaded',error)}
+observedGold=st.gold;
+const save=()=>{st.x=player.position.x;st.z=player.position.z;
 const cleanBuildings=st.buildings.map(b=>({
 id:b.id,kind:b.kind,type:b.type,x:b.x,z:b.z,workers:b.workers,carryLevel:b.carryLevel,
 stock:b.stock,stockRaw:b.stockRaw,inputRaw:b.inputRaw,stockProcessed:b.stockProcessed,progress:b.progress
 }));
-try{localStorage.setItem('irh-state',JSON.stringify({...st,buildings:cleanBuildings}))}catch(e){console.warn('Storage unavailable',e)}
+vault.save({...st,buildings:cleanBuildings}).catch(e=>console.warn('Encrypted storage unavailable',e));
 };
 
 const player=new T.Group(),avatar=new T.Group();player.add(avatar);
@@ -128,8 +138,8 @@ const resourceLife=createResourceLifecycle(st);
 const trails=createTrails(T,st,world);
 let R=Math.max(2,Math.min(8,Math.ceil(settings.viewDistance/CH)));const hash=(x,z,s=0)=>{let n=Math.sin(x*127.1+z*311.7+s*51.6+((st.seed||7331)-7331)*.7919)*43758.5453;return n-Math.floor(n)},blend=t=>t*t*(3-2*t);function noise(x,z,k,s){let a=Math.floor(x/k),b=Math.floor(z/k),u=blend(x/k-a),v=blend(z/k-b);return T.MathUtils.lerp(T.MathUtils.lerp(hash(a,b,s),hash(a+1,b,s),u),T.MathUtils.lerp(hash(a,b+1,s),hash(a+1,b+1,s),u),v)}
 function biome(x,z){
-if(Math.hypot(x,z)<22)return -1;
-if(Math.hypot(x-34,z)<76)return 0;
+const starting=openingBiome(x,z,st.seed);
+if(starting!==null)return starting;
 const size=290,cx=Math.floor(x/size),cz=Math.floor(z/size);
 let nearest=Infinity,selected=0;
 for(let ix=-1;ix<=1;ix++)for(let iz=-1;iz<=1;iz++){
@@ -849,11 +859,11 @@ function resetEntireGame(){
     buildings:[],stock:[],truck:false,cart:false,staminaLevel:0,
     gameMinutes:0,x:0,z:9,
     seed:Math.floor(Math.random()*2000000000)+10000,
-    trails:{}
+    avatar:null,exhausted:{},trails:{}
   };
-  try{localStorage.setItem('irh-state',JSON.stringify(fresh))}
-  catch(e){console.error('Cannot reset saved progress',e);pop('Save unavailable');return}
-  location.reload();
+  vault.save(fresh).then(()=>location.reload()).catch(e=>{
+    console.error('Cannot reset encrypted progress',e);pop('Save unavailable');
+  });
 }
 $('panel').onclick=e=>{
 const button=e.target.closest('button');if(!button)return;
