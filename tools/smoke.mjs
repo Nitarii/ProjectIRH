@@ -46,7 +46,7 @@ try{
   salePage.on('pageerror',e=>errors.push('SALE SCRIPT '+e.message));
   await salePage.addInitScript(()=>{
     localStorage.setItem('irh-state',JSON.stringify({
-      x:10,z:1,gold:100,bag:8,inv:[2,1,0,0,0],products:[1,0,0,0,0],stock:[0]
+      x:23,z:0,gold:100,bag:8,inv:[2,1,0,0,0],products:[1,0,0,0,0],stock:[0]
     }));
   });
   await salePage.goto('http://127.0.0.1:8765/',{waitUntil:'domcontentloaded',timeout:30000});
@@ -171,6 +171,9 @@ try{
   await optionsPage.waitForFunction(()=>!!document.querySelector('#settingVolume'),null,{timeout:15000});
   await optionsPage.locator('#settingVolume').evaluate(el=>{el.value='28';el.dispatchEvent(new Event('input',{bubbles:true}))});
   await optionsPage.locator('#settingQuality').selectOption('low');
+  await optionsPage.locator('#settingResolution').evaluate(el=>{el.value='75';el.dispatchEvent(new Event('input',{bubbles:true}))});
+  await optionsPage.locator('#settingDistance').evaluate(el=>{el.value='112';el.dispatchEvent(new Event('input',{bubbles:true}))});
+  await optionsPage.locator('#settingSensitivity').evaluate(el=>{el.value='140';el.dispatchEvent(new Event('input',{bubbles:true}))});
   await optionsPage.locator('#settingAudio').uncheck();
   await optionsPage.locator('#settingLanguage').selectOption('fr');
   await optionsPage.locator('button[data-bind="build"]').click();
@@ -182,7 +185,9 @@ try{
   }));
   if(optionsState.language!=='fr'||optionsState.settings.volume!==.28||
      optionsState.settings.quality!=='low'||optionsState.settings.muted!==true||
-     optionsState.settings.bindings.build!=='KeyJ'||optionsState.canvasPixelRatio>=.99)
+     optionsState.settings.bindings.build!=='KeyJ'||optionsState.canvasPixelRatio>=.8||
+     optionsState.settings.renderScale!==.75||optionsState.settings.viewDistance!==112||
+     optionsState.settings.mouseSensitivity!==1.4)
     throw new Error('Settings not applied: '+JSON.stringify(optionsState));
   await optionsPage.keyboard.press('Escape');
   await optionsPage.keyboard.press('j');
