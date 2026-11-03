@@ -830,7 +830,7 @@ const fps=p.frames*1000/duration;
 monitor.estimatedFps=Math.round(fps);p.frames=0;p.sampleAt=now;
 if(fps<19&&!p.reduced){
 p.reduced=true;
-renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,settings.quality==='low'?.72:.8));
 renderer.shadowMap.enabled=false;
 monitor.lowPowerMode=true;
 console.warn('Reduced graphics load for stable rendering');
