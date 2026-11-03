@@ -10,6 +10,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     worker:0x477365, factory:0x486f8c, transport:0xb58748, seller:0x7964a3
   };
   const resourcesColors=[0xa87849,0x8b9398,0x6496b4,0xdcc58b,0xcdb451];
+  const viewPool=new Map();
   const bodyGeometry=new T.CylinderGeometry(.23,.27,.8,6);
   const headGeometry=new T.IcosahedronGeometry(.19,0);
   const legGeometry=new T.BoxGeometry(.15,.55,.19);
@@ -41,6 +42,14 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     return b;
   }
   function createView(agent){
+    const key=agent.role+':'+agent.home.type;
+    const pooled=viewPool.get(key);
+    if(pooled?.length){
+      const restored=pooled.pop();
+      restored.group.visible=true;
+      scene.add(restored.group);
+      return restored;
+    }
     const g=new T.Group(),parts={};
     function part(geometry,material,x,y,z,parent=g){
       const mesh=new T.Mesh(geometry,material);mesh.position.set(x,y,z);mesh.castShadow=false;parent.add(mesh);return mesh;
@@ -101,7 +110,15 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
   }
   function removeView(a){
     if(!a.view)return;
-    scene.remove(a.view.group);
+    const view=a.view,key=a.role+':'+a.home.type;
+    scene.remove(view.group);view.group.visible=false;
+    if(!viewPool.has(key))viewPool.set(key,[]);
+    const pool=viewPool.get(key);
+    if(pool.length<14)pool.push(view);
+    else view.group.traverse?.(obj=>{
+      if(obj.geometry&&![bodyGeometry,headGeometry,legGeometry,armGeometry,loadGeometry].includes(obj.geometry))
+        obj.geometry.dispose?.();
+    });
     a.view=null;
   }
   function addAgent(b,i){
