@@ -180,10 +180,15 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     return false;
   }
   function humanBlocked(x,z,self){
+    // Check the entire movement segment so fast workers cannot cross each other.
+    const vx=x-self.x,vz=z-self.z,len2=Math.max(.0001,vx*vx+vz*vz);
     for(const other of agents){
       if(other===self)continue;
-      const dx=x-other.x,dz=z-other.z;
-      if(Math.abs(dx)<.6&&Math.abs(dz)<.6&&dx*dx+dz*dz<.36)return true;
+      const dx=other.x-self.x,dz=other.z-self.z;
+      if(Math.abs(dx)>1.8&&Math.abs(dz)>1.8)continue;
+      const t=Math.max(0,Math.min(1,(dx*vx+dz*vz)/len2));
+      const px=self.x+t*vx,pz=self.z+t*vz;
+      if((px-other.x)**2+(pz-other.z)**2<.62*.62)return true;
     }
     return false;
   }
