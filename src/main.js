@@ -916,7 +916,7 @@ const fps=p.frames*1000/duration;
 monitor.estimatedFps=Math.round(fps);p.frames=0;p.sampleAt=now;
 if(fps<19&&!p.reduced){
 p.reduced=true;
-renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,settings.quality==='low'?.72:.8));
+renderer.setPixelRatio(Math.min(renderer.getPixelRatio(),Math.min(window.devicePixelRatio||1,1.5)*settings.renderScale*.82));
 renderer.shadowMap.enabled=false;
 R=Math.min(R,settings.quality==='low'?1:2);
 streamingCenter='';
