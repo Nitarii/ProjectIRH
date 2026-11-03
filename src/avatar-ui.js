@@ -1,4 +1,4 @@
-import {normalizeAvatar,AVATAR_STYLES} from './avatar-style.js';
+import {normalizeAvatar,AVATAR_STYLES} from './avatar-style.js?v=20261103p7';
 const FIELDS=[
   ['topColor','Haut','Top'],['bottomColor','Bas','Bottom'],
   ['hairColor','Cheveux','Hair'],['skinColor','Peau','Skin'],
