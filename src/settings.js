@@ -1,9 +1,10 @@
+const frenchKeyboard=(navigator.language||'en').toLowerCase().startsWith('fr');
 const defaults={
   language:(navigator.language||'en').toLowerCase().startsWith('fr')?'fr':'en',
   muted:false,volume:.65,quality:'balanced',shadows:true,
   effects:true,
   bindings:{
-    forward:'KeyW',backward:'KeyS',left:'KeyA',right:'KeyD',
+    forward:frenchKeyboard?'KeyZ':'KeyW',backward:'KeyS',left:frenchKeyboard?'KeyQ':'KeyA',right:'KeyD',
     sprint:'ShiftLeft',interact:'KeyF',build:'KeyB',talents:'KeyU',
     inventory:'KeyI',drop:'KeyG',vehicle:'KeyR'
   }
