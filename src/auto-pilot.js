@@ -68,7 +68,7 @@ export function createAutoPilot({
       return false;
     }
     const nearby=rankHarvestNodes(resources(),player.position,toolTier,150,
-      node=>(ignored.get(node)||0)>=elapsed);
+      node=>(ignored.get(node)||0)>elapsed);
     // Small planning budget preserves FPS when many resource nodes are active.
     // After a failed top-tier target, try the next reachable node instead of
     // repeatedly wasting a full planning cycle on the same obstruction.
