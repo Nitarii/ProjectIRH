@@ -56,10 +56,11 @@ export function createSkyWeather(T,scene,player,camera,sun,ambient,{
         color+=vec3(1.0,.60,.32)*halo;
         color+=vec3(.38,.15,.08)*uTwilight*pow(towardSun,4.0)*
                (1.0-smoothstep(.10,.56,max(0.0,d.y)));
-        float disk=smoothstep(.99942,.99987,towardSun);
+        float disk=smoothstep(.9966,.99955,towardSun);
         color=mix(color,vec3(1.0,.88,.68),disk*uDay*.94);
-        float moon=smoothstep(.99972,.99990,max(dot(d,-normalize(uSun)),0.0));
-        color+=moon*vec3(.43,.53,.67)*uNight;
+        float moon=smoothstep(.9980,.99970,max(dot(d,-normalize(uSun)),0.0));
+        color+=moon*vec3(.50,.59,.72)*uNight;
+        color+=pow(max(dot(d,-normalize(uSun)),0.0),38.0)*vec3(.018,.031,.052)*uNight;
         float starCell=hash(floor(d*590.0));
         float stars=step(.9988,starCell)*pow(max(0.0,hash(d*134.0)),3.0);
         color+=vec3(.65,.75,.93)*stars*uNight*clamp(d.y*4.0,0.0,1.0);
@@ -210,11 +211,16 @@ export function createSkyWeather(T,scene,player,camera,sun,ambient,{
       if(scene.background?.isColor)scene.background.copy(horizon);
       sun.color.copy(moon).lerp(daySun,daylight).lerp(warm,solar.twilight*.65);
       sun.intensity=.10+2.15*daylight;
-      const moonPhase=solar.altitude<0?-1:1;
-      sun.position.set(player.position.x+sunDir.x*95*moonPhase,
-        Math.max(18,Math.abs(sunDir.y)*112),
-        player.position.z+sunDir.z*95*moonPhase);
-      sun.target.position.set(player.position.x,0,player.position.z);
+      // The same astronomical direction drives both the visible sky
+      // discs and directional shadows. At night the moon is opposite the sun.
+      const facing=solar.altitude<0?-1:1;
+      // Snap the moving shadow volume to stable world steps to suppress
+      // shadow-map shimmer while walking; sunlight direction stays continuous.
+      const anchorX=Math.round(player.position.x*2)/2;
+      const anchorZ=Math.round(player.position.z*2)/2;
+      sun.position.set(anchorX+sunDir.x*95*facing,
+        Math.max(9,Math.abs(sunDir.y)*95),anchorZ+sunDir.z*95*facing);
+      sun.target.position.set(anchorX,0,anchorZ);
       sun.target.updateMatrixWorld();
       if(ambient){
         ambient.intensity=.72+1.65*daylight;
