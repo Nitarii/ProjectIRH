@@ -480,28 +480,63 @@ function collectSaleZone(){
 }
 
 
-function strikeHarvest(){
-const o=harvesting;
-if(!o||o.dead||!resources.includes(o)||Math.hypot(player.position.x-o.x,player.position.z-o.z)>3.5){stopHarvest();return}
-if(count()>=st.bag){stopHarvest();pop('Inventaire plein');return}
-
-const power=TOOL_YIELD[Math.max(0,Math.min(5,st.tools[o.type]+1))];
-o.hp=Math.max(0,o.hp-power);sound.effect(o.type);
-const gained=Math.min(power,st.bag-count());st.inv[o.type]+=gained;
-if(o.hp<=0){
-o.dead=true;scene.remove(o.mesh);stopHarvest();
-if(o.type===0){
-const log=new T.Group(),trunk=cy(.36,3.2,m.tree);trunk.rotation.z=Math.PI/2;log.add(trunk);
-log.position.set(o.x,.42,o.z);scene.add(log);o.log=log;
-pop('Arbre abattu · F pour porter le tronc')
-}else pop(raw[o.type]+' épuisé');
-setTimeout(()=>{
-if(!world.has(o.key))return;
-o.dead=false;o.hp=o.max;scene.add(o.mesh);
-if(o.log&&!carried)scene.remove(o.log)
-},240000)
+function safeResourceRespawn(o){
+  if(o.log||carried&&Math.hypot(carried.position.x-o.x,carried.position.z-o.z)<2.7)return false;
+  if(Math.hypot(player.position.x-o.x,player.position.z-o.z)<1.7)return false;
+  if(Math.hypot(o.x,o.z)<7)return false;
+  for(const b of st.buildings)
+    if(Math.abs(o.x-b.x)<5.2&&Math.abs(o.z-b.z)<5.2)return false;
+  if(Math.abs(o.x-SALE.x)<SALE.w/2+1.4&&
+     Math.abs(o.z-SALE.z)<SALE.d/2+1.4)return false;
+  if(sceneryBlocked(o.x,o.z,1.05))return false;
+  for(const other of resources){
+    if(other===o||other.dead)continue;
+    const radius=other.type===0?2.05:other.type===1?1.75:1.38;
+    if((o.x-other.x)**2+(o.z-other.z)**2<radius*radius)return false;
+  }
+  return true;
 }
-updateInventory();save()
+let nextResourceRegeneration=0;
+function renewResources(){
+  if(elapsed<nextResourceRegeneration)return;
+  nextResourceRegeneration=elapsed+2;
+  const {revived}=resourceLife.update(resources,safeResourceRespawn,o=>{
+    o.mesh.rotation.set(0,0,0);
+    o.mesh.visible=true;o.workerClaim=null;o.recoverAt=0;
+  });
+  if(revived)save();
+}
+function strikeHarvest(){
+  const o=harvesting;
+  if(!o||o.dead||!resources.includes(o)||
+     Math.hypot(player.position.x-o.x,player.position.z-o.z)>3.5){
+    stopHarvest();return;
+  }
+  if(count()>=st.bag){
+    stopHarvest();
+    if(!autoMode)pop('Inventaire plein');
+    return;
+  }
+  const damage=TOOL_YIELD[Math.max(0,Math.min(5,st.tools[o.type]+1))];
+  o.hp=Math.max(0,o.hp-damage);
+  resourceLife.hit(o);
+  sound.effect(o.type);
+  harvestFx.emit(o,player.position);
+  const gained=Math.min(damage,st.bag-count());
+  st.inv[o.type]+=gained;
+  if(o.hp<=0){
+    resourceLife.deplete(o);
+    setDistantResource(T,o,false);
+    stopHarvest();
+    if(o.type===0){
+      const log=new T.Group(),trunk=cy(.36,3.2,m.tree);
+      trunk.rotation.z=Math.PI/2;log.add(trunk);
+      log.position.set(o.x,.42,o.z);scene.add(log);o.log=log;
+      if(!autoMode)pop('Arbre abattu · F pour porter le tronc');
+    }else if(!autoMode)pop(raw[o.type]+' épuisé');
+  }
+  updateInventory();
+  save();
 }
 
 function placementPoint(){
