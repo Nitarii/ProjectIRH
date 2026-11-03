@@ -152,3 +152,19 @@ Run `node tests/camera-lock-after-menus.mjs` to check overlay closing, map contr
 - Regression tests: `node tests/night-roads-autosell.mjs` exercises lights, day/night fading, 300-second retirement, progressive demolition, saved tombstones, and full-bag selling even around a physical obstacle.
 
 Lighting and movement were tested in headless simulations. Actual WebGL appearance, smartphone GPU cost, and GitHub Pages deployment remain to be verified in a real browser.
+
+## Road presentation, mobile immersion and simulation improvements (2026-11-03)
+
+- **Road surfaces:** wide dirt paths and distinct paved roads now use five pooled instanced overlay batches with softly rounded edges, stone shoulders and subtle curb/center detailing. Old terrain-vertex paths remain underneath for blending; pathfinding and speeds are unchanged, with no extra tile collision calculations.
+- **Road crews:** path construction requires **10.5 seconds**, road upgrading **18 seconds**, dismantling **7.5 seconds** per stage. Only **two roadworkers** may be hired per roadworks depot, including migration of older loaded saves.
+- **Building upgrades:** each facility has a bordered section with an individual heading, compact stock information, recruiting control and its own cargo upgrade control (not shown for roadworks buildings). UI remains responsive on mobile portrait and landscape.
+- **Mobile bicycle:** the touch bicycle control remains hidden until the bicycle has been purchased.
+- **Day/night:** more visible sun and moon disks rise/set with the existing clock. Sun/moon direction now drives the actual directional shadow caster, and its tracking origin is snapped to world steps for steadier shadows.
+- **Resource endurance:** biome resource nodes now have max HP **340 / 440 / 520 / 300 / 360**, respectively, instead of 40 / 50 / 60 / 30 / 30.
+- **Tools:** player and miner pickaxes have sharp, properly directed heads. Animations turn the point toward the resource at impact.
+- **Decor:** nearby instanced scenery batches cast directional shadows with distance-based caster control, avoiding per-object shadow maps and unnecessary distant shadow draw calls.
+- **Fullscreen:** persistent accessible button on PC and mobile using standard Fullscreen API and browser fallback. On compatible mobile browsers, the Screen Wake Lock API is requested when gameplay begins, released while hidden, reacquired on return and handled gracefully when denied. Device and browser power policies still override the request.
+- **Stutter reduction:** spread minimap biome raster updates over five rows per frame with offscreen buffering; schedule periodic encrypted autosaves during browser idle time and flush during backgrounding; throttle unbounded telemetry scans. The game now keeps the user's selected graphics settings instead of permanently disabling shadows and shortening draw distance after a single low FPS sample.
+- **Tests:** `node tests/visual-mobile-performance.mjs` plus the existing regression suites. Simulated rendering is no substitute for real Android/iOS/desktop WebGL and GPU frame-time profiling.
+
+The original author and ownership notices are unchanged.
