@@ -1,9 +1,10 @@
-import {makeStructure} from './structures.js?v=20261103t';
+import {makeStructure} from './structures.js?v=20261103v';
 import {createRouter} from './navigation.js';
+import {workstation,storagePoint} from './factory-tasks.js?v=20261103v';
 
 export function createIndustry(T, scene, st, resources, biome, sale, values, hooks={}) {
   const agents=[], buildings=st.buildings;
-  const byId=new Map(), models=new Map(), totalCapacity=100, employeeLimit=8;
+  const byId=new Map(), models=new Map(), totalCapacity=100, employeeLimit=5;
   const colors=[0x438258,0x8c9a9d,0x7d889e,0xd4a772,0xaaa36c];
   const outfits={
     worker:0x477365, factory:0x486f8c, transport:0xb58748, seller:0x7964a3
@@ -19,7 +20,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
   const materials={};
   for(const role of Object.keys(outfits))materials[role]=new T.MeshLambertMaterial({color:outfits[role]});
   const cargoMaterials=resourcesColors.map(color=>new T.MeshLambertMaterial({color}));
-  let nextId=1,time=0,planningClock=0,viewer={x:0,z:0};
+  let nextId=1,time=0,planningClock=0,viewer={x:0,z:0},camera=null,abstractCount=0,navReplans=0,separations=0;
   let lastStats={employees:0,visible:0,carrying:0,transports:0,delivered:0,sold:0,soldRaw:0,soldProcessed:0,processed:0};
   const num=n=>Number.isFinite(+n)?Math.max(0,+n):0;
   const distance=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z);
@@ -91,9 +92,9 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
   }
   function addAgent(b,i){
     const role=b.kind==='worker'?'worker':b.kind==='factory'?'factory':b.kind==='transport'?'transport':'seller';
-    agents.push({id:b.id+'-'+i,home:b,role,x:b.x+(i%3-1)*.32,z:b.z+2.35+(i%2)*.22,
+    agents.push({id:b.id+'-'+i,home:b,role,x:b.x+(i-2)*.82,z:b.z+3.65,slot:i,
       state:'idle',target:null,targetBuilding:null,receiver:null,goal:null,carry:0,carryType:b.type,
-      processed:false,timer:0,wait:0,walkPhase:i,angle:0,view:null,selectionCooldown:0,route:null,waypoint:0,goalKey:'',routeCooldown:0});
+      processed:false,timer:0,wait:0,walkPhase:i,angle:0,view:null,selectionCooldown:0,route:null,waypoint:0,goalKey:'',routeCooldown:0,abstract:false,workMotion:'inspect',workElapsed:0});
   }
   function reconcile(){
     for(const b of buildings)ensure(b);
@@ -110,7 +111,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       }
     }
   }
-  function homePort(b,i=0){return {x:b.x+(i%3-1)*.28,z:b.z+2.45}}
+  function homePort(b,i=0){return {x:b.x+(i-2)*.80,z:b.z+3.7}}
   function nearPoint(target,approach=1.25,from=null){
     const fx=from?.x??0,fz=from?.z??0;
     const dx=fx-target.x,dz=fz-target.z,len=Math.max(.001,Math.hypot(dx,dz));
@@ -186,7 +187,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
   }
   function idle(a,delay=.5){
     release(a);a.state='idle';a.goal=null;a.targetBuilding=null;a.receiver=null;a.route=null;a.waypoint=0;
-    a.timer=0;a.selectionCooldown=delay;
+    a.timer=0;a.selectionCooldown=delay;a.wait=0;
   }
   function beginHarvester(a){
     if(a.home.stockRaw>=totalCapacity)return;
@@ -208,7 +209,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       }
     }
     if(!best)return;
-    a.targetBuilding=best.origin;a.receiver=best.dest;a.goal=homePort(best.origin);
+    a.targetBuilding=best.origin;a.receiver=best.dest;a.goal=storagePoint(best.origin,false);
     a.state='toPickup';a.carryType=best.origin.type;a.processed=false;
   }
   function findSeller(a){
@@ -221,7 +222,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     pool.sort((x,y)=>distance(a.home,x)-distance(a.home,y));
     const b=pool[0];
     a.targetBuilding=b;a.processed=processed.length>0;a.carryType=b.type;
-    a.goal=homePort(b);a.state='toPickup';
+    a.goal=storagePoint(b,a.processed);a.state='toPickup';
   }
   function gather(a,dt){
     if(!a.target||a.target.dead||!resources.includes(a.target)){idle(a,.8);return}
@@ -237,7 +238,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       target.dead=true;target.mesh.visible=false;
       target.recoverAt=time+210;release(a);
     }else release(a);
-    a.goal=homePort(a.home);a.state='toHome';
+    a.goal=storagePoint(a.home,false);a.state='toHome';
   }
   function updateAgent(a,dt){
     if(a.state==='remoteGather'){
@@ -288,7 +289,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       if(a.role==='transport'){
         const n=Math.min(6+3*a.home.carryLevel,b.stockRaw,totalCapacity-a.receiver.inputRaw);
         if(n<=0){idle(a,.7);return}
-        b.stockRaw-=n;a.carry=n;a.carryType=b.type;a.goal=homePort(a.receiver);
+        b.stockRaw-=n;a.carry=n;a.carryType=b.type;a.goal=storagePoint(a.receiver,false);
         a.state='toFactory';return;
       }
       const available=a.processed?b.stockProcessed:b.stockRaw;
@@ -305,7 +306,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       a.receiver.inputRaw+=n;a.carry-=n;
       lastStats.delivered+=n;
       if(a.carry>0){refundCargo(a)}
-      a.state='returnHome';a.goal=homePort(a.home);return;
+      a.state='returnHome';a.goal=homePort(a.home,a.slot);return;
     }
     if(a.state==='toMarket'){
       if(!walk(a,a.goal,dt,2.9))return;
@@ -317,7 +318,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       if(amount>0){st.gold+=amount;lastStats.sold+=amount;
         if(a.processed)lastStats.soldProcessed+=amount;else lastStats.soldRaw+=amount;
         hooks.onSale?.(amount,a)}
-      a.carry=0;a.state='returnHome';a.goal=homePort(a.home);return;
+      a.carry=0;a.state='returnHome';a.goal=homePort(a.home,a.slot);return;
     }
     if(a.state==='returnHome'&&walk(a,a.goal,dt))idle(a,.5);
   }
