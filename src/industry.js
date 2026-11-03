@@ -1,4 +1,4 @@
-import {makeStructure} from './structures.js?v=20261104c';
+import {makeStructure} from './structures.js?v=20261105b';
 import {createRouter} from './navigation.js?v=20261104d';
 import {workstation,storagePoint,yardPoint} from './factory-tasks.js?v=20261104b';
 import {worldPoint,rotateOffset,normalizeRotation,pointInOrientedRect} from './facility-layout.js';
