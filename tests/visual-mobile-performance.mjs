@@ -69,7 +69,7 @@ const scene=new Node(),player={position:{x:0,z:0}};
 const roadNetwork={revision:1,data:{
   '0,0':{l:1,p:0},'1,0':{l:2,p:0},'2,0':{l:2,p:0}
 }};
-const visual=makeSurface(scene,roadNetwork,player,{viewDistance:()=>128,quality:()=> 'high'});
+const visual=makeSurface(T,scene,roadNetwork,player,{viewDistance:()=>128,quality:()=> 'high'});
 visual.update(.1);
 check('road surfaces use five reusable instanced draw batches',scene.children.length===5&&
   scene.children.every(m=>m instanceof InstancedMesh));
