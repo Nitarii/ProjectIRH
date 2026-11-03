@@ -19,6 +19,7 @@ jobs:
       - run: node tools/localization.test.mjs
       - run: node tools/scenery.test.mjs
       - run: node tools/resource-batches.test.mjs
+      - run: node tools/sound.test.mjs
       - run: node tools/music.test.mjs
       - run: node tools/resource-life.test.mjs
       - run: node tools/controls.test.mjs
