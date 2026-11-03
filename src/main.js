@@ -568,8 +568,15 @@ cargo.rotation.z=moving?Math.sin(stepPhase)*(sprinting?.065:.04):0;
 function syncHudDimensions(){
   const mini=$('miniInventory');
   if(!mini)return;
-  $('hud').style.setProperty('--inventory-panel-height',Math.ceil(mini.getBoundingClientRect().height)+'px');
-  $('hud').style.setProperty('--inventory-panel-width',Math.ceil(mini.getBoundingClientRect().width)+'px');
+  const factor=Math.max(.7,Math.min(1.4,settings.hudScale||1));
+  // getBoundingClientRect includes the transformed HUD; convert to local coordinates.
+  $('hud').style.setProperty('--inventory-panel-height',Math.ceil(mini.getBoundingClientRect().height/factor)+'px');
+  $('hud').style.setProperty('--inventory-panel-width',Math.ceil(mini.getBoundingClientRect().width/factor)+'px');
+}
+function applyHudSettings(){
+  $('hud').style.setProperty('--hud-scale',String(settings.hudScale));
+  $('hud').style.setProperty('--minimap-size',settings.minimapSize+'px');
+  syncHudDimensions();
 }
 function updateInventory(){
 const grid=$('inventoryGrid');if(!grid)return;
@@ -1010,7 +1017,6 @@ const cost=toolCost(i,tier);
 group+=add(settings.language==='en'?EQUIPMENT[i][tier]:tools[i][tier],types[i]+' · Palier '+(tier+1)+' / 5',cost+' OR','tool:'+i,false,i);
 }
 out+=section('Outils & récolte','CINQ INDUSTRIES',group||'<p class="catalog-empty">Tous les outils sont au niveau maximum.</p>');
-const level=st.staminaLevel||0;
 let utility='';
 if(st.bag===8)utility+=add('Sac renforcé','8 → 16 emplacements',ECONOMY.bag+' OR','bag');
 if(st.bag===16)utility+=add('Sac de randonnée','16 → 24 emplacements',ECONOMY.bag24+' OR','bag24');
@@ -1226,6 +1232,14 @@ if(id==='settingVolume'){
 }else if(id==='settingSensitivity'){
   settings.mouseSensitivity=value/100;
   $('sensitivityLabel').textContent=value+'%';
+}else if(id==='settingMinimapSize'){
+  settings.minimapSize=Math.max(72,Math.min(260,value));
+  $('minimapSizeLabel').textContent=settings.minimapSize+' px';
+  applyHudSettings();
+}else if(id==='settingHudScale'){
+  settings.hudScale=Math.max(.7,Math.min(1.4,value/100));
+  $('hudScaleLabel').textContent=Math.round(settings.hudScale*100)+'%';
+  applyHudSettings();
 }else return;
 storeSettings(settings);
 };
@@ -1441,6 +1455,7 @@ function finishWelcome(){
   $('creator').classList.add('hidden');
   $('welcome').classList.add('hidden');
   $('hud').classList.remove('hidden');
+  applyHudSettings();
   if(!touchControls?.enabled)renderer.domElement.requestPointerLock?.();
 }
 function closeAvatarBuilder(){
@@ -1626,6 +1641,7 @@ console.warn('Reduced graphics load for stable rendering');
 }
 }
 applyLocale();
+applyHudSettings();
 const cameraTarget=new T.Vector3(),cameraOffset=new T.Vector3();
 function frame(){
 requestAnimationFrame(frame);
