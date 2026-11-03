@@ -127,7 +127,7 @@ try{
   const workforce=await factoryContext.newPage();
   workforce.on('pageerror',e=>errors.push('WORKFORCE '+e.message));
   await workforce.addInitScript(()=>{
-    localStorage.setItem('irh-state',JSON.stringify({x:33,z:24,gold:250,bag:8,
+    localStorage.setItem('irh-state',JSON.stringify({x:33,z:22,gold:250,bag:8,
       buildings:[
         {id:'b1',kind:'worker',type:0,x:33,z:20,workers:1,stockRaw:12,stock:12},
         {id:'b2',kind:'factory',type:0,x:42,z:20,workers:1,inputRaw:4,stockProcessed:5},
