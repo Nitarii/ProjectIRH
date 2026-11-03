@@ -295,6 +295,25 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     // An unreachable source must not be assigned back to the same worker next frame.
     if(a.target&&!a.target.dead)a.target.unreachableUntil=time+26+a.slot*3;
     if(a.carry)refundCargo(a);
+    const sameSpot=a.rescueX!==undefined&&Math.hypot(a.x-a.rescueX,a.z-a.rescueZ)<1;
+    a.rescueFailures=sameSpot?(a.rescueFailures||0)+1:1;
+    a.rescueX=a.x;a.rescueZ=a.z;
+    if(a.rescueFailures>=2||staticBlocked(a.x,a.z,.36)){
+      // Emergency repair is only used after repeated failed routes. Choose a
+      // clear position with a full body-width margin instead of an unsafe snap.
+      const possible=[homePort(a.home,a.slot)];
+      for(const radius of [1.3,2.2,3.6,5.0,7.0])
+        for(let i=0;i<16;i++){
+          const angle=i*Math.PI/8+(a.slot+.5)*.24;
+          possible.push({x:a.x+Math.cos(angle)*radius,z:a.z+Math.sin(angle)*radius});
+        }
+      possible.sort((u,v)=>distance(u,a)-distance(v,a));
+      const safe=possible.find(p=>!staticBlocked(p.x,p.z,.48)&&!humanBlocked(p.x,p.z,a));
+      if(safe){
+        a.x=safe.x;a.z=safe.z;
+        a.route=null;a.routeGoal=null;a.rescueFailures=0;
+      }
+    }
     idle(a,2+a.slot*.32);
   }
   function walk(a,goal,dt,speed=2.65){
