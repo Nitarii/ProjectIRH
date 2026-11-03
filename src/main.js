@@ -1,7 +1,7 @@
 import * as T from 'three';
 import {createSound} from './sound.js?v=20261103s6';
 import {createAtmosphere} from './atmosphere.js?v=20261103ad';
-import {createIndustry} from './industry.js?v=20261104c';
+import {createIndustry} from './industry.js?v=20261104d';
 import {inventoryIcon} from './item-icons.js?v=20261103k';
 import {createResourceGraphics} from './resource-visuals.js?v=20261103ac';
 import {createFieldBuilder} from './wheat-fields.js?v=20261103k';
@@ -16,8 +16,7 @@ import {decorationCollider} from './decor-collision.js?v=20261103p4';
 import {batchResourceNodes,setDistantResource} from './resource-batches.js?v=20261103p4';
 import {createResourceLifecycle} from './resource-life.js?v=20261103s6';
 import {createHarvestEffects} from './harvest-fx.js?v=20261103s6';
-import {createRouter} from './navigation.js?v=20261103aa';
-import {createAutoPilot} from './auto-pilot.js?v=20261104c';
+import {createAutoPilot} from './auto-pilot.js?v=20261104d';
 import {openingBiome,startingBiomes} from './spawn-biomes.js?v=20261103p8';
 import {openSaveVault} from './save-vault.js?v=20261103p7';
 import {normalizeAvatar,attachAvatarDesigner} from './avatar-style.js?v=20261103p7';
