@@ -202,7 +202,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     for(let t=0;t<5;t++){workerBuildings[t].length=0;factoryBuildings[t].length=0}
     for(const r of resources){
       if(r.dead&&!hooks.canBreakLog?.(r))continue;
-      const key=gridKey(r.x,r.z);
+      const key=gridKey(r.log?.position?.x??r.x,r.log?.position?.z??r.z);
       if(!sourceCells.has(key))sourceCells.set(key,[]);
       sourceCells.get(key).push(r);
     }
@@ -384,7 +384,9 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
         // Rotate the approach around an unreachable node, not back into the gap.
         if(a.target&&a.state==='toResource'&&a.noPathAge>1.4){
           a.approachAttempts++;
-          const alternative=a.approachAttempts<6?approachNode(a,a.target,a.approachAttempts):null;
+          const targetPos=a.targetLog&&a.target.log?
+            {x:a.target.log.position.x,z:a.target.log.position.z,type:0}:a.target;
+          const alternative=a.approachAttempts<6?approachNode(a,targetPos,a.approachAttempts):null;
           if(alternative){
             a.goal=alternative;a.route=null;a.goalKey='';
             a.routeCooldown=.19;a.noPathAge=0;
@@ -431,7 +433,9 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
         const recoverable=b.type===0&&hooks.canBreakLog?.(r);
         if((r.dead&&!recoverable)||r.type!==b.type||(r.unreachableUntil||0)>time||
           r.workerClaim&&r.workerClaim!==a.id)continue;
-        const dx=r.x-b.x,dz=r.z-b.z,d2=(dx*dx+dz*dz)*(recoverable?.76:1);
+        const rx=recoverable?r.log.position.x:r.x;
+        const rz=recoverable?r.log.position.z:r.z;
+        const dx=rx-b.x,dz=rz-b.z,d2=(dx*dx+dz*dz)*(recoverable?.76:1);
         if(d2<6.25||d2>=score)continue;
         best=r;score=d2;
       }
@@ -465,7 +469,9 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     const target=reserveResource(a);
     if(!target){if(distance(a.home,viewer)>80){a.state='remoteGather';a.timer=0}return}
     a.target=target;a.targetLog=!!target.log;a.approachAttempts=0;
-    a.goal=approachNode(a,target,0);
+    const approachTarget=a.targetLog?
+      {x:target.log.position.x,z:target.log.position.z,type:0}:target;
+    a.goal=approachNode(a,approachTarget,0);
     if(!a.goal){
       target.unreachableUntil=time+25;release(a);a.selectionCooldown=1.5;return;
     }
@@ -616,7 +622,11 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       if(walk(a,a.goal,dt)){a.state='gather';a.timer=0}return;
     }
     if(a.state==='gather'){
-      if(a.target)a.angle=Math.atan2(a.target.x-a.x,a.target.z-a.z);
+      if(a.target){
+        const rx=a.targetLog&&a.target.log?a.target.log.position.x:a.target.x;
+        const rz=a.targetLog&&a.target.log?a.target.log.position.z:a.target.z;
+        a.angle=Math.atan2(rx-a.x,rz-a.z);
+      }
       gather(a,dt);return;
     }
     if(a.state==='toHome'){
@@ -750,13 +760,17 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       a.angle=normalizeRotation(a.home.rotation)+Math.PI;
     }else if(gather){
       const type=a.home.type;
-      if(a.target)a.angle=Math.atan2(a.target.x-a.x,a.target.z-a.z);
+      if(a.target){
+        const rx=a.targetLog&&a.target.log?a.target.log.position.x:a.target.x;
+        const rz=a.targetLog&&a.target.log?a.target.log.position.z:a.target.z;
+        a.angle=Math.atan2(rx-a.x,rz-a.z);
+      }
       v.leftArm.rotation.x=type===2?-1.05:-.55+beat*.23;
       v.rightArm.rotation.x=type===0?(a.targetLog?-.95+beat*.89:-1.27+beat*.38):
         type===1?-1.73+beat*.91:type===2?-1.33+beat*.11:type===3?-.94+beat*.61:-.71;
       v.rightArm.rotation.y=type===4?beat*.8:0;
       // Tree axes must strike sideways, with the axe edge facing local +Z.
-      v.tool.rotation.y=type===0?(-Math.PI/2+beat*.14):0;
+      v.tool.rotation.y=type===0?(a.targetLog?0:-Math.PI/2+beat*.14):0;
       v.rightArm.rotation.y=type===0?-.45+beat*.66:v.rightArm.rotation.y;
       v.tool.rotation.z=type===4?beat*.45:0;
       g.rotation.z=type===1?beat*.032:0;
