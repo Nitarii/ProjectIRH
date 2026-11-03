@@ -52,6 +52,8 @@ try{
   await salePage.goto('http://127.0.0.1:8765/',{waitUntil:'domcontentloaded',timeout:30000});
   await salePage.locator('#play').click({timeout:15000});
   await salePage.waitForFunction(()=>document.querySelector('#coins')?.textContent==='240',null,{timeout:35000});
+  const gainText=await salePage.locator('#goldGain').textContent();
+  if(gainText?.trim()!=='+140')throw new Error('Currency gain indicator missing: '+gainText);
   const saleState=await salePage.evaluate(()=>({
     gold:document.querySelector('#coins')?.textContent,
     capacity:document.querySelector('#inventoryCapacity')?.textContent,
