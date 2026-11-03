@@ -1,4 +1,4 @@
-export function createFieldBuilder(T,biome,hash){
+export function createFieldBuilder(T,biome,hash,isOccupied=()=>false){
   // One shared draw call for stems and one for wheat ears per loaded field chunk.
   const stemGeometry=new T.CylinderGeometry(.025,.037,.90,4,1);
   const earGeometry=new T.ConeGeometry(.103,.40,5);
@@ -8,6 +8,7 @@ export function createFieldBuilder(T,biome,hash){
   const colors=[new T.Color(0xd8b45a),new T.Color(0xe7c76d),new T.Color(0xf5db8a),new T.Color(0xb7ad62)];
   const quarter=4;
   return function populateField(cx,cz,root){
+    root.userData.wheatMeshes=[];
     const plants=[],x0=cx*32,z0=cz*32;
     for(let i=0;i<8;i++)for(let j=0;j<8;j++){
       const tileX=x0+i*4+2,tileZ=z0+j*4+2;
@@ -18,6 +19,7 @@ export function createFieldBuilder(T,biome,hash){
         const seed=i*771+j*921+k*19+l*29+cx*331+cz*171;
         const x=x0+i*4+.24+(k+.4+hash(seed,j,30)*.25)*.91;
         const z=z0+j*4+.24+(l+.4+hash(seed,i,31)*.25)*.91;
+        if(isOccupied(x,z))continue;
         const h=.91+hash(seed,cz,32)*.46;
         plants.push({x,z,h,lean:(hash(seed,1,35)-.5)*.13,color:colors[Math.floor(hash(seed,2,36)*colors.length)]})
       }
@@ -37,5 +39,6 @@ export function createFieldBuilder(T,biome,hash){
     stems.instanceMatrix.needsUpdate=true;ears.instanceMatrix.needsUpdate=true;
     if(ears.instanceColor)ears.instanceColor.needsUpdate=true;
     root.add(stems,ears);
+    root.userData.wheatMeshes.push(stems,ears);
   }
 }
