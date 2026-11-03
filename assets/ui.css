@@ -117,3 +117,31 @@ kbd{color:var(--accent)}
 .shop-card-head strong{font-size:16px}
 .shop-card-head small{font-size:9px}
 }
+
+
+/* World-anchored interaction indicators */
+.prompt{
+  position:fixed;top:50%;left:50%;right:auto!important;bottom:auto!important;
+  transform:translate(-50%,-118%)!important;
+  display:grid;place-items:center;
+  width:37px;height:37px;min-width:37px;min-height:37px;
+  padding:0!important;
+  border:1px solid rgba(244,236,199,.75);
+  border-radius:11px;
+  background:rgba(12,34,32,.87);
+  box-shadow:0 5px 16px #0009,0 0 0 3px #0d201b45;
+  color:#fff5db;font:900 21px/1 'Barlow Condensed',sans-serif;
+  text-align:center;letter-spacing:0;
+  pointer-events:none;user-select:none;z-index:4;
+}
+.prompt.sale{border-color:#f4cf80;color:#fff1c9}
+.target{
+  top:245px!important;left:24px!important;right:auto!important;bottom:auto!important;
+  transform:none!important;width:205px;min-width:0;
+  border-color:var(--accent-soft);
+}
+.hudstats>.gold,.hudstats>.worldpos{height:auto}
+@media(max-width:760px){
+  .prompt{top:50%;left:50%;right:auto!important;bottom:auto!important;width:33px;height:33px;min-width:33px;min-height:33px;font-size:19px}
+  .target{top:225px!important;left:11px!important;right:auto!important;bottom:auto!important;width:176px;padding:9px 11px}
+}
