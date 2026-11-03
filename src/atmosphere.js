@@ -1,59 +1,67 @@
+// Wind-driven ambient particles. Instanced batches replace dozens of
+// individual leaf meshes, keeping environmental detail to four draw calls.
 export function createAtmosphere(T,scene,player,biomeAt,nearbyResources=null){
-const leafColors=[0x81b35a,0xd5b55a,0x82a99b,0xd7c087,0xe8bb67];
-const materials=leafColors.map(color=>new T.MeshBasicMaterial({color,side:T.DoubleSide,transparent:true,opacity:.72,depthWrite:false}));
-const leafGeo=new T.PlaneGeometry(.28,.18),leaves=[],birds=[],clouds=[];
-const random=(n,s=0)=>{const v=Math.sin(n*127.13+s*28.93)*43758.545;return v-Math.floor(v)};
-for(let i=0;i<34;i++){
-const mesh=new T.Mesh(leafGeo,materials[i%materials.length]);mesh.frustumCulled=false;scene.add(mesh);
-const a=i*2.3999,r=3+random(i,1)*35;
-leaves.push({mesh,angle:a,range:r,height:.55+random(i,2)*6,speed:.25+random(i,4)*.45,seed:i*17.1});
-}
-const bodyMat=new T.MeshLambertMaterial({color:0x354c4d,side:T.DoubleSide});
-const wingGeo=new T.PlaneGeometry(.9,.28);
-for(let i=0;i<6;i++){
-const group=new T.Group(),left=new T.Mesh(wingGeo,bodyMat),right=new T.Mesh(wingGeo,bodyMat);
-const body=new T.Mesh(new T.ConeGeometry(.12,.57,5),bodyMat);
-body.rotation.x=Math.PI/2;
-left.position.x=-.5;right.position.x=.5;group.add(body,left,right);
-scene.add(group);birds.push({group,left,right,phase:i*1.8,orbit:18+i*6,altitude:12+i*2.7,speed:.22+i*.07})
-}
-const cloudMat=new T.MeshLambertMaterial({color:0xf0f2e6,transparent:true,opacity:.43,depthWrite:false});
-for(let i=0;i<6;i++){
-const g=new T.Group();
-for(let k=0;k<4;k++){
-const o=new T.Mesh(new T.IcosahedronGeometry(4+random(i*4+k)*4,1),cloudMat);
-o.position.set((k-1.5)*4,random(i*12+k)*2,0);g.add(o)
-}scene.add(g);clouds.push({g,seed:i});
-}
-let wave=0,enabled=true;
-function setEnabled(on){enabled=!!on;for(const l of leaves)l.mesh.visible=enabled;for(const b of birds)b.group.visible=enabled;for(const c of clouds)c.g.visible=enabled;}
-function update(dt,t,resources){
-if(!enabled)return;
-wave+=dt;
-const px=player.position.x,pz=player.position.z;
-const current=biomeAt(px,pz);
-for(let i=0;i<leaves.length;i++){
-const o=leaves[i],a=o.angle+wave*.04*o.speed,x=px+Math.cos(a)*o.range+Math.sin(wave*.8+o.seed)*3,z=pz+Math.sin(a)*o.range+Math.cos(wave*.5+o.seed)*2;
-o.mesh.position.set(x,o.height+Math.sin(wave*1.4+o.seed)*.8,z);
-o.mesh.rotation.set(wave*o.speed+o.seed,wave*.35+o.seed,Math.sin(wave+o.seed));
-const b=biomeAt(x,z);o.mesh.material=materials[i%3===0?1:0];
-o.mesh.visible=current===0&&b===0;
-}
-for(const b of birds){
-const a=wave*b.speed+b.phase;
-b.group.position.set(px+Math.cos(a)*b.orbit,b.altitude+Math.sin(a*2)*.8,pz+Math.sin(a)*b.orbit);
-b.group.rotation.y=-a;
-b.left.rotation.z=Math.sin(wave*9+b.phase)*.48;
-b.right.rotation.z=-b.left.rotation.z;
-}
-for(const c of clouds){
-const a=c.seed*2.7;
-c.g.position.set(px+Math.sin(a)*75+Math.sin(wave*.018+c.seed)*11,40+c.seed*.6,pz+Math.cos(a)*75)
-}
-const wind=Math.sin(wave*1.4)*.016;
-for(const o of (nearbyResources?nearbyResources():resources)){if(o.dead||Math.abs(o.x-px)>42||Math.abs(o.z-pz)>42)continue;
-o.mesh.rotation.z=o.type===0||o.type===4?wind*Math.sin(o.x*.3+o.z*.2+wave):0;
-}
-}
-return {update,setEnabled};
+  const colors=[0x87bb63,0xc4d0d4,0xb1a9a4,0xe9c892,0xe9c16d];
+  const geo=new T.PlaneGeometry(.27,.17);
+  const materials=colors.map(color=>new T.MeshBasicMaterial({
+    color,transparent:true,opacity:.52,side:T.DoubleSide,
+    depthWrite:false,alphaTest:.045,fog:true
+  }));
+  const batches=materials.map((mat,i)=>{
+    const mesh=new T.InstancedMesh(geo,mat,10);
+    mesh.count=0;mesh.frustumCulled=false;
+    scene.add(mesh);return mesh;
+  });
+  const dummy=new T.Object3D(),items=[];
+  const rand=(a,b)=>{const n=Math.sin(a*137.91+b*78.41)*43758.5453;return n-Math.floor(n)};
+  for(let i=0;i<32;i++){
+    const theta=i*2.39996;
+    items.push({angle:theta,range:4+rand(i,1)*32,height:.35+rand(i,2)*4.2,
+      speed:.12+rand(i,3)*.34,seed:i*8.57});
+  }
+  let enabled=true,frame=0,wind=0;
+  function setEnabled(value){
+    enabled=!!value;
+    if(!enabled)for(const batch of batches)batch.count=0;
+  }
+  function update(dt,elapsed,resources){
+    if(!enabled||dt<=0)return;
+    wind+=dt;frame+=dt;
+    if(frame<.065)return;
+    frame=0;
+    const px=player.position.x,pz=player.position.z;
+    const counts=[0,0,0,0,0];
+    for(const item of items){
+      const t=wind*item.speed;
+      const x=px+Math.cos(item.angle)*item.range+Math.sin(t+item.seed)*2.2;
+      const z=pz+Math.sin(item.angle)*item.range+Math.cos(t*.74+item.seed)*2.4;
+      const b=biomeAt(x,z);
+      if(b<0||b>4||counts[b]>=10)continue;
+      const y=item.height+Math.sin(wind*.7+item.seed)*.52;
+      dummy.position.set(x,y,z);
+      dummy.rotation.set(t+item.seed,t*.7,Math.sin(wind+item.seed)*.7);
+      const scale=b===3?.68:b===4?.85:1;
+      dummy.scale.setScalar(scale);
+      dummy.updateMatrix();
+      batches[b].setMatrixAt(counts[b]++,dummy.matrix);
+    }
+    for(let i=0;i<5;i++){
+      batches[i].count=counts[i];
+      if(counts[i]>0)batches[i].instanceMatrix.needsUpdate=true;
+    }
+    // World-anchored wind sway, limited to nearby plant meshes only.
+    const breeze=Math.sin(wind*.81)*.019;
+    if(nearbyResources){
+      for(const o of nearbyResources()){
+        if(o.dead||Math.abs(o.x-px)>38||Math.abs(o.z-pz)>38)continue;
+        o.mesh.rotation.z=o.type===0||o.type===4?
+          breeze*Math.sin(o.x*.3+o.z*.2+wind):0;
+      }
+    }
+  }
+  function dispose(){
+    for(const batch of batches)scene.remove(batch);
+    geo.dispose();for(const mat of materials)mat.dispose();
+  }
+  return {update,setEnabled,dispose,get particleCount(){return batches.reduce((n,b)=>n+b.count,0)}};
 }
