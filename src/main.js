@@ -1718,6 +1718,29 @@ minimap.setTransform(2,0,0,2,0,0);
 const minimapTiles=document.createElement('canvas');
 minimapTiles.width=minimapTiles.height=252;
 const tileCtx=minimapTiles.getContext('2d',{alpha:false});
+const minimapPending=document.createElement('canvas');
+minimapPending.width=minimapPending.height=252;
+const pendingCtx=minimapPending.getContext('2d',{alpha:false});
+let mapRasterJob=null;
+function stepMinimapRaster(){
+  if(!mapRasterJob)return false;
+  const job=mapRasterJob;
+  // Work is spread across animation frames instead of executing ~1300
+  // biome queries plus 2D draws in one long hitch.
+  for(let y=job.row;y<Math.min(36,job.row+5);y++){
+    for(let x=0;x<36;x++){
+      const b=biome(job.x+(x-18)*9,job.z+(y-18)*9);
+      pendingCtx.fillStyle=b<0?'#598654':colors[b]||colors[0];
+      pendingCtx.fillRect(x*7,y*7,7,7);
+    }
+  }
+  job.row=Math.min(36,job.row+5);
+  if(job.row<36)return false;
+  tileCtx.clearRect(0,0,252,252);
+  tileCtx.drawImage(minimapPending,0,0);
+  mapRasterJob=null;
+  return true;
+}
 let lastMapX=Infinity,lastMapZ=Infinity,lastMapAt=-Infinity,lastMapDrawAt=-Infinity,lastMapHeading=Infinity,lastExplorationSave=0;
 function map(){
  const px=player.position.x,pz=player.position.z;
@@ -1728,17 +1751,14 @@ function map(){
  }
  const moved=Math.hypot(px-lastMapX,pz-lastMapZ)>1.8;
  const refresh=moved||elapsed-lastMapAt>1.8;
+ const completed=stepMinimapRaster();
  const turn=Math.abs(Math.atan2(Math.sin(heading-lastMapHeading),Math.cos(heading-lastMapHeading)));
- if(!refresh&&!newAgents&&(turn<.014||elapsed-lastMapDrawAt<.045))return;
- if(refresh){
+ if(!refresh&&!completed&&!newAgents&&(turn<.014||elapsed-lastMapDrawAt<.045))return;
+ if(refresh&&!mapRasterJob){
    lastMapX=px;lastMapZ=pz;lastMapAt=elapsed;
    exploration.visit(px,pz);
    if(elapsed-lastExplorationSave>22){lastExplorationSave=elapsed;save()}
-   for(let x=0;x<36;x++)for(let z=0;z<36;z++){
-     const b=biome(px+(x-18)*9,pz+(z-18)*9);
-     tileCtx.fillStyle=b<0?'#598654':colors[b]||colors[0];
-     tileCtx.fillRect(x*7,z*7,7,7);
-   }
+   mapRasterJob={x:px,z:pz,row:0};
  }
  lastMapHeading=heading;lastMapDrawAt=elapsed;
  minimap.clearRect(0,0,168,168);
