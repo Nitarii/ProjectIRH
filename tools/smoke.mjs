@@ -156,7 +156,14 @@ try{
     throw new Error('Placement preview missing: '+JSON.stringify(placement));
   await tradePage.keyboard.press('Escape');
   await tradePage.waitForFunction(()=>document.querySelector('#placementHud').classList.contains('hidden'),null,{timeout:15000});
-  console.log(JSON.stringify({trade:afterVendor,clock:beforeVendor.clock,zoomUnchanged:zoomBefore,placement},null,2));
+  await tradePage.keyboard.press('Tab');
+  await tradePage.waitForFunction(()=>!!document.querySelector('button[data-system="unstuck"]'),null,{timeout:15000});
+  await tradePage.locator('button[data-system="unstuck"]').click();
+  const recovered=await tradePage.evaluate(()=>JSON.parse(localStorage.getItem('irh-state')||'{}'));
+  if(recovered.x!==0||recovered.z!==9||recovered.inv?.some(Boolean)||
+     recovered.products?.some(Boolean)||recovered.buildings?.length!==1)
+    throw new Error('Unstuck failed to move safely and forfeit carried goods: '+JSON.stringify(recovered));
+  console.log(JSON.stringify({trade:afterVendor,clock:beforeVendor.clock,zoomUnchanged:zoomBefore,placement,recovered:true},null,2));
   await tradeContext.close();
 
   const optionsContext=await browser.newContext({viewport:{width:1280,height:800},locale:'en-US'});
