@@ -48,7 +48,7 @@ try{
   assert.equal(migrated.bindings.vehicle,'KeyV');
   assert.equal(new Set(Object.values(migrated.bindings)).size,Object.keys(migrated.bindings).length,
     'migrated controls must not contain duplicate bindings');
-  assert.equal(migrated.controlsVersion,2);
+  assert.equal(migrated.controlsVersion,3,'migrated bindings use the current control schema');
 }finally{
   if(priorStorage===undefined)delete globalThis.localStorage;
   else globalThis.localStorage=priorStorage;
