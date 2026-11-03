@@ -113,6 +113,48 @@ export function makeStructure(T, scene, building) {
       q.rotation.z=i%2?.02:-.02}
     crates(2,1.2);cylinder(.42,.4,.9,trim,-1.95,.48,1.25);
   }
+  // Distinct facades, silhouettes and visible industrial identity.
+  const industryName=[
+    ['LOGGING HUT','QUARRY','MINE SHAFT','SAND YARD','FARM'],
+    ['SAWMILL','STONEWORKS','SMELTERY','GLASSWORKS','WINDMILL']
+  ];
+  const label=(kind==='worker'?industryName[0][t]:kind==='factory'?industryName[1][t]:kind==='transport'?'FREIGHT DEPOT':'TRADE HOUSE');
+  const board=box(2.43,.52,.14,wood,0,2.19,1.72);
+  board.castShadow=false;
+  box(2.34,.39,.03,trim,0,2.19,1.815).castShadow=false;
+  if(typeof document!=='undefined'){
+    const texts=makeStructure._labels||(makeStructure._labels=new Map());
+    if(!texts.has(label)){
+      const canvas=document.createElement('canvas');canvas.width=512;canvas.height=110;
+      const ctx=canvas.getContext('2d');
+      ctx.clearRect(0,0,512,110);ctx.fillStyle='#1d312d';
+      ctx.font='bold 45px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(label,256,56,480);
+      texts.set(label,new T.CanvasTexture(canvas));
+    }
+    const plaque=new T.Mesh(new T.PlaneGeometry(2.22,.43),new T.MeshBasicMaterial({map:texts.get(label),transparent:true}));
+    plaque.position.set(0,2.19,1.85);group.add(plaque);
+  }
+  if(kind==='worker'){
+    for(let i=0;i<3;i++)box(.16,1.12,.16,wood,-1.35+i*1.35,.64,1.86);
+    if(t===0){stackLogs(-1.5,-2.0);box(1.5,.13,1.6,roof,2,1.08,-1)}
+    else if(t===1||t===2){ico(.43,stone,1.85,.45,-1.5);ico(.28,metal,-1.80,.34,-1.6)}
+    else if(t===3){cylinder(.42,.46,1.1,metal,1.6,.60,-1.5)}
+    else {box(2.0,.22,1.1,wood,1.6,.46,-1.6);cylinder(.5,.54,.7,wood,-1.6,.40,-1.6)}
+  }else if(kind==='factory'){
+    for(let i=0;i<3;i++)box(.17,.65,.16,metal,-1.3+i*1.3,1.1,1.75);
+    if(t===0||t===1){box(1.4,.14,.7,metal,0,.46,2.05);stackLogs(-1.8,-2)}
+    if(t===2||t===3){
+      for(let i=0;i<2;i++)cylinder(.24,.31,1.8,metal,-1.5+i*3,1.1,-1.4);
+      box(1.35,.42,.22,amber,.60,.47,1.83)
+    }
+    if(t===4)for(let i=0;i<3;i++)cylinder(.42,.46,.7,wood,-1.25+i*1.2,.44,1.82);
+  }else{
+    for(let i=0;i<3;i++)crates(-1.5+i*1.6,-1.75);
+    if(kind==='transport')box(1.5,.12,1.4,metal,1.65,.35,-1.6);
+    if(kind==='seller')box(3.0,.19,.6,trim,0,.95,2.05);
+  }
+  if(group.scale?.set)group.scale.set(1+(t%3)*.035,1+(t%4)*.08,1+(t%2)*.04);
   group.position.set(building.x,0,building.z);
   scene.add(group);
   return {
