@@ -478,3 +478,120 @@ border:1px solid #7cc9ac85;border-radius:13px;padding:15px 18px;box-shadow:0 14p
 @media(max-width:720px){.world-map{padding:8px}.world-map-sheet{padding:10px}
  .world-map-footer{font-size:9px;gap:6px}.world-map-zoom button{padding:5px 9px}
  .notice{top:4%!important}}
+
+/* N.I.M branding / accessible HUD quick actions. */
+.brand-icon{width:50px;height:50px;object-fit:contain;filter:drop-shadow(0 3px 8px #000a);flex-shrink:0}
+.welcomeinner{text-align:center;max-height:96dvh;overflow-y:auto;overscroll-behavior:contain}
+.welcome-logo{display:block;width:min(320px,46vw,34dvh);max-width:85%;height:auto;margin:0 auto 5px;
+ filter:drop-shadow(0 12px 22px #0008)}
+.welcome .welcome-name{font:900 clamp(40px,7vw,78px)/.95 'Barlow Condensed',sans-serif;
+ letter-spacing:6px;margin:8px 0 12px;text-align:center}
+.welcome .welcome-name span{display:block;color:var(--gold);font:800 clamp(17px,2.8vw,30px)/1.2 'Barlow Condensed',sans-serif;
+ letter-spacing:2px;margin:7px auto 0;text-transform:uppercase}
+.welcome .intro{margin:15px auto;font-size:clamp(12px,1.6vw,16px)}
+.welcome .welcomefoot{margin-top:18px;line-height:1.6}
+#hud .keyline button{background:transparent!important;border:1px solid transparent!important;
+ border-radius:6px;color:#edf4e9;padding:7px 8px;min-height:34px;cursor:pointer;
+ text-shadow:0 2px 6px #001710,0 0 11px #000c;font:700 10px 'DM Sans',sans-serif;letter-spacing:.3px;
+ pointer-events:auto;transition:background .14s,border-color .14s,color .14s}
+#hud .keyline button:hover,#hud .keyline button:focus-visible{
+ background:#163a348c!important;border-color:#c4e6c57a!important;color:#fff}
+#hud .keyline button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+#hud .keyline button.active{color:#b0ffcb}
+#game canvas{touch-action:none}
+body.mouse-free #game canvas{cursor:crosshair}
+
+/* Mobile HUD: joystick, camera drag region and large touch targets. */
+.mobile-controls{position:fixed;inset:0;z-index:4;pointer-events:none;touch-action:none;
+ -webkit-user-select:none;user-select:none}
+.mobile-controls>*{pointer-events:auto}
+.touch-pad{position:absolute;bottom:calc(18px + env(safe-area-inset-bottom,0px));
+ left:calc(12px + env(safe-area-inset-left,0px));height:clamp(110px,28vw,146px);
+ width:clamp(110px,28vw,146px);border-radius:50%;border:2px solid #b0ebdb88;
+ background:radial-gradient(circle,#1d53506b,#082a2c73 73%,#062025ae);
+ box-shadow:0 5px 24px #0009;touch-action:none}
+.touch-pad::before,.touch-pad::after{content:"";position:absolute;inset:17%;border:1px solid #bcddcd25;
+ border-radius:50%;pointer-events:none}
+.touch-pad::after{inset:48%;background:#b8e9c291;border:0}
+.touch-knob{position:absolute;left:50%;top:50%;width:40%;height:40%;margin:-20% 0 0 -20%;
+ border-radius:50%;border:2px solid #e1f5d7ab;background:linear-gradient(#82bb9dad,#20584edc);
+ box-shadow:0 4px 14px #0008;pointer-events:none;will-change:transform}
+.touch-top-nav{position:absolute;top:calc(65px + env(safe-area-inset-top,0px));
+ left:50%;transform:translateX(-50%);display:flex;gap:5px}
+.touch-action-pad{position:absolute;right:calc(11px + env(safe-area-inset-right,0px));
+ bottom:calc(16px + env(safe-area-inset-bottom,0px));display:grid;
+ grid-template-columns:repeat(3,minmax(0,1fr));width:clamp(166px,42vw,220px);gap:6px}
+.mobile-controls button{display:grid;place-items:center;min-height:44px;
+ border:1px solid #cbe1c49c;border-radius:11px;color:#f9f8ea;
+ background:#103b3fd1;box-shadow:0 4px 12px #001615a9;
+ font:800 11px/1.1 'Barlow Condensed',sans-serif;letter-spacing:.8px;
+ -webkit-tap-highlight-color:transparent;touch-action:none;padding:5px;user-select:none}
+.touch-top-nav button{width:44px;height:44px;font-size:22px}
+.mobile-controls button.pressed,.mobile-controls button:active{background:#c3efbb;color:#16332b;
+ transform:scale(.97)}
+.touch-action-pad .touch-action-primary{grid-column:span 2;background:#b4d89bcf;color:#112b21;font-size:16px}
+.touch-placing{display:none!important}
+body.touch-placement .touch-placing{display:grid!important}
+html.touch-enabled #hud .bottom{display:none!important}
+html.touch-enabled #reticle{opacity:.65}
+body:has(.panel:not(.hidden)) .mobile-controls,
+body:has(.world-map:not(.hidden)) .mobile-controls,
+body:has(.welcome:not(.hidden)) .mobile-controls,
+body:has(.creator:not(.hidden)) .mobile-controls{display:none!important}
+@media (pointer:coarse){
+ .sheet button,.world-map button,.creator button{min-height:44px}
+ #tabs button{min-height:44px}
+ .panel,.creator,.world-map{overscroll-behavior:contain}
+ .shopbody{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+}
+@media (max-width:760px){
+ .brand-icon{width:37px;height:37px}
+ .welcome .welcome-name{font-size:52px}
+ .welcome .welcome-name span{font-size:19px}
+ .welcome-logo{width:min(260px,57vw,35dvh)}
+ .welcomefoot{letter-spacing:.5px}
+ html.touch-enabled #hud .mission{max-width:44vw}
+ html.touch-enabled #hud .inventory-mini{bottom:calc(191px + env(safe-area-inset-bottom,0px))!important;
+   right:calc(8px + env(safe-area-inset-right,0px))!important;
+   max-height:90px!important;overflow:hidden}
+ html.touch-enabled #hud .inventory-slot{height:20px}
+ html.touch-enabled #hud .inventory-title{font-size:9px}
+ html.touch-enabled #hud .target{bottom:calc(293px + env(safe-area-inset-bottom,0px))!important}
+ html.touch-enabled #hud .stamina{bottom:calc(171px + env(safe-area-inset-bottom,0px))!important;
+   left:calc(14px + env(safe-area-inset-left,0px))!important;
+   transform:none!important;max-width:140px!important}
+ html.touch-enabled #hud .auto-state{bottom:calc(164px + env(safe-area-inset-bottom,0px))!important;
+   left:50%!important;max-width:180px!important}
+ html.touch-enabled .mobile-controls button{min-width:0}
+}
+@media (orientation:landscape) and (max-height:520px){
+ .welcome-logo{width:auto;height:min(29dvh,135px);margin:0 auto}
+ .welcome .welcome-name{font-size:34px;margin:0}
+ .welcome .welcome-name span{font-size:15px}
+ .welcome .intro{margin:8px auto}
+ .welcome .cta{padding:8px 17px}
+ .welcome .welcomefoot{margin-top:9px}
+ .touch-top-nav{top:calc(8px + env(safe-area-inset-top,0px));left:50%}
+ .touch-top-nav button{width:39px;height:39px;min-height:39px;font-size:17px}
+ .touch-pad{width:clamp(98px,25vh,125px);height:clamp(98px,25vh,125px);
+   left:calc(10px + env(safe-area-inset-left,0px));bottom:calc(8px + env(safe-area-inset-bottom,0px))}
+ .touch-action-pad{width:clamp(180px,32vw,234px);gap:4px;
+   bottom:calc(8px + env(safe-area-inset-bottom,0px));right:calc(8px + env(safe-area-inset-right,0px))}
+ .touch-action-pad button{min-height:39px;font-size:10px}
+ .touch-action-pad .touch-action-primary{font-size:13px}
+ html.touch-enabled #hud .inventory-mini{bottom:calc(137px + env(safe-area-inset-bottom,0px))!important;
+   max-height:57px!important;width:147px!important}
+ html.touch-enabled #hud .inventory-mini .inventory-grid{display:none}
+ html.touch-enabled #hud .target{bottom:calc(197px + env(safe-area-inset-bottom,0px))!important}
+ html.touch-enabled #hud .stamina{bottom:calc(139px + env(safe-area-inset-bottom,0px))!important}
+ html.touch-enabled #hud .auto-state{display:none!important}
+ .panel .sheet{max-height:98dvh}
+ .shopbody{max-height:51dvh}
+}
+@media(max-width:380px) and (orientation:portrait){
+ .touch-top-nav{top:calc(64px + env(safe-area-inset-top,0px));gap:3px}
+ .touch-top-nav button{width:38px;height:40px;min-height:40px}
+ .touch-pad{width:112px;height:112px;left:8px}
+ .touch-action-pad{width:170px;gap:4px;right:7px}
+ html.touch-enabled #hud .inventory-mini{width:137px!important}
+}
