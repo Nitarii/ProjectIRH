@@ -22,6 +22,7 @@ import {openingBiome,startingBiomes} from './spawn-biomes.js';
 import {openSaveVault} from './save-vault.js';
 import {normalizeAvatar,attachAvatarDesigner} from './avatar-style.js';
 import {avatarBuilderMarkup} from './avatar-ui.js';
+import {nearestStock,transferStock} from './stock-interaction.js';
 const $=id=>document.getElementById(id), scene=new T.Scene();scene.background=new T.Color('#a6cbd1');scene.fog=new T.FogExp2('#a6cbd1',.0039);
 const cam=new T.PerspectiveCamera(65,innerWidth/innerHeight,.1,450),renderer=new T.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.25));renderer.shadowMap.enabled=true;$('game').append(renderer.domElement);
 scene.add(new T.HemisphereLight(0xffffff,0x657449,2.4));const sun=new T.DirectionalLight(0xffe7bc,2.3);sun.position.set(70,95,40);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.bias=-.0004;sun.shadow.normalBias=.024;sun.shadow.radius=2;sun.shadow.camera.left=-60;sun.shadow.camera.right=60;sun.shadow.camera.top=60;sun.shadow.camera.bottom=-60;scene.add(sun);
@@ -499,7 +500,7 @@ if(quality<score){score=quality;best=o}
 }
 for(const b of st.buildings){
 const d=Math.hypot(px-b.x,pz-b.z);
-if(d<3.9&&d<score){score=d;best=b}
+if(d<5.45&&d<score){score=d;best=b}
 }
 return best
 }
@@ -676,27 +677,9 @@ sound.effect('build');pop('Bâtiment construit');save();return;
 if(carried){drop();return}
 const o=closest();if(!o)return;
 if(o.kind){
-stopHarvest();
-if(o.kind==='factory'){
-const n=Math.min(5,st.inv[o.type],industry.capacity-o.inputRaw);
-if(n>0){st.inv[o.type]-=n;o.inputRaw+=n;pop(n+' '+raw[o.type]+' livré(s) à '+factories[o.type])}
-else if(o.stockProcessed>0){
-const take=Math.min(5,o.stockProcessed,st.bag-count());
-if(!take)return pop('Inventaire plein');
-o.stockProcessed-=take;st.products[o.type]+=take;pop(take+' '+processed[o.type]+' récupéré(s)')
-}
-else if(o.inputRaw>0&&o.workers===0){
-o.inputRaw--;o.stockProcessed++;pop('Une unité transformée manuellement')
-}else pop('Atelier vide · achetez des employés ou déposez des ressources');
-}
-else if(o.kind==='worker'){
-const n=Math.min(o.stockRaw,st.bag-count());
-if(!n)return pop(o.stockRaw?'Inventaire plein':'Aucun stock disponible');
-o.stockRaw-=n;st.inv[o.type]+=n;pop(n+' '+raw[o.type]+' récupéré(s)')
-}
-else if(o.kind==='seller')pop('Le comptoir vend uniquement les ressources de ses employés.');
-else if(o.kind==='transport')pop('Transporteurs : '+o.workers);
-updateInventory();save();return
+  employeeFilterId=o.id;
+  openPanel('employees');
+  return;
 }
 
 if(count()>=st.bag)return pop('Inventaire plein');
@@ -733,6 +716,11 @@ function interact(){
     pop('Transportez le tronc vers la zone VENDRE');return;
   }
   if(carried)return drop();
+  const pile=nearestStock(st.buildings,player.position,b=>industry.buildingGeometry(b.id)?.stockPoints);
+  if(pile){
+    activeStorage={buildingId:pile.building.id,kind:pile.kind};
+    openPanel('storage');return;
+  }
   if(Math.hypot(px,pz)<7)return openPanel('market');
   harvest();
 }
@@ -774,7 +762,8 @@ const autoPilot=createAutoPilot({
   }
 });
 
-const panels={market:'COMPTOIR',build:'CONSTRUCTION',talents:'PROGRESSION',settings:'PARAMÈTRES'};
+const panels={market:'COMPTOIR',build:'CONSTRUCTION',employees:'EMPLOYÉS',storage:'DÉPÔT',talents:'PROGRESSION',settings:'PARAMÈTRES'};
+let employeeFilterId=null,activeStorage=null;
 let panel=null;
 const biomeIcons=['♧','◆','◈','◒','✺'];
 const add=(title,sub,cost,action,off=false,biomeId=-1)=>`<article class="shop-card ${biomeId>=0?'biome-'+biomeId:''}">
@@ -786,7 +775,7 @@ function renderPanel(){
 const box=$('panel');box.classList.toggle('hidden',!panel);if(!panel)return;
 $('panelTitle').textContent=panel==='settings'?UI[settings.language].settings:tr(panels[panel],settings.language);
 $('panelTag').textContent='FRONTIER CAPITAL';
-$('tabs').innerHTML=(panel==='settings'?['settings']:['market','build','talents']).map(k=>'<button data-tab="'+k+'" '+(panel===k?'class="active"':'')+'>'+tr(panels[k],settings.language)+'</button>').join(' ');
+$('tabs').innerHTML=(panel==='settings'?['settings']:['market','build','employees','talents']).map(k=>'<button data-tab="'+k+'" '+(panel===k?'class="active"':'')+'>'+tr(panels[k],settings.language)+'</button>').join(' ');
 $('resume').textContent=UI[settings.language].back;
 if(panel==='settings'){
   $('shopbody').innerHTML=optionsMarkup(settings,awaitingBinding);
@@ -815,16 +804,47 @@ for(let i=0;i<5;i++){
 out+=section(types[i]+' · '+raw[i].toUpperCase(),'CHAÎNE DE PRODUCTION',add(worksites[i],'Collecte automatique · stockage',buildingCost('worker',i)+' OR','worker:'+i,false,i)+add(factories[i],raw[i]+' → '+processed[i],buildingCost('factory',i)+' OR','factory:'+i,false,i));
 }
 out+=section('Logistique','TRANSPORT & COMMERCE',add('Dépôt de transport','Déplacements des ressources',buildingCost('transport')+' OR','transport:0')+add('Comptoir vendeur','Vente automatisée',buildingCost('seller')+' OR','seller:0'));
-if(st.buildings.length)out+=section('Personnel','RECRUTEMENT',st.buildings.map((b,i)=>{
-const title=(b.kind==='worker'?worksites[b.type]:b.kind==='factory'?factories[b.type]:b.kind==='seller'?'Comptoir vendeur':'Dépôt transport')+' #'+(i+1);
-const stock=b.kind==='worker'?'Brut : '+b.stockRaw
-:b.kind==='factory'?'Entrée : '+b.inputRaw+' · Transformé : '+b.stockProcessed
-:'Logistique automatisée';
-return add(title,'Employés : '+b.workers+'/'+industry.limit+' · '+stock,b.workers>=industry.limit?'MAX':ECONOMY.hire+' OR','hire:'+i,b.workers>=industry.limit,b.type)
-+add(UI[settings.language].capacity,'Niveau '+(b.carryLevel||0)+'/5 · '+(2+2*(b.carryLevel||0))+' / '+(6+3*(b.carryLevel||0)),
-(b.carryLevel||0)>=5?'MAX':workerCarryCost(b.carryLevel||0)+' OR','carry:'+i,(b.carryLevel||0)>=5,b.type)
-}).join(''));
 }
+if(panel==='employees'){
+  const chosen=employeeFilterId?st.buildings.filter(b=>b.id===employeeFilterId):st.buildings;
+  if(!chosen.length)out+=section('Personnel','RECRUTEMENT',
+    '<p class="catalog-empty">'+(settings.language==='fr'?'Construisez un bâtiment pour recruter du personnel.':'Build a facility to hire workers.')+'</p>');
+  else out+=section(settings.language==='fr'?'Employés et équipements':'Employees and equipment',
+    settings.language==='fr'?'RECRUTEMENT ET AMÉLIORATIONS':'HIRING AND UPGRADES',chosen.map(b=>{
+    const i=st.buildings.indexOf(b);
+    const title=(b.kind==='worker'?worksites[b.type]:b.kind==='factory'?factories[b.type]:b.kind==='seller'?'Comptoir vendeur':'Dépôt transport')+' #'+(i+1);
+    const stock=b.kind==='worker'?'Brut : '+b.stockRaw
+      :b.kind==='factory'?'Entrée : '+b.inputRaw+' · Transformé : '+b.stockProcessed
+      :'Logistique automatisée';
+    return add(title,'Employés : '+b.workers+'/'+industry.limit+' · '+stock,
+      b.workers>=industry.limit?'MAX':ECONOMY.hire+' OR','hire:'+i,
+      b.workers>=industry.limit,b.type)
+      +add(UI[settings.language].capacity,
+        'Niveau '+(b.carryLevel||0)+'/5 · '+(2+2*(b.carryLevel||0))+' / '+(6+3*(b.carryLevel||0)),
+        (b.carryLevel||0)>=5?'MAX':workerCarryCost(b.carryLevel||0)+' OR',
+        'carry:'+i,(b.carryLevel||0)>=5,b.type);
+  }).join(''));
+}
+if(panel==='storage'){
+  const building=st.buildings.find(b=>b.id===activeStorage?.buildingId);
+  if(!building){panel=null;return renderPanel()}
+  const field=building.kind==='worker'?'stockRaw':activeStorage.kind==='processed'?'stockProcessed':'inputRaw';
+  const item=activeStorage.kind==='processed'?processed[building.type]:raw[building.type];
+  const carrying=activeStorage.kind==='processed'?st.products[building.type]:st.inv[building.type];
+  out+=section(settings.language==='fr'?'Stockage du bâtiment':'Facility stockpile',
+    tr(item,settings.language),'<div class="storage-overview">'+
+    '<strong>'+tr(item,settings.language)+'</strong>'+
+    '<span>'+(settings.language==='fr'?'Stock':'Stock')+' : '+(building[field]||0)+' / '+industry.capacity+'</span>'+
+    '<span>'+(settings.language==='fr'?'Transporté':'Carried')+' : '+carrying+'</span></div>'+
+    add(settings.language==='fr'?'Déposer':'Deposit',
+      settings.language==='fr'?'Depuis votre inventaire':'From your inventory',
+      settings.language==='fr'?'DÉPOSER':'DEPOSIT','stockDeposit',carrying<=0,building.type)+
+    add(settings.language==='fr'?'Récupérer':'Withdraw',
+      settings.language==='fr'?'Vers votre inventaire':'To your inventory',
+      settings.language==='fr'?'RÉCUPÉRER':'WITHDRAW','stockWithdraw',
+      (building[field]||0)<=0||count()>=st.bag,building.type));
+}
+
 if(panel==='talents'){
 const level=st.staminaLevel||0;
 out+=section('Endurance & sprint','PERFORMANCES',level<4?add('Endurance '+(level+1),'Réserve '+maxStamina()+' → '+(maxStamina()+32)+' · récupération +4/s',ECONOMY.stamina[level]+' OR','stamina'):add('Endurance MAX','Capacité maximale atteinte','MAX','noop',true));
@@ -881,8 +901,22 @@ if(button.dataset.system){
   return;
 }
 if(button.dataset.bind){awaitingBinding=button.dataset.bind;renderPanel();return}
-if(button.dataset.tab){sound.effect('ui');panel=button.dataset.tab;return renderPanel()}
+if(button.dataset.tab){
+  sound.effect('ui');
+  employeeFilterId=null;
+  activeStorage=null;
+  panel=button.dataset.tab;
+  return renderPanel();
+}
 const a=button.dataset.action;if(!a)return;
+if(a==='stockDeposit'||a==='stockWithdraw'){
+  const b=st.buildings.find(b=>b.id===activeStorage?.buildingId);
+  if(!b)return;
+  const n=transferStock(st,b,activeStorage.kind,a==='stockDeposit'?'deposit':'withdraw',industry.capacity);
+  if(n){sound.effect('ui');updateInventory();save();renderPanel();}
+  else pop(settings.language==='fr'?'Aucune ressource à transférer':'No resources available to transfer');
+  return;
+}
 if(a==='sell')return sell();
 if(a==='bag')return buy(ECONOMY.bag,()=>st.bag=16);
 if(a==='stamina')return buy(ECONOMY.stamina[st.staminaLevel||0]||Infinity,()=>{st.staminaLevel=(st.staminaLevel||0)+1;stamina=maxStamina()});
