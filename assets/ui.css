@@ -595,3 +595,7 @@ body:has(.creator:not(.hidden)) .mobile-controls{display:none!important}
  .touch-action-pad{width:170px;gap:4px;right:7px}
  html.touch-enabled #hud .inventory-mini{width:137px!important}
 }
+
+/* Touch construction: always provide explicit cancel and rotation actions. */
+body.touch-placement .touch-action-pad{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media(orientation:landscape) and (max-height:520px){body.touch-placement .touch-action-pad button{min-height:36px}}
