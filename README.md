@@ -124,3 +124,13 @@ Run `node tests/nature-rendering.mjs` and `node tests/ai-clearance.mjs` alongsid
 The automatic mode now selects resource nodes based first on the strongest **owned tool** for that biome (tier 0–4). When tool tiers are equal, nearer reachable nodes are favored. Without purchased tools, distance remains the primary criterion. Fully depleted resources and logs are excluded; temporarily inaccessible nodes are skipped and the navigator falls back to the next viable candidate within its bounded pathfinding budget. Tool upgrades take effect on the next harvest plan.
 
 Run `node tests/auto-harvest-priority.mjs` to verify selection and fallback behavior.
+
+## NPC cargo recovery, refinery clearances and world-space ambience
+
+- The stuck-path recovery handler now **preserves all carried inventory, material type, current destination, delivery phase and active factory route** when safely relocating a worker. Only navigation coordinates and failed waypoints are reset; cargo is not automatically refunded into possibly-full warehouses.
+- Factory staff use a stable **left-side inbound corridor, front operator aisle, and right-side outbound corridor** for all five refiners and all quarter-turn rotations. Distinct workstations remain, but the route avoids machines, stockpiles, saws, kilns and mills. The visible machine hull in front of workshops also has an appropriately sized collision envelope.
+- Atmospheric particles are sampled from **deterministic world grid cells**. The camera/player only determine which cells are rendered; walking or turning cannot drag individual particles. Wind is driven by world animation time.
+- Cloud transforms have **fixed world orientations** rather than copying the camera quaternion. World-anchored cloud drift remains. Animal and bird silhouettes keep constant physical scale instead of resizing with observer distance.
+- New regression suite: `node tests/ai-cargo-factory-paths.mjs` checks cargo retention, 100 refinery/rotation/employee cases, 800 ground-level movement segments and 20 real route solutions. Updated nature tests check that camera motion does not change cloud placement and that moving the player does not shift fixed ambient particles.
+
+These simulation tests cannot replace testing all on-screen WebGL collision silhouettes and animations on actual devices.
