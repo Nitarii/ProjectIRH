@@ -91,6 +91,7 @@ export function createMobileControls({root,canvas,onAction,onLook,onZoom,isActiv
   const clear=()=>{releasePad();for(const action of pressedButtons.values())onAction(action,false);
     pressedButtons.clear();lookPointers.clear();pinchDistance=null};
   addEventListener('blur',clear);
+  addEventListener('orientationchange',clear);
   document.addEventListener('visibilitychange',()=>{if(document.hidden)clear()});
   return {enabled:true,clear,dispose(){clear();root.classList.add('hidden')}};
 }
