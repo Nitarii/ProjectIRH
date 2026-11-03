@@ -1,16 +1,16 @@
 export const EQUIPMENT=[
   ['Hatchet','Logging axe','Heavy felling axe','Bow saw','Chainsaw'],
-  ['Stone hammer','Iron pickaxe','Steel pickaxe','Pneumatic breaker','Hydraulic splitter'],
+  ['Stone hammer','Iron pickaxe','Steel pickaxe','Pneumatic breaker','Hydraulic rock breaker'],
   ['Mining pick','Steel mining pick','Hand drill','Power drill','Industrial drill'],
-  ['Hand shovel','Steel shovel','Excavation spade','Power auger','Mini excavator'],
-  ['Harvest sickle','Harvest knife','Field scythe','Motorized scythe','Compact harvester']
+  ['Hand shovel','Steel shovel','Excavation spade','Power auger','Industrial earth auger'],
+  ['Harvest sickle','Harvest knife','Field scythe','Motorized scythe','Powered reaper']
 ];
 export const EQUIPMENT_FR=[
   ['Hachette','Hache de bûcheron','Hache d’abattage','Scie à archet','Tronçonneuse'],
-  ['Marteau de pierre','Pioche de fer','Pioche d’acier','Brise-roche pneumatique','Fendeur hydraulique'],
+  ['Marteau de pierre','Pioche de fer','Pioche d’acier','Brise-roche pneumatique','Brise-roche hydraulique'],
   ['Pic de mine','Pic de mine en acier','Foret manuel','Perceuse motorisée','Foreuse industrielle'],
-  ['Pelle à main','Pelle en acier','Bêche de terrassement','Tarière motorisée','Mini-pelleteuse'],
-  ['Faucille','Couteau de moisson','Faux agricole','Débroussailleuse','Moissonneuse compacte']
+  ['Pelle à main','Pelle en acier','Bêche de terrassement','Tarière motorisée','Tarière industrielle'],
+  ['Faucille','Couteau de moisson','Faux agricole','Débroussailleuse','Moissonneuse portative']
 ];
 export const TOOL_BASE_COSTS=[250,950,3200,9000,24000];
 export const AUTO_UPGRADE_COSTS=[20000,50000,100000,250000];
