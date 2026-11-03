@@ -18,8 +18,8 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
   const materials={};
   for(const role of Object.keys(outfits))materials[role]=new T.MeshLambertMaterial({color:outfits[role]});
   const cargoMaterials=resourcesColors.map(color=>new T.MeshLambertMaterial({color}));
-  let nextId=1,time=0,planningClock=0,saveClock=0;
-  let lastStats={employees:0,visible:0,carrying:0,transports:0,delivered:0,sold:0,processed:0};
+  let nextId=1,time=0,planningClock=0,viewer={x:0,z:0};
+  let lastStats={employees:0,visible:0,carrying:0,transports:0,delivered:0,sold:0,soldRaw:0,soldProcessed:0,processed:0};
   const num=n=>Number.isFinite(+n)?Math.max(0,+n):0;
   const distance=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z);
   const isPresent=b=>b&&byId.get(b.id)===b;
@@ -152,7 +152,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
   function beginHarvester(a){
     if(a.home.stockRaw>=totalCapacity)return;
     const target=reserveResource(a);
-    if(!target)return;
+    if(!target){if(distance(a.home,viewer)>80){a.state='remoteGather';a.timer=0}return}
     a.target=target;a.goal=nearPoint(target,[.95,1.3,1.2,1.1,.85][a.home.type],a);
     a.state='toResource';a.timer=0;
   }
@@ -201,6 +201,16 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     a.goal=homePort(a.home);a.state='toHome';
   }
   function updateAgent(a,dt){
+    if(a.state==='remoteGather'){
+      if(distance(a.home,viewer)<70){idle(a,.5);return}
+      if(a.home.stockRaw>=totalCapacity){a.timer=0;return}
+      a.timer+=dt;
+      if(a.timer>=4.8){
+        const n=Math.min(Math.floor(a.timer/4.8),totalCapacity-a.home.stockRaw);
+        a.home.stockRaw+=n;a.timer%=4.8;
+      }
+      return;
+    }
     a.selectionCooldown=Math.max(0,a.selectionCooldown-dt);
     if(a.state==='idle'){
       if(a.selectionCooldown>0)return;
@@ -212,7 +222,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     }
     if(a.wait>9){if(a.carry)refundCargo(a);idle(a,1.8);a.wait=0;return}
     if(a.state==='operate'){
-      walk(a,a.goal,dt,2.1);
+      if(!walk(a,a.goal,dt,2.1))return;
       if(a.home.inputRaw>0&&a.home.stockProcessed<totalCapacity){
         a.timer+=dt;
         if(a.timer>=2.8){
@@ -265,7 +275,9 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     if(a.state==='selling'){
       a.timer-=dt;if(a.timer>0)return;
       const amount=a.carry*values[a.carryType]*(a.processed?3:1);
-      if(amount>0){st.gold+=amount;lastStats.sold+=amount;hooks.onSale?.(amount,a)}
+      if(amount>0){st.gold+=amount;lastStats.sold+=amount;
+        if(a.processed)lastStats.soldProcessed+=amount;else lastStats.soldRaw+=amount;
+        hooks.onSale?.(amount,a)}
       a.carry=0;a.state='returnHome';a.goal=homePort(a.home);return;
     }
     if(a.state==='returnHome'&&walk(a,a.goal,dt))idle(a,.5);
@@ -292,7 +304,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
   }
   function register(b){ensure(b);reconcile();return b.mesh}
   function update(dt,px,pz){
-    time+=dt;planningClock+=dt;saveClock+=dt;
+    time+=dt;planningClock+=dt;viewer={x:px,z:pz};
     if(planningClock>=.30){reconcile();planningClock=0}
     for(const r of resources)if(r.dead&&r.recoverAt&&time>=r.recoverAt){
       r.dead=false;r.hp=r.max;r.recoverAt=0;r.workerClaim=null;r.mesh.visible=true;
