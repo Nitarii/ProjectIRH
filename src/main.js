@@ -6,7 +6,7 @@ import {inventoryIcon} from './item-icons.js?v=20261103k';
 import {createResourceGraphics} from './resource-visuals.js?v=20261103ac';
 import {createFieldBuilder} from './wheat-fields.js?v=20261103k';
 import {makeStructure} from './structures.js?v=20261104c';
-import {EQUIPMENT,EQUIPMENT_FR,TOOL_SPEED,TOOL_YIELD,ECONOMY,toolCost,buildingCost,workerCarryCost,MAX_EXPERTISE,expertiseCost,expertiseMultiplier,expertiseHarvestSpeed} from './balance.js?v=20261104c';
+import {EQUIPMENT,EQUIPMENT_FR,TOOL_SPEED,TOOL_YIELD,ECONOMY,toolCost,buildingCost,workerCarryCost,MAX_EXPERTISE,expertiseCost,expertiseMultiplier,expertiseHarvestSpeed,AUTO_UPGRADE_COSTS,autoSpeedMultiplier} from './balance.js?v=20261104n';
 import {loadSettings,storeSettings,keyLabel,isPressed,applyQuality,ACTIONS,detectKeyboardLayout} from './settings.js?v=20261104g';
 import {tr,translateTree,UI} from './language.js?v=20261103p7';
 import {createBaseCamp} from './basecamp.js';
@@ -24,6 +24,7 @@ import {avatarBuilderMarkup} from './avatar-ui.js?v=20261103p7';
 import {nearestStock,transferStock} from './stock-interaction.js?v=20261103p7';
 import {worldPoint,facilityFootprint,footprintsOverlap,pointInOrientedRect,normalizeRotation} from './facility-layout.js';
 import {createBicycle} from './bicycle.js?v=20261104c';
+import {createExplorationMap} from './exploration-map.js?v=20261104n';
 const $=id=>document.getElementById(id), scene=new T.Scene();scene.background=new T.Color('#a6cbd1');scene.fog=new T.FogExp2('#a6cbd1',.0039);
 const cam=new T.PerspectiveCamera(65,innerWidth/innerHeight,.1,450),renderer=new T.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.25));renderer.shadowMap.enabled=true;$('game').append(renderer.domElement);
 scene.add(new T.HemisphereLight(0xffffff,0x657449,2.4));const sun=new T.DirectionalLight(0xffe7bc,2.3);sun.position.set(70,95,40);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.bias=-.0004;sun.shadow.normalBias=.024;sun.shadow.radius=2;sun.shadow.camera.left=-60;sun.shadow.camera.right=60;sun.shadow.camera.top=60;sun.shadow.camera.bottom=-60;scene.add(sun);
@@ -31,7 +32,7 @@ const M=c=>new T.MeshLambertMaterial({color:c}),m={grass:M(0x658b55),forest:M(0x
 function cube(w,h,d,mat,x=0,y=0,z=0){let q=new T.Mesh(new T.BoxGeometry(w,h,d),mat);q.position.set(x,y,z);q.castShadow=true;q.receiveShadow=true;return q}function orb(r,mat,x=0,y=0,z=0){let q=new T.Mesh(new T.IcosahedronGeometry(r,1),mat);q.position.set(x,y,z);q.castShadow=true;return q}function cy(r,h,mat,x=0,y=0,z=0){let q=new T.Mesh(new T.CylinderGeometry(r,r,h,8),mat);q.position.set(x,y,z);q.castShadow=true;return q}
 const types=['FORÊT','MONTAGNE','EXCAVATION','DÉSERT','CHAMPS'],raw=['Bois','Pierre','Minerai','Sable','Blé'],processed=['Planches','Pierre taillée','Lingots','Verre','Farine'],tools=EQUIPMENT_FR,worksites=['Cabane de bûcheron','Carrière','Mine','Camp de terrassiers','Ferme'],factories=['Scierie','Atelier de taille','Fonderie','Verrerie','Moulin'],values=[12,15,22,10,14],colors=['#488756','#87938b','#b88f6b','#e3c67c','#c8b64e'];
 const vault=await openSaveVault();
-let defaultState={gold:100,bag:8,bicycle:false,inv:[0,0,0,0,0],products:[0,0,0,0,0],tools:[-1,-1,-1,-1,-1],talents:[0,0,0,0,0],buildings:[],stock:[],bicycle:false,staminaLevel:0,gameMinutes:0,x:0,z:9,seed:Math.floor(Math.random()*2000000000)+10000,worldVersion:2,exhausted:{},avatar:null};let st={...defaultState};
+let defaultState={gold:100,bag:8,bicycle:false,inv:[0,0,0,0,0],products:[0,0,0,0,0],tools:[-1,-1,-1,-1,-1],talents:[0,0,0,0,0],buildings:[],stock:[],bicycle:false,staminaLevel:0,gameMinutes:0,x:0,z:9,seed:Math.floor(Math.random()*2000000000)+10000,worldVersion:2,exhausted:{},explored:[],autoLevel:0,avatar:null};let st={...defaultState};
 const settings=loadSettings();await detectKeyboardLayout();let awaitingBinding=null;let observedGold=st.gold,goldHideAt=0;try{
  const a=vault.state||{};
  for(const k in defaultState)if(a[k]!==undefined)st[k]=a[k];
@@ -393,7 +394,7 @@ if(!blocked(x+dx,z))player.position.x=x+dx;
 if(!blocked(player.position.x,z+dz))player.position.z=z+dz;
 }
 const stopHarvest=()=>{harvesting=null;harvestProgress=0};
-const harvestInterval=type=>([1.00,1.10,1.08,.94,.86][type])*TOOL_SPEED[Math.max(0,Math.min(5,st.tools[type]+1))]/expertiseHarvestSpeed(st,type)*(autoMode?1.25:1);
+const harvestInterval=type=>([1.00,1.10,1.08,.94,.86][type])*TOOL_SPEED[Math.max(0,Math.min(5,st.tools[type]+1))]/expertiseHarvestSpeed(st,type)/(autoMode?autoSpeedMultiplier(st.autoLevel):1);
 const TOOL_STROKES=[
   [[.55,1.15,.16],[.7,1.34,.19],[.92,1.58,.23],[.27,.6,.11],[.12,.3,.08]],
   [[.67,.9,.13],[.82,1.1,.16],[.94,1.3,.20],[.21,.4,.08],[.11,.24,.07]],
@@ -549,7 +550,7 @@ function sell({notifyEmpty=true,includeCarried=isSelling(player.position.x,playe
   if(amount<=0){if(notifyEmpty)pop('Aucune marchandise à vendre');return 0}
   st.inv.fill(0);st.products.fill(0);st.stock=[];
   if(logValue){scene.remove(carried);carried=null;carriedSource=null}
-  st.gold+=amount;sound.effect('sale');
+  st.gold+=amount;if(settings.goldSound!==false)sound.effect('sale');
   pop('Vendu · +'+amount+' or');
   updateInventory();save();
   if(panel)renderPanel();
@@ -839,6 +840,7 @@ const autoPilot=createAutoPilot({
     player.rotation.y=Math.atan2(o.x-player.position.x,o.z-player.position.z);
   },
   sell:()=>sell({notifyEmpty:false,includeCarried:true}),
+  speedMultiplier:()=>autoSpeedMultiplier(st.autoLevel),
   onChange:on=>{
     autoMode=on;
     $('autoState').classList.toggle('hidden',!on);
@@ -851,7 +853,7 @@ function updateAutoIndicator(){
   const fr=settings.language==='fr';
   $('autoState').innerHTML='<span class="auto-title">'+(fr?'MODE AUTO':'AUTO MODE')+
     '</span><small class="auto-penalty">'+
-    (fr?'−20 % vitesse de déplacement et de récolte':'−20% movement and gathering speed')+
+    (autoSpeedMultiplier(st.autoLevel)===1?(fr?'Aucun malus':'No penalty'):(autoSpeedMultiplier(st.autoLevel)>1?'+':'−')+Math.round(Math.abs(autoSpeedMultiplier(st.autoLevel)-1)*100)+'% '+(fr?'vitesse et récolte':'movement and harvest speed'))+
     '</small>';
 }
 const panels={market:'COMPTOIR',build:'CONSTRUCTION',employees:'EMPLOYÉS',storage:'DÉPÔT',talents:'PROGRESSION',settings:'PARAMÈTRES'};
@@ -866,7 +868,7 @@ function openPanel(k){sound.effect('ui');panel=panel===k?null:k;renderPanel();if
 function renderPanel(){
 const box=$('panel');box.classList.toggle('hidden',!panel);if(!panel)return;
 $('panelTitle').textContent=panel==='settings'?UI[settings.language].settings:tr(panels[panel],settings.language);
-$('panelTag').textContent='FRONTIER CAPITAL';
+$('panelTag').textContent='INDUSTRIAL MADNESS';
 $('tabs').innerHTML=(panel==='settings'?['settings']:['market','build','employees','talents']).map(k=>'<button data-tab="'+k+'" '+(panel===k?'class="active"':'')+'>'+tr(panels[k],settings.language)+'</button>').join(' ');
 $('resume').textContent=UI[settings.language].back;
 if(panel==='settings'){
@@ -939,6 +941,10 @@ if(panel==='storage'){
 
 if(panel==='talents'){
 const level=st.staminaLevel||0;
+const autoLevel=Math.max(0,Math.min(4,st.autoLevel||0));
+const autoNext=autoLevel<4?AUTO_UPGRADE_COSTS[autoLevel]:null;
+out+=section(settings.language==='fr'?'Automatisation':'Automation',settings.language==='fr'?'EFFICIENCE DU MODE AUTO':'AUTO MODE EFFICIENCY',add(settings.language==='fr'?'Efficacité automatique':'Automatic efficiency',
+  (autoLevel===0?'−20%':autoLevel===1?'−10%':autoLevel===2?'0%':autoLevel===3?'+10%':'+20%')+' → '+(autoLevel===4?'MAX':autoLevel===0?'−10%':autoLevel===1?'0%':autoLevel===2?'+10%':'+20%'),autoNext===null?'MAX':autoNext+' OR','autoUpgrade',autoNext===null));
 out+=section('Endurance & sprint','PERFORMANCES',level<4?add('Endurance '+(level+1),'Réserve '+maxStamina()+' → '+(maxStamina()+32)+' · récupération +4/s',ECONOMY.stamina[level]+' OR','stamina'):add('Endurance MAX','Capacité maximale atteinte','MAX','noop',true));
 out+=section('Expertise des métiers','SPÉCIALISATIONS',types.map((name,i)=>{
   const tier=Math.max(0,Math.min(MAX_EXPERTISE,st.talents[i]||0));
@@ -1041,6 +1047,11 @@ if(a==='stockDeposit'||a==='stockWithdraw'){
   return;
 }
 if(a==='sell')return sell();
+if(a==='autoUpgrade'){
+  const level=Math.max(0,Math.min(4,st.autoLevel||0));
+  if(level>=4)return;
+  return buy(AUTO_UPGRADE_COSTS[level],()=>{st.autoLevel=level+1;updateAutoIndicator()});
+}
 if(a==='bag')return buy(ECONOMY.bag,()=>st.bag=16);
 if(a==='bag24')return buy(ECONOMY.bag24,()=>st.bag=24);
 if(a==='stamina')return buy(ECONOMY.stamina[st.staminaLevel||0]||Infinity,()=>{st.staminaLevel=(st.staminaLevel||0)+1;stamina=maxStamina()});
@@ -1095,6 +1106,7 @@ storeSettings(settings);
 $('panel').onchange=e=>{
 const id=e.target.id;
 if(id==='settingAudio')settings.muted=!e.target.checked;
+else if(id==='settingGoldSound')settings.goldSound=e.target.checked;
 else if(id==='settingQuality'){
   settings.quality=e.target.value;
   // Presets alter shadow quality; the independent sliders own distance and resolution.
@@ -1134,6 +1146,7 @@ const prompt=$('prompt');if(!prompt.classList.contains('hidden'))prompt.textCont
 $('rotationHint').innerHTML='<kbd>'+keyLabel('KeyQ')+' / '+keyLabel('KeyE')+'</kbd> '+
  (settings.language==='fr'?'TOURNER':'ROTATE');
 $('autoShortcut').innerHTML='<kbd>'+keyLabel(settings.bindings.auto)+'</kbd> AUTO';
+$('mapShortcut').textContent=keyLabel(settings.bindings.map);
 updateAutoIndicator();
 
 }
@@ -1452,7 +1465,7 @@ $('detail').textContent=tr(st.tools.every(t=>t<0)?'Récoltez lentement avec vos 
 const highlighted=harvesting;
 if(highlighted){
 $('targetTitle').textContent=tr(raw[highlighted.type],settings.language);
-$('targetLife').textContent=highlighted.hp+' / '+highlighted.max+' '+(settings.language==='fr'?'PV':'HP');
+$('targetLifeValue').textContent=highlighted.hp+' / '+highlighted.max+' '+(settings.language==='fr'?'PV':'HP');
 $('targetLife').style.setProperty('--hp',(highlighted.hp/highlighted.max*100)+'%');
 $('targetHint').textContent=tr('RÉCOLTE EN COURS',settings.language);
 $('target').classList.remove('hidden')
@@ -1470,7 +1483,7 @@ if(st.gold!==observedGold){
     indicator.textContent='+'+difference.toLocaleString(settings.language==='fr'?'fr-FR':'en-US');
     indicator.classList.remove('visible');void indicator.offsetWidth;
     indicator.classList.add('visible');goldHideAt=elapsed+2.4;
-    sound.effect('coin');
+    if(settings.goldSound!==false)sound.effect('coin');
   }
   observedGold=st.gold;
 }
