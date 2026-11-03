@@ -410,6 +410,23 @@ rightLeg.rotation.x=T.MathUtils.damp(rightLeg.rotation.x,-stride,13,dt);
 avatar.position.y=T.MathUtils.damp(avatar.position.y,
   moving?Math.abs(Math.sin(stepPhase))*(sprinting?.115:.07):0,12,dt);
 for(const variants of toolModels)for(const model of variants)model.visible=false;
+if(bikeRiding){
+  const rhythm=stepPhase*.59;
+  avatar.position.y=T.MathUtils.damp(avatar.position.y,.31,9,dt);
+  avatar.rotation.x=T.MathUtils.damp(avatar.rotation.x,.25+(sprinting?.08:0),8,dt);
+  avatar.rotation.y=T.MathUtils.damp(avatar.rotation.y,0,10,dt);
+  avatar.rotation.z=T.MathUtils.damp(avatar.rotation.z,
+    moving?Math.sin(rhythm)*.025:0,8,dt);
+  const crank=moving?Math.sin(rhythm):0;
+  leftLeg.rotation.x=T.MathUtils.damp(leftLeg.rotation.x,-.48+crank*.56,12,dt);
+  rightLeg.rotation.x=T.MathUtils.damp(rightLeg.rotation.x,-.48-crank*.56,12,dt);
+  leftArm.rotation.x=T.MathUtils.damp(leftArm.rotation.x,-1.10,12,dt);
+  rightArm.rotation.x=T.MathUtils.damp(rightArm.rotation.x,-1.10,12,dt);
+  leftArm.rotation.y=T.MathUtils.damp(leftArm.rotation.y,-.18,12,dt);
+  rightArm.rotation.y=T.MathUtils.damp(rightArm.rotation.y,.18,12,dt);
+  toolHolder.rotation.set(0,0,0);
+  return;
+}
 if(harvesting){
 const type=harvesting.type,tier=st.tools[type],interval=harvestInterval(type);
 const phase=Math.min(1,harvestProgress/Math.max(.15,interval));
@@ -592,7 +609,7 @@ function strikeHarvest(){
     if(o.type===0){
       const log=new T.Group(),trunk=cy(.36,3.2,m.tree);
       trunk.rotation.z=Math.PI/2;log.add(trunk);
-      log.position.set(o.x,.42,o.z);scene.add(log);o.log=log;
+      log.position.set(o.x,.42,o.z);scene.add(log);o.log=log;o.logPlacedAt=elapsed;
       if(!autoMode)pop('Arbre abattu · F pour porter le tronc');
     }else if(!autoMode)pop(raw[o.type]+' épuisé');
   }
@@ -685,7 +702,8 @@ addBuilding(st.buildings.at(-1));
 cancelPlacement(false);
 sound.effect('build');pop('Bâtiment construit');save();return;
 }
-if(carried){drop();return}
+if(carried)return;
+if(bikeRiding)return pop(settings.language==='fr'?'Descendez du vélo pour récolter':'Dismount the bicycle to harvest');
 const o=closest();if(!o)return;
 if(o.kind){
   employeeFilterId=o.id;
@@ -708,7 +726,7 @@ function drop(){
   carried.position.set(player.position.x,0.47,player.position.z);
   const item=carried;
   const src=resources.find(o=>o.dead&&!o.log&&Math.hypot(o.x-player.position.x,o.z-player.position.z)<20);
-  if(src)src.log=item;
+  if(src){src.log=item;src.logPlacedAt=elapsed;}
   else scene.remove(item);
   carried=null;
   pop('Tronc déposé');save();
@@ -735,7 +753,7 @@ function interact(){
     carried=fallen.log;fallen.log=null;
     pop('Transportez le tronc vers la zone VENDRE');return;
   }
-  if(carried)return drop();
+  if(carried)return pop(settings.language==='fr'?'Appuyez sur X pour déposer le rondin':'Press X to drop the log');
   const pile=nearestStock(st.buildings,player.position,b=>industry.buildingGeometry(b.id)?.stockPoints);
   if(pile){
     activeStorage={buildingId:pile.building.id,kind:pile.kind};
@@ -752,8 +770,27 @@ function interact(){
 
 
 function buy(cost,fn){if(st.gold<cost){sound.effect('exhausted');return pop('Or insuffisant')}st.gold-=cost;sound.effect('buy');fn();updateInventory();save();renderPanel()}
+function toggleBike(){
+  if(!st.bicycle)return pop(settings.language==='fr'?'Achetez un vélo au comptoir':'Buy a bicycle at the market');
+  if(carried)return pop(settings.language==='fr'?'Déposez le rondin avant de monter':'Drop the log before mounting');
+  bikeRiding=!bikeRiding;
+  bicycle.group.visible=bikeRiding;
+  if(bikeRiding){stopHarvest();autoPilot.setEnabled(false)}
+  sound.effect('ui');
+  pop(bikeRiding?(settings.language==='fr'?'À vélo · V pour descendre':'Cycling · V to dismount'):
+    (settings.language==='fr'?'Vélo rangé':'Bicycle parked'));
+}
 const industry=createIndustry(T,scene,st,resources,biome,SALE,values,{
 onSale(amount){save()},
+canBreakLog(node){return node.type===0&&node.dead&&!!node.log&&
+  elapsed-(node.logPlacedAt??Infinity)>=60;},
+onLogCut(node){
+  if(!node.log)return;
+  scene.remove(node.log);
+  node.log.traverse(o=>{if(o.isMesh)o.geometry?.dispose()});
+  node.log=null;node.logPlacedAt=0;
+  save();
+},
 priceMultiplier(type){return expertiseMultiplier(st,type)},
 onResourceHit(node){
   resourceLife.hit(node);
@@ -893,6 +930,7 @@ function clearCarriedInventory(){
 }
 function safeRespawn(){
   if(placing)cancelPlacement();
+  if(bikeRiding){bikeRiding=false;bicycle.group.visible=false}
   autoPilot.setEnabled(false);
   clearCarriedInventory();
   player.position.set(0,0,9);
@@ -1092,7 +1130,7 @@ addEventListener('keydown',e=>{
     return;
   }
   if(panel)return;
-  if(e.code===settings.bindings.auto){autoPilot.toggle();return}
+  if(e.code===settings.bindings.auto){if(bikeRiding){bikeRiding=false;bicycle.group.visible=false}autoPilot.toggle();return}
   if(e.code===settings.bindings.jump&&player.position.y<.01){
     autoPilot.setEnabled(false);
     e.preventDefault();jumpVelocity=8.3;sound.effect('step');
@@ -1103,7 +1141,7 @@ addEventListener('keydown',e=>{
   if(e.code===settings.bindings.build)openPanel('build');
   if(e.code===settings.bindings.talents)openPanel('talents');
   if(e.code===settings.bindings.market)openPanel('market');
-  if(e.code===settings.bindings.vehicle)pop(st.truck?'Truck owned':'Buy a truck at the market');
+  if(e.code===settings.bindings.vehicle)toggleBike();
 });
 addEventListener('keyup',e=>keys[e.code]=false);
 addEventListener('blur',()=>{keys={}});
@@ -1284,11 +1322,12 @@ if(!paused)collectSaleZone();
 const side=Number(isPressed(keys,settings,'right'))-Number(isPressed(keys,settings,'left'));
 const front=Number(isPressed(keys,settings,'forward'))-Number(isPressed(keys,settings,'backward'));
 const moving=!paused&&!panel&&(side!==0||front!==0);
+const previousMotionX=player.position.x,previousMotionZ=player.position.z;
 const wantsSprint=isPressed(keys,settings,'sprint');
 if(stamina<.01)sprintLocked=true;
 if(stamina>=maxStamina()*.27)sprintLocked=false;
 const sprinting=moving&&wantsSprint&&!sprintLocked&&stamina>.01;
-if(sprinting)stamina=Math.max(0,stamina-dt*22);
+if(sprinting)stamina=Math.max(0,stamina-dt*(bikeRiding?17:22));
 else stamina=Math.min(maxStamina(),stamina+dt*staminaRegen());
 $('staminaHud').classList.toggle('hidden',!sprinting&&stamina>=maxStamina()-.15);
 $('staminaFill').style.width=(stamina/maxStamina()*100).toFixed(1)+'%';
@@ -1306,12 +1345,12 @@ const rightX=cameraBackZ,rightZ=-cameraBackX;
 const forwardX=-cameraBackX,forwardZ=-cameraBackZ;
 const vx=(rightX*side+forwardX*front)/len;
 const vz=(rightZ*side+forwardZ*front)/len;
-movePlayer(vx*dt*(sprinting?10.3:6.3),vz*dt*(sprinting?10.3:6.3));
+movePlayer(vx*dt*(bikeRiding?(sprinting?17.5:13.1):(sprinting?10.3:6.3)),vz*dt*(bikeRiding?(sprinting?17.5:13.1):(sprinting?10.3:6.3)));
 const targetAngle=Math.atan2(vx,vz);
 const difference=Math.atan2(Math.sin(targetAngle-player.rotation.y),Math.cos(targetAngle-player.rotation.y));
 player.rotation.y+=difference*Math.min(1,dt*16);
 }
-const autoWalking=!paused&&!panel&&autoPilot.update(dt);
+const autoWalking=!paused&&autoPilot.update(dt);
 if(autoWalking){
   footstepTimer+=dt;
   if(footstepTimer>.42){footstepTimer=0;sound.effect('step')}
@@ -1328,6 +1367,8 @@ if(harvestProgress>=interval){harvestProgress-=interval;strikeHarvest()}
 }
 }
 animatePlayer(dt,moving||autoWalking,sprinting);
+bicycle.update(dt,bikeRiding&&dt>0?
+  Math.hypot(player.position.x-previousMotionX,player.position.z-previousMotionZ)/dt:0,sprinting);
 baseCamp.update(elapsed);
 if(audioActive){
 try{sound.update(biome(player.position.x,player.position.z),dt)}
