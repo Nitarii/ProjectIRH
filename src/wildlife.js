@@ -29,7 +29,7 @@ const random=(a,b,s)=>fract(Math.sin(a*127.11+b*319.29+s*74.23)*43758.5453);
 const distance=(ax,az,bx,bz)=>Math.hypot(ax-bx,az-bz);
 export function createWildlife(T,scene,{
   biomeAt,seed=1,blocked=()=>false,quality=()=> 'balanced',
-  viewDistance=()=>128,playerPosition=()=>({x:0,z:0}),daylight=()=>1
+  viewDistance=()=>128,playerPosition=()=>({x:0,z:0}),daylight=()=>1,worldTime=null
 }={}){
   const shared={
     body:new T.IcosahedronGeometry(1,1),
@@ -49,7 +49,7 @@ export function createWildlife(T,scene,{
   };
   const eyes=material(0x111a1b);
   const active=new Map(),inactive=[],birds=new Map(),inactiveBirds=[];
-  let sampleClock=0,clock=0,rebuildCount=0,stepAccumulator=0;
+  let sampleClock=0,clock=Number(worldTime?.()||0),rebuildCount=0,stepAccumulator=0;
   const make=(geo,mat,parent,x,y,z,sx,sy,sz)=>{
     const mesh=new T.Mesh(geo,mat);
     mesh.position.set(x,y,z);mesh.scale.set(sx,sy,sz);
@@ -151,10 +151,15 @@ export function createWildlife(T,scene,{
       if(active.has(site.id))continue;
       const a=acquire(site.biome,site.variant);
       a.id=site.id;a.homeX=site.x;a.homeZ=site.z;
-      a.x=site.x;a.z=site.z;a.direction=random(site.x,site.z,seed)*Math.PI*2;
+      a.phase=random(site.x,site.z,seed+12)*10;
+      const worldX=site.x+Math.sin(clock*.057+a.phase)*4.7;
+      const worldZ=site.z+Math.cos(clock*.041+a.phase)*4.4;
+      const safe=biomeAt(worldX,worldZ)===site.biome&&!blocked(worldX,worldZ,.62);
+      a.x=safe?worldX:site.x;a.z=safe?worldZ:site.z;
+      a.direction=random(site.x,site.z,seed)*Math.PI*2+clock*.013;
       a.timer=random(site.x,site.z,seed+8)*3;a.pause=0;
       a.speed=(.55+random(site.x,site.z,seed+7)*.72)*(a.model.species.legs<.4?.65:1);
-      a.phase=random(site.x,site.z,seed+12)*10;a.life=0;
+      a.life=0;
       a.model.group.visible=true;active.set(site.id,a);
     }
     for(const [id,a] of active)if(!wanted.has(id)){
@@ -185,7 +190,9 @@ export function createWildlife(T,scene,{
     const mode=quality(),interval=mode==='low'?.093:mode==='high'?.033:.050;
     if(stepAccumulator<interval)return;
     dt=Math.min(.18,stepAccumulator);stepAccumulator=0;
-    clock+=dt;sampleClock+=dt;
+    const global=typeof worldTime==='function'?Number(worldTime()):NaN;
+    clock=Number.isFinite(global)?global:clock+dt;
+    sampleClock+=dt;
     if(sampleClock>=1.7){sampleClock=0;refresh()}
     const player=playerPosition(),visible=Math.min(180,viewDistance()*.84);
     for(const a of active.values()){
