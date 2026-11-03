@@ -118,3 +118,9 @@ The industry suite simulates harvesting, refinery deliveries, vendor sales, full
 - The optimized world keeps the existing graphics-quality options and mobile controls. This is a lightweight stylized atmospheric implementation, not a claim of true cinematic path tracing or high-end volumetric simulation on every phone.
 
 Run `node tests/nature-rendering.mjs` and `node tests/ai-clearance.mjs` alongside the existing UI and industry tests. These are regression/simulation checks, **not real GPU performance benchmarks**.
+
+## Automatic harvesting priorities
+
+The automatic mode now selects resource nodes based first on the strongest **owned tool** for that biome (tier 0–4). When tool tiers are equal, nearer reachable nodes are favored. Without purchased tools, distance remains the primary criterion. Fully depleted resources and logs are excluded; temporarily inaccessible nodes are skipped and the navigator falls back to the next viable candidate within its bounded pathfinding budget. Tool upgrades take effect on the next harvest plan.
+
+Run `node tests/auto-harvest-priority.mjs` to verify selection and fallback behavior.
