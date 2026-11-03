@@ -506,8 +506,8 @@ function beginPlacement(kind,type,cost){
   const biomeType=['worker','factory'].includes(kind)?type:Math.max(0,biome(player.position.x,player.position.z));
   placing={kind,type:biomeType,cost};
   panel=null;renderPanel();
-  $('placementName').textContent=kind==='worker'?worksites[type]:kind==='factory'?factories[type]:
-    kind==='transport'?'Dépôt de transport':'Comptoir vendeur';
+  $('placementName').textContent=tr(kind==='worker'?worksites[type]:kind==='factory'?factories[type]:
+    kind==='transport'?'Dépôt de transport':'Comptoir vendeur',settings.language);
   $('placementHud').classList.remove('hidden');
   buildPlacementPreview();
   pop('Choisissez un emplacement puis appuyez sur F');
@@ -809,6 +809,7 @@ translateTree(document.querySelector('.mission'),settings.language);
 translateTree(document.querySelector('.location'),settings.language);
 translateTree(document.querySelector('.target'),settings.language);
 if(panel)renderPanel();
+translateTree($('panel'),settings.language);
 industry.setLanguage(settings.language);
 $('inventoryGrid').dataset.signature='';
 updateInventory();
@@ -1024,7 +1025,7 @@ if(highlighted){
 $('targetTitle').textContent=tr(raw[highlighted.type],settings.language);
 $('targetLife').textContent=highlighted.hp+' / '+highlighted.max+' PV';
 $('targetLife').style.setProperty('--hp',(highlighted.hp/highlighted.max*100)+'%');
-$('targetHint').textContent='RÉCOLTE EN COURS';
+$('targetHint').textContent=tr('RÉCOLTE EN COURS',settings.language);
 $('target').classList.remove('hidden')
 }else $('target').classList.add('hidden');
 document.body.dataset.biome=String(biomeId);
@@ -1044,7 +1045,10 @@ if(goldHideAt&&elapsed>goldHideAt){$('goldGain').classList.remove('visible');gol
 renderer.render(scene,cam);
 monitor.frames++;monitor.drawCalls=renderer.info.render.calls;
 monitor.chunks=world.size;monitor.resources=resources.length;
-monitor.inventoryCount=count();monitor.cameraDistance=dist;monitor.constructionActive=!!placing;monitor.gameMinutes=st.gameMinutes;
+monitor.inventoryCount=count();monitor.cameraDistance=dist;monitor.constructionActive=!!placing;
+monitor.gameMinutes=st.gameMinutes;monitor.terrainPaths=trails.count;
+monitor.renderResolution=renderer.getPixelRatio();monitor.viewDistance=settings.viewDistance;
+monitor.jumpHeight=player.position.y;
 controlQuality();
 }
 stream();pumpWorld();updateInventory();frame();setInterval(save,15000);
