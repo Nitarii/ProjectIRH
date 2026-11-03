@@ -5,7 +5,7 @@ const KEY='irh-vault-key-v1',DATA='irh-vault-data-v1',LEGACY='irh-state';
 const encoder=new TextEncoder(),decoder=new TextDecoder();
 const toBase64=bytes=>{
   let string='';for(const b of bytes)string+=String.fromCharCode(b);
-  return btoa(string).replace(/\\+/g,'-').replace(/\\//g,'_').replace(/=+$/,'');
+  return btoa(string).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
 };
 const fromBase64=text=>{
   const raw=atob(text.replace(/-/g,'+').replace(/_/g,'/')+'='.repeat((4-text.length%4)%4));
