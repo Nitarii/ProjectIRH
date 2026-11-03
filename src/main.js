@@ -104,7 +104,7 @@ signCtx.font='900 106px system-ui';
 signCtx.textAlign='center';signCtx.textBaseline='middle';
 signCtx.lineJoin='round';signCtx.lineWidth=11;signCtx.strokeStyle='rgba(10,28,25,.78)';
 signCtx.strokeText('VENDRE',320,93);
-signCtx.fillStyle='#f5d88a';signCtx.fillText('VENDRE',320,93);
+signCtx.fillStyle='#f5d88a';signCtx.fillText(settings.language==='fr'?'VENDRE':'SELL',320,93);
 const saleLabel=new T.Sprite(new T.SpriteMaterial({map:new T.CanvasTexture(signCanvas),transparent:true,depthWrite:false,alphaTest:.03}));
 saleLabel.scale.set(7.2,2.03,1);
 saleLabel.position.set(SALE.x,6.3,SALE.z);scene.add(saleLabel);
@@ -499,7 +499,7 @@ function placementFrame(){
   if(valid!==lastPlacementValid){
     for(const mat of previewMaterials){mat.color.setHex(valid?0x79e6bc:0xf27b78)}
     lastPlacementValid=valid;
-    $('placementStatus').textContent=valid?'EMPLACEMENT DISPONIBLE':'EMPLACEMENT BLOQUÉ';
+    $('placementStatus').textContent=tr(valid?'EMPLACEMENT DISPONIBLE':'EMPLACEMENT BLOQUÉ',settings.language);
     $('placementHud').classList.toggle('invalid',!valid);
   }
 }
@@ -708,6 +708,10 @@ renderPanel();
 const close=()=>{stopHarvest();panel=null;renderPanel()};$('close').onclick=close;$('resume').onclick=close;
 function applyLocale(){
 document.documentElement.lang=settings.language;
+signCtx.clearRect(0,0,640,180);
+signCtx.strokeText(settings.language==='fr'?'VENDRE':'SELL',320,93);
+signCtx.fillText(settings.language==='fr'?'VENDRE':'SELL',320,93);
+saleLabel.material.map.needsUpdate=true;
 translateTree($('welcome'),settings.language);
 translateTree(document.querySelector('.bottom'),settings.language);
 translateTree(document.querySelector('.stamina'),settings.language);
