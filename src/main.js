@@ -431,7 +431,7 @@ function updateResourceVisibility(){
   }
 }
 const count=()=>st.inv.reduce((a,b)=>a+b,0)+st.products.reduce((a,b)=>a+b,0);
-let touchControls=null,mouseFree=false;
+let touchControls=null,mouseFree=false,cameraRecoveryRequested=false;
 let heading=0,pitch=.38,dist=10,active=0,keys={},current=null,placing=null,carried=null,carriedSource=null,elapsed=0,workerClock=0;
 let buildingPreview=null,previewMaterials=[],lastPlacementValid=null;
 let harvesting=null,harvestProgress=0,stepPhase=0,autoMode=false;
@@ -794,7 +794,7 @@ function beginPlacement(kind,type,cost){
   const biomeType=['worker','factory'].includes(kind)?type:Math.max(0,biome(player.position.x,player.position.z));
   placing={kind,type:biomeType,cost,rotation:0};
   document.body.classList.add('touch-placement');
-  panel=null;renderPanel();
+  panel=null;renderPanel();resumeCameraControl();
   $('placementName').textContent=tr(kind==='worker'?worksites[type]:kind==='factory'?factories[type]:
     kind==='transport'?'Dépôt de transport':kind==='road'?'Atelier de voirie':'Comptoir vendeur',settings.language);
   $('placementHud').classList.remove('hidden');
@@ -1029,7 +1029,29 @@ const add=(title,sub,cost,action,off=false,biomeId=-1)=>`<article class="shop-ca
 <div class="shop-card-head"><span class="item-icon">${biomeId>=0?biomeIcons[biomeId]:'✦'}</span><div><strong>${title}</strong><small>${sub}</small></div></div>
 <button data-action="${action}" ${off?'disabled':''}>${cost}</button></article>`;
 const section=(title,kicker,content)=>`<section class="catalog-section"><div class="catalog-heading"><h3>${title}</h3><span>${kicker}</span></div><div class="catalog-grid">${content}</div></section>`;
-function openPanel(k){sound.effect('ui');panel=panel===k?null:k;touchControls?.clear?.();renderPanel();if(panel)document.exitPointerLock?.()}
+function resumeCameraControl(){
+  // Closing any desktop overlay defaults to camera control, never free cursor.
+  // Pointer Lock may require a real key/click activation; a later left click
+  // still retries in browsers that deny immediate reacquisition (e.g. Escape).
+  if(touchControls?.enabled||panel||exploration.visible||
+    !$('welcome').classList.contains('hidden')||
+    !$('creator').classList.contains('hidden'))return;
+  cameraRecoveryRequested=true;
+  mouseFree=false;document.body.classList.remove('mouse-free');
+  if(document.pointerLockElement===renderer.domElement){
+    cameraRecoveryRequested=false;return;
+  }
+  try{
+    const attempt=renderer.domElement.requestPointerLock?.();
+    attempt?.catch?.(()=>{cameraRecoveryRequested=false;});
+  }catch{cameraRecoveryRequested=false}
+}
+function openPanel(k){
+  if(panel===k){close();return}
+  sound.effect('ui');panel=k;cameraRecoveryRequested=false;
+  touchControls?.clear?.();renderPanel();
+  document.exitPointerLock?.();
+}
 function renderPanel(){
 const box=$('panel');box.classList.toggle('hidden',!panel);if(!panel)return;
 const focus=panel==='employees'&&employeeFilterId
@@ -1314,6 +1336,7 @@ const close=()=>{
   keys={};
   if(wasStorage)activeStorage=null;
   renderPanel();
+  resumeCameraControl();
 };
 $('close').onclick=close;$('resume').onclick=close;
 function performStockTransfer(action){
@@ -1472,23 +1495,26 @@ document.addEventListener('pointerdown',e=>{
       exploration.visible||!$('welcome').classList.contains('hidden')||
       !$('creator').classList.contains('hidden'))return;
   if(e.target.closest?.('button,a,input,select,textarea,[role="dialog"],.panel,.world-map,.creator,.welcome,.mobile-controls'))return;
-  mouseFree=false;document.body.classList.remove('mouse-free');
-  if(document.pointerLockElement!==renderer.domElement)
-    renderer.domElement.requestPointerLock?.();
+  resumeCameraControl();
 },{capture:true});
 renderer.domElement.addEventListener('mousedown',e=>{
   if(e.button!==2||touchControls?.enabled||panel||exploration.visible||
     !$('welcome').classList.contains('hidden'))return;
-  e.preventDefault();mouseFree=!mouseFree;
+  e.preventDefault();cameraRecoveryRequested=false;mouseFree=!mouseFree;
   if(mouseFree)document.exitPointerLock?.();
-  else renderer.domElement.requestPointerLock?.();
+  else resumeCameraControl();
   document.body.classList.toggle('mouse-free',mouseFree);
   pop(settings.language==='fr'?(mouseFree?'Curseur libre':'Contrôle de caméra'):
     (mouseFree?'Free cursor':'Camera control'));
 });
 document.addEventListener('pointerlockchange',()=>{
-  if(!document.pointerLockElement&&!panel&&!exploration.visible&&
+  if(document.pointerLockElement===renderer.domElement){
+    cameraRecoveryRequested=false;
+    mouseFree=false;document.body.classList.remove('mouse-free');
+  }else if(!cameraRecoveryRequested&&!panel&&!exploration.visible&&
      $('welcome').classList.contains('hidden')&&!touchControls?.enabled){
+    // Only an actual gameplay unlock (Esc / explicit right click) enables
+    // free cursor. A delayed menu-release event must not undo menu closing.
     mouseFree=true;document.body.classList.add('mouse-free');
   }
 });
@@ -1517,7 +1543,7 @@ function finishWelcome(){
   $('welcome').classList.add('hidden');
   $('hud').classList.remove('hidden');
   applyHudSettings();
-  if(!touchControls?.enabled)renderer.domElement.requestPointerLock?.();
+  resumeCameraControl();
 }
 function closeAvatarBuilder(){
   if(creatorPreview){
@@ -1581,13 +1607,15 @@ $('play').onclick=()=>{
 function openWorldMap(){
   keys={}; // Never keep a held movement key while the atlas owns input.
   exploration.setVisible(true);
+  cameraRecoveryRequested=false;
   document.exitPointerLock?.();
 }
 let mapAgents=[],lastAgentSample=-Infinity;
 const exploration=createExplorationMap({
   canvas:$('worldMapCanvas'),overlay:$('worldMap'),player,biome,
   buildings:()=>st.buildings,agents:()=>mapAgents,settings,
-  onDiscover:cells=>{st.explored=cells;}
+  onDiscover:cells=>{st.explored=cells;},
+  onClose:()=>{keys={};resumeCameraControl();}
 });
 exploration.load(st.explored);
 const minimap=$('map').getContext('2d');
