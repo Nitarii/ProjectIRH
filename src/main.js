@@ -3,6 +3,7 @@ import {createSound} from './sound.js?v=20261103s6';
 import {createAtmosphere} from './atmosphere.js?v=20261107path2';
 import {createWildlife} from './wildlife.js?v=20261107path2';
 import {createSkyWeather} from './sky-weather.js?v=20261107path2';
+import {createNightLighting} from './night-lighting.js?v=20261103night1';
 import {createIndustry} from './industry.js?v=20261107path2';
 import {inventoryIcon} from './item-icons.js?v=20261103k';
 import {createResourceGraphics} from './resource-visuals.js?v=20261103ac';
@@ -448,6 +449,12 @@ const skyWeather=createSkyWeather(T,scene,player,cam,sun,hemisphere,{
   quality:()=>settings.effects?settings.quality:'low',
   seed:st.seed
 });
+const nightLighting=createNightLighting(T,scene,{
+  buildings:()=>st.buildings,roads,player,
+  viewDistance:()=>settings.viewDistance,
+  quality:()=>settings.quality,
+  isBlocked:(x,z)=>industry.blocked(x,z,.45)
+});
 const baseCamp=createBaseCamp(T,scene);
 atmosphere.setEnabled(settings.effects&&settings.quality!=='low');
 sound.setVolume(settings.volume);
@@ -485,6 +492,8 @@ function movePlayer(dx,dz){const x=player.position.x,z=player.position.z;
 // Separate-axis checks permit natural sliding without passing through solid objects.
 if(!blocked(x+dx,z))player.position.x=x+dx;
 if(!blocked(player.position.x,z+dz))player.position.z=z+dz;
+if(Math.hypot(player.position.x-x,player.position.z-z)>.025)
+  roads.recordUse('player',player.position.x,player.position.z,st.gameMinutes);
 }
 const stopHarvest=()=>{harvesting=null;harvestProgress=0};
 const harvestInterval=type=>([1.00,1.10,1.08,.94,.86][type])*TOOL_SPEED[Math.max(0,Math.min(5,st.tools[type]+1))]/expertiseHarvestSpeed(st,type)/(autoMode?autoSpeedMultiplier(st.autoLevel):1);
@@ -954,7 +963,7 @@ onResourceDepleted(node){
 },
 blocked:sceneryBlocked,
 roads,
-onMove(id,x,z){trails.recordMovement(id,x,z)}
+onMove(id,x,z){trails.recordMovement(id,x,z);roads.recordUse(id,x,z,st.gameMinutes)}
 });
 roads.setProbes({
   blocked:(x,z,r)=>industry.blocked(x,z,r),
@@ -1790,6 +1799,7 @@ const paused=panel==='settings'||!$('creator').classList.contains('hidden')||
   !$('welcome').classList.contains('hidden');
 const dt=paused?0:frameDelta;
 elapsed+=dt;st.gameMinutes=(Number(st.gameMinutes)||0)+dt;
+if(dt>0)roads.update(st.gameMinutes);
 if(autoMode)eyeChromaMaterial.uniforms.time.value=elapsed;
 if(player.position.y>0||jumpVelocity>0){
   jumpVelocity-=23*dt;
@@ -1867,6 +1877,7 @@ cameraOffset.set(Math.sin(heading)*Math.cos(pitch),Math.sin(pitch),Math.cos(head
 cam.position.copy(cameraTarget).addScaledVector(cameraOffset,dist);
 cam.lookAt(cameraTarget);
 skyWeather.update(dt,elapsed,st.gameMinutes);
+nightLighting.update(dt,skyWeather.dayFactor);
 positionInteractionTooltip();
 const nowIndustry=performance.now();
 const workDt=paused?0:Math.min(.22,Math.max(0,(nowIndustry-lastIndustryTime)/1000));
@@ -1929,6 +1940,8 @@ monitor.chunks=world.size;monitor.resources=resources.length;
 monitor.inventoryCount=count();monitor.cameraDistance=dist;monitor.constructionActive=!!placing;
 monitor.gameMinutes=st.gameMinutes;monitor.terrainPaths=trails.count;
 monitor.roadTiles=roads.built;monitor.roadPlan=roads.plannedCount;
+monitor.roadLanterns=nightLighting.roadsLit;
+monitor.activeNightLights=nightLighting.activeLights;
 monitor.wildlifeLand=wildlife.landCount;monitor.wildlifeBirds=wildlife.birdCount;
 monitor.wildlifeSpecies=wildlife.speciesCount;
 monitor.cloudCount=skyWeather.cloudCount;
