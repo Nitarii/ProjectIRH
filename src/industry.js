@@ -296,7 +296,14 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
   function abandonBlockedTask(a){
     stuckRecoveries++;
     // An unreachable source must not be assigned back to the same worker next frame.
-    if(a.target&&!a.target.dead)a.target.unreachableUntil=time+26+a.slot*3;
+    if(a.target&&!a.target.dead){
+      a.target.unreachableFailures=(a.target.unreachableFailures||0)+1;
+      // An unreachable site is a topology problem rather than a transient
+      // character collision. Cache the failure so other workers can keep
+      // producing instead of repeatedly running the same expensive A*.
+      const delay=Math.min(150,65*Math.pow(1.7,Math.min(3,a.target.unreachableFailures-1)));
+      a.target.unreachableUntil=time+delay+a.slot*2;
+    }
     if(a.carry)refundCargo(a);
     const sameSpot=a.rescueX!==undefined&&Math.hypot(a.x-a.rescueX,a.z-a.rescueZ)<1;
     a.rescueFailures=sameSpot?(a.rescueFailures||0)+1:1;
@@ -373,7 +380,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
         // Rotate the approach around an unreachable node, not back into the gap.
         if(a.target&&a.state==='toResource'&&a.noPathAge>1.4){
           a.approachAttempts++;
-          const alternative=a.approachAttempts<9?approachNode(a,a.target,a.approachAttempts):null;
+          const alternative=a.approachAttempts<6?approachNode(a,a.target,a.approachAttempts):null;
           if(alternative){
             a.goal=alternative;a.route=null;a.goalKey='';
             a.routeCooldown=.19;a.noPathAge=0;
@@ -504,6 +511,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     const amount=Math.min(2+2*a.home.carryLevel,totalCapacity-a.home.stockRaw);
     if(amount<=0){idle(a,.8);return}
     a.carry=amount;a.carryType=a.home.type;
+    target.unreachableFailures=0;target.unreachableUntil=0;
     target.hp=Math.max(0,target.hp-amount);
     if(target.hp<=0){
       target.dead=true;target.mesh.visible=false;
