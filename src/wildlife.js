@@ -29,7 +29,7 @@ const random=(a,b,s)=>fract(Math.sin(a*127.11+b*319.29+s*74.23)*43758.5453);
 const distance=(ax,az,bx,bz)=>Math.hypot(ax-bx,az-bz);
 export function createWildlife(T,scene,{
   biomeAt,seed=1,blocked=()=>false,quality=()=> 'balanced',
-  viewDistance=()=>128,playerPosition=()=>({x:0,z:0})
+  viewDistance=()=>128,playerPosition=()=>({x:0,z:0}),daylight=()=>1
 }={}){
   const shared={
     body:new T.IcosahedronGeometry(1,1),
@@ -198,7 +198,12 @@ export function createWildlife(T,scene,{
         a.timer=1.6+random(a.x,a.z+clock*.09,seed)*4.8;
         a.pause=random(a.x+clock*.1,a.z,seed+19)>.63?1.3:0;
       }
-      a.pause=Math.max(0,a.pause-dt);
+      // Nocturnal animals become more active after dark; diurnal animals
+      // rest more frequently. Behaviors depend on world time, not the player.
+      const nocturnal=/fox|boar|mole|fennec|jerboa|hedgehog|vole/.test(a.model.species.name);
+      const light=Math.max(0,Math.min(1,daylight()));
+      const activePeriod=nocturnal?1-light:light;
+      a.pause=Math.max(0,a.pause-dt*(.33+activePeriod*.90));
       let moving=false;
       if(a.pause<=0){
         const nx=a.x+Math.cos(a.direction)*a.speed*dt,
@@ -218,11 +223,16 @@ export function createWildlife(T,scene,{
         for(const part of model.detail)part.visible=model.nearDetail;
       }
       g.position.set(a.x,0,a.z);g.rotation.y=Math.PI/2-a.direction;
-      const gait=moving?Math.sin(clock*9*a.speed+a.phase)*.39:0;
+      const species=model.species.name;
+      const hopping=/hare|rabbit|jerboa|marmot/.test(species);
+      const crawling=/lizard|monitor|mole/.test(species);
+      const gait=moving?Math.sin(clock*(hopping?12:9)*a.speed+a.phase)*.39:0;
       for(let i=0;i<model.legs.length;i++)
         model.legs[i].rotation.x=(i%2?1:-1)*gait;
-      model.tail.rotation.y=Math.sin(clock*1.4+a.phase)*.16;
-      g.position.y=moving?Math.abs(gait)*.036:Math.sin(clock*1.3+a.phase)*.012;
+      model.tail.rotation.y=Math.sin(clock*1.4+a.phase)*(crawling?.25:.16);
+      g.position.y=moving?(hopping?Math.max(0,Math.sin(clock*11*a.speed+a.phase))*.105:
+        crawling?.004:Math.abs(gait)*.036):Math.sin(clock*1.3+a.phase)*.012;
+      g.rotation.z=crawling?Math.sin(clock*4.6+a.phase)*.027:0;
       const fade=Math.min(1,a.life,Math.max(0,(visible-distance(a.x,a.z,player.x,player.z))/9));
       g.scale.setScalar(Math.max(.02,fade));
     }
@@ -234,12 +244,17 @@ export function createWildlife(T,scene,{
       const y=a.altitude+Math.sin(clock*.40+a.phase)*4.2;
       const g=a.model.group;
       const far=distance(px,pz,player.x,player.z);
-      g.visible=far<visible;
+      const day=Math.max(0,Math.min(1,daylight()));
+      const nightRoost=day<.12&&Math.sin(a.phase*3.1)>-.20;
+      g.visible=far<visible&&!nightRoost;
       if(!g.visible)continue;
       g.position.set(px,y,pz);
       g.rotation.y=Math.atan2(Math.cos(w)*s.speed,Math.sin(w*.9)*s.speed)+.2;
       g.rotation.z=Math.sin(clock*.35+a.phase)*.12;
-      const flap=Math.sin(clock*6.2*s.speed+a.phase)*.46;
+      const soaring=a.biome===1||a.biome===3;
+      const gliding=soaring&&Math.sin(clock*.42+a.phase)>.05;
+      const flap=Math.sin(clock*(soaring?3.8:8.3)*s.speed+a.phase)*
+        (gliding?.055:soaring?.32:.48);
       for(const wing of a.model.wings)wing.arm.rotation.z=flap*wing.side;
       g.scale.setScalar(Math.max(.02,Math.min(1,a.life,(visible-far)/12)));
     }
