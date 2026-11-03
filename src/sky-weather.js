@@ -165,7 +165,7 @@ export function createSkyWeather(T,scene,player,camera,sun,ambient,{
       const px=(x+.5)*cell+(rand(x,z,seed+6)-.5)*72;
       const pz=(z+.5)*cell+(rand(x,z,seed+7)-.5)*72;
       const distance=Math.hypot(px-pos.x,pz-pos.z);
-      if(distance>range*1.4||distance<15)continue;
+      if(distance>range*1.4)continue;
       cloudSites.push({x:px,z:pz,h:36+rand(x,z,seed+8)*26,
         w:24+rand(x,z,seed+9)*28,scale:.70+rand(x,z,seed+10)*.6,
         dist:distance,seed:rand(x,z,seed+11)});
@@ -228,9 +228,12 @@ export function createSkyWeather(T,scene,player,camera,sun,ambient,{
       const mesh=clouds[i],site=i<count?cloudSites[i]:null;
       if(!site){mesh.visible=false;continue}
       mesh.visible=true;
+      // Clouds are world-space volumes, not camera-facing billboards.
+      // A fixed tilted plane retains a visible underside from most angles;
+      // its position, phase and rotation never depend on camera movement.
       mesh.position.set(site.x+elapsed*.27,site.h,site.z+elapsed*.11);
       mesh.scale.set(site.w*site.scale,site.w*.46*site.scale,1);
-      mesh.quaternion.copy(camera.quaternion);
+      mesh.rotation.set(-1.13,site.seed*.32,0);
     }
   }
   function dispose(){
