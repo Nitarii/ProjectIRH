@@ -316,6 +316,11 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     if(a.state==='factoryPickup'){
       if(a.home.inputRaw<=0||a.home.stockProcessed>=totalCapacity){idle(a,1);return}
       if(!walk(a,a.goal,dt,2.4))return;
+      a.state='factoryCollect';a.timer=0;a.angle=Math.PI;return;
+    }
+    if(a.state==='factoryCollect'){
+      a.timer+=dt;if(a.timer<.55)return;
+      if(a.home.inputRaw<1){idle(a,.6);return}
       a.home.inputRaw--;a.carry=1;a.processed=false;
       const task=workstation(a.home.type,a.slot);
       a.goal={x:a.home.x+task.point[0],z:a.home.z+task.point[1]};
@@ -338,6 +343,10 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     }
     if(a.state==='factoryToOutput'){
       if(!walk(a,a.goal,dt,2.35))return;
+      a.state='factoryOutput';a.timer=0;a.angle=Math.PI;return;
+    }
+    if(a.state==='factoryOutput'){
+      a.timer+=dt;if(a.timer<.55)return;
       if(a.home.stockProcessed>=totalCapacity)return;
       a.home.stockProcessed++;a.carry=0;
       lastStats.processed++;hooks.onProcess?.(a.home,1);
@@ -349,12 +358,20 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     }
     if(a.state==='gather'){gather(a,dt);return}
     if(a.state==='toHome'){
-      if(walk(a,a.goal,dt)){a.home.stockRaw=limited(a.home.stockRaw+a.carry);a.carry=0;idle(a,.4)}
+      if(walk(a,a.goal,dt)){a.state='dropHarvest';a.timer=0;a.angle=Math.PI}return;
+    }
+    if(a.state==='dropHarvest'){
+      a.timer+=dt;if(a.timer<.55)return;
+      a.home.stockRaw=limited(a.home.stockRaw+a.carry);a.carry=0;idle(a,.4);
       return;
     }
     if(a.state==='toPickup'){
       if(!isPresent(a.targetBuilding)||a.role==='transport'&&!isPresent(a.receiver)){idle(a,1);return}
       if(!walk(a,a.goal,dt))return;
+      a.state='pickupStock';a.timer=0;a.angle=Math.PI;return;
+    }
+    if(a.state==='pickupStock'){
+      a.timer+=dt;if(a.timer<.52)return;
       const b=a.targetBuilding;
       if(a.role==='transport'){
         const n=Math.min(6+3*a.home.carryLevel,b.stockRaw,totalCapacity-a.receiver.inputRaw);
@@ -372,6 +389,10 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     if(a.state==='toFactory'){
       if(!isPresent(a.receiver)){refundCargo(a);idle(a,1);return}
       if(!walk(a,a.goal,dt))return;
+      a.state='dropTransport';a.timer=0;a.angle=Math.PI;return;
+    }
+    if(a.state==='dropTransport'){
+      a.timer+=dt;if(a.timer<.55)return;
       const n=Math.min(a.carry,totalCapacity-a.receiver.inputRaw);
       a.receiver.inputRaw+=n;a.carry-=n;
       lastStats.delivered+=n;
@@ -430,10 +451,19 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     const stride=walking?Math.sin(a.walkPhase)*.56:0;
     v.leftLeg.rotation.x=stride;v.rightLeg.rotation.x=-stride;
     const work=a.state==='factoryWork',gather=a.state==='gather';
+    const transfer=['factoryCollect','factoryOutput','pickupStock','dropTransport','dropHarvest'].includes(a.state);
     const beat=Math.sin(time*(work?4.5:gather?5.5:3.0)+a.slot*.6);
     v.leftArm.rotation.y=0;v.rightArm.rotation.y=0;
     v.tool.rotation.z=0;g.rotation.z=0;
-    if(work){
+    if(transfer){
+      const dip=Math.sin(Math.min(1,a.timer/.55)*Math.PI);
+      v.leftArm.rotation.x=-.85-dip*.6;
+      v.rightArm.rotation.x=-1.01-dip*.75;
+      v.rightArm.rotation.y=.2*dip;
+      v.leftArm.rotation.z=.11*dip;
+      g.position.y=-.20*dip;
+      a.angle=Math.PI;
+    }else if(work){
       const [left,right,power,side,lean]=motionStyles[a.workMotion]||motionStyles.inspect;
       const sweep=beat*power;
       v.leftArm.rotation.x=left+sweep*.45;
@@ -486,7 +516,15 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
         const point=homePort(a.home,a.slot);
         a.x=point.x;a.z=point.z;a.route=null;
       }
-      updateAgent(a,dt);
+      if(a.abstract){
+        a.abstractElapsed=(a.abstractElapsed||0)+dt;
+        if(a.abstractElapsed>=.55){
+          updateAgent(a,a.abstractElapsed);a.abstractElapsed=0;
+        }
+      }else {
+        if(a.abstractElapsed){updateAgent(a,a.abstractElapsed);a.abstractElapsed=0}
+        updateAgent(a,dt);
+      }
       if(!a.abstract&&animate(a,dt))shown++;
       else removeView(a);
       if(a.carry>0)carrying++;
