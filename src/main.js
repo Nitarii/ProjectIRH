@@ -436,7 +436,7 @@ $('inventoryCapacity').textContent=count()+' / '+st.bag;updateCargo()
 function closest(){
 let best=null,score=Infinity,px=player.position.x,pz=player.position.z;
 const fx=Math.sin(player.rotation.y),fz=Math.cos(player.rotation.y);
-for(const o of resources){
+for(const o of nearbyResourceNodes()){
 if(o.dead)continue;
 const dx=o.x-px,dz=o.z-pz,d=Math.hypot(dx,dz);
 if(d>3.8)continue;
@@ -510,7 +510,7 @@ function placementAllowed(x,z){
   if(Math.hypot(x,z)<12)return false;
   if(Math.abs(x-SALE.x)<SALE.w/2+3&&Math.abs(z-SALE.z)<SALE.d/2+3)return false;
   if(st.buildings.some(b=>Math.abs(b.x-x)<5.5&&Math.abs(b.z-z)<5.3))return false;
-  if(resources.some(o=>!o.dead&&Math.hypot(o.x-x,o.z-z)<4))return false;
+  for(const o of nearbyResourceNodes())if(!o.dead&&Math.hypot(o.x-x,o.z-z)<4)return false;
   return true;
 }
 function clearPlacementPreview(){
@@ -920,8 +920,9 @@ function interactionAnchor(){
     const z=T.MathUtils.clamp(pz,SALE.z-SALE.d/2+1,SALE.z+SALE.d/2-1);
     return [x,.9,z];
   }
-  const log=resources.find(o=>o.dead&&o.log&&Math.hypot(o.log.position.x-px,o.log.position.z-pz)<3.2);
-  if(log)return [log.log.position.x,1.6,log.log.position.z];
+  for(const log of nearbyResourceNodes())
+    if(log.dead&&log.log&&Math.hypot(log.log.position.x-px,log.log.position.z-pz)<3.2)
+      return [log.log.position.x,1.6,log.log.position.z];
   if(carried)return [px,2.9,pz];
   if(Math.hypot(px,pz)<7)return [0,3.4,2.25];
   const nearby=closest();
