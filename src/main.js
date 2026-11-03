@@ -3,7 +3,7 @@ import {createSound} from './sound.js?v=20261102c';
 import {createAtmosphere} from './atmosphere.js?v=20261103m';
 import {createIndustry} from './industry.js?v=20261103j';
 import {inventoryIcon} from './item-icons.js?v=20261103k';
-import {createResourceGraphics} from './resource-visuals.js?v=20261103k';
+import {createResourceGraphics} from './resource-visuals.js?v=20261103n';
 import {createFieldBuilder} from './wheat-fields.js?v=20261103k';
 import {makeStructure} from './structures.js';
 const $=id=>document.getElementById(id), scene=new T.Scene();scene.background=new T.Color('#a6cbd1');scene.fog=new T.FogExp2('#a6cbd1',.007);
