@@ -1,6 +1,7 @@
 import * as T from 'three';
 import {createSound} from './sound.js?v=20261102c';
 import {createAtmosphere} from './atmosphere.js?v=20261102c';
+import {createIndustry} from './industry.js?v=20261103g';
 const $=id=>document.getElementById(id), scene=new T.Scene();scene.background=new T.Color('#a6cbd1');scene.fog=new T.FogExp2('#a6cbd1',.007);
 const cam=new T.PerspectiveCamera(65,innerWidth/innerHeight,.1,450),renderer=new T.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.25));renderer.shadowMap.enabled=true;$('game').append(renderer.domElement);
 scene.add(new T.HemisphereLight(0xffffff,0x657449,2.4));const sun=new T.DirectionalLight(0xffe7bc,2.3);sun.position.set(70,95,40);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.bias=-.0004;sun.shadow.normalBias=.024;sun.shadow.radius=2;sun.shadow.camera.left=-60;sun.shadow.camera.right=60;sun.shadow.camera.top=60;sun.shadow.camera.bottom=-60;scene.add(sun);
@@ -8,7 +9,10 @@ const M=c=>new T.MeshLambertMaterial({color:c}),m={grass:M(0x658b55),forest:M(0x
 function cube(w,h,d,mat,x=0,y=0,z=0){let q=new T.Mesh(new T.BoxGeometry(w,h,d),mat);q.position.set(x,y,z);q.castShadow=true;q.receiveShadow=true;return q}function orb(r,mat,x=0,y=0,z=0){let q=new T.Mesh(new T.IcosahedronGeometry(r,1),mat);q.position.set(x,y,z);q.castShadow=true;return q}function cy(r,h,mat,x=0,y=0,z=0){let q=new T.Mesh(new T.CylinderGeometry(r,r,h,8),mat);q.position.set(x,y,z);q.castShadow=true;return q}
 const types=['FORÊT','MONTAGNE','EXCAVATION','DÉSERT','CHAMPS'],raw=['Bois','Pierre','Minerai','Sable','Blé'],processed=['Planches','Pierre taillée','Lingots','Verre','Farine'],tools=[['Hache','Hache renforcée','Tronçonneuse'],['Pioche','Pioche acier','Brise-roche'],['Pic de mine','Foreuse','Foreuse industrielle'],['Pelle','Pelle renforcée','Excavatrice'],['Faucille','Faux','Moissonneuse']],worksites=['Cabane de bûcheron','Carrière','Mine','Camp de terrassiers','Ferme'],factories=['Scierie','Atelier de taille','Fonderie','Verrerie','Moulin'],prices=[100,120,150,100,100],values=[12,15,22,10,14],colors=['#488756','#87938b','#b88f6b','#e3c67c','#c8b64e'];
 let defaultState={gold:100,bag:8,inv:[0,0,0,0,0],products:[0,0,0,0,0],tools:[-1,-1,-1,-1,-1],talents:[0,0,0,0,0],buildings:[],stock:[],truck:false,cart:false,staminaLevel:0,x:0,z:9,seed:7331};let st={...defaultState};try{let a=JSON.parse(localStorage.getItem('irh-state')||'{}');for(let k in defaultState)if(a[k]!==undefined)st[k]=a[k]}catch{}const save=()=>{st.x=player.position.x;st.z=player.position.z;
-const cleanBuildings=st.buildings.map(b=>({kind:b.kind,type:b.type,x:b.x,z:b.z,workers:b.workers,stock:b.stock}));
+const cleanBuildings=st.buildings.map(b=>({
+id:b.id,kind:b.kind,type:b.type,x:b.x,z:b.z,workers:b.workers,
+stock:b.stock,stockRaw:b.stockRaw,inputRaw:b.inputRaw,stockProcessed:b.stockProcessed,progress:b.progress
+}));
 try{localStorage.setItem('irh-state',JSON.stringify({...st,buildings:cleanBuildings}))}catch(e){console.warn('Storage unavailable',e)}
 };
 
@@ -360,16 +364,34 @@ if(panel)return;
 if(placing){
 const x=Math.round(player.position.x+Math.sin(player.rotation.y)*6),z=Math.round(player.position.z+Math.cos(player.rotation.y)*6);
 if(Math.hypot(x,z)<12||Math.abs(x-SALE.x)<SALE.w/2+3&&Math.abs(z-SALE.z)<SALE.d/2+3||st.buildings.some(b=>Math.hypot(b.x-x,b.z-z)<6)||resources.some(o=>!o.dead&&Math.hypot(o.x-x,o.z-z)<4))return pop('Terrain indisponible');
-st.buildings.push({...placing,x,z,workers:0,stock:0});addBuilding(st.buildings.at(-1));
+st.buildings.push({...placing,x,z,type:['worker','factory'].includes(placing.kind)?placing.type:Math.max(0,biome(x,z)),
+workers:0,stock:0,stockRaw:0,inputRaw:0,stockProcessed:0});
+addBuilding(st.buildings.at(-1));
 placing=null;sound.effect('build');pop('Bâtiment construit');save();return
 }
 if(carried){drop();return}
 const o=closest();if(!o)return;
 if(o.kind){
 stopHarvest();
-if(o.kind==='factory'){const n=Math.min(5,st.inv[o.type]);if(!n)return pop('Apportez des matières premières');st.inv[o.type]-=n;st.products[o.type]+=n;pop('+'+n+' '+processed[o.type])}
-else if(o.kind==='worker'){const n=Math.min(o.stock,st.bag-count());o.stock-=n;st.inv[o.type]+=n;pop(n+' unités récupérées')}
+if(o.kind==='factory'){
+const n=Math.min(5,st.inv[o.type],industry.capacity-o.inputRaw);
+if(n>0){st.inv[o.type]-=n;o.inputRaw+=n;pop(n+' '+raw[o.type]+' livré(s) à '+factories[o.type])}
+else if(o.stockProcessed>0){
+const take=Math.min(5,o.stockProcessed,st.bag-count());
+if(!take)return pop('Inventaire plein');
+o.stockProcessed-=take;st.products[o.type]+=take;pop(take+' '+processed[o.type]+' récupéré(s)')
+}
+else if(o.inputRaw>0&&o.workers===0){
+o.inputRaw--;o.stockProcessed++;pop('Une unité transformée manuellement')
+}else pop('Atelier vide · achetez des employés ou déposez des ressources');
+}
+else if(o.kind==='worker'){
+const n=Math.min(o.stockRaw,st.bag-count());
+if(!n)return pop(o.stockRaw?'Inventaire plein':'Aucun stock disponible');
+o.stockRaw-=n;st.inv[o.type]+=n;pop(n+' '+raw[o.type]+' récupéré(s)')
+}
 else if(o.kind==='seller')sell();
+else if(o.kind==='transport')pop('Transporteurs : '+o.workers);
 updateInventory();save();return
 }
 if(st.tools[o.type]<0)return pop('Achetez un outil au marché (E)');
@@ -413,7 +435,10 @@ function interact(){
 
 
 function buy(cost,fn){if(st.gold<cost){sound.effect('exhausted');return pop('Or insuffisant')}st.gold-=cost;sound.effect('buy');fn();updateInventory();save();renderPanel()}
-function addBuilding(b){let g=new T.Group();g.add(cube(3.5,2.2,3.3,m.wood,0,1.1,0),cube(4.1,.65,3.9,b.kind==='factory'?m.roof:m.leaf,0,2.52,0),cube(.85,1.4,.12,m.shirt,0,.7,1.7));g.position.set(b.x,0,b.z);scene.add(g);b.mesh=g}
+const industry=createIndustry(T,scene,st,resources,biome,SALE,values,{
+onSale(amount){save()}
+});
+function addBuilding(b){return industry.register(b)}
 st.buildings.forEach(addBuilding);
 
 const panels={market:'COMPTOIR',build:'CONSTRUCTION',talents:'PROGRESSION',inventory:'INVENTAIRE'};
@@ -451,7 +476,13 @@ for(let i=0;i<5;i++){
 out+=section(types[i]+' · '+raw[i].toUpperCase(),'CHAÎNE DE PRODUCTION',add(worksites[i],'Collecte automatique · stockage',(550+i*160)+' OR','worker:'+i,false,i)+add(factories[i],raw[i]+' → '+processed[i],(480+i*150)+' OR','factory:'+i,false,i));
 }
 out+=section('Logistique','TRANSPORT & COMMERCE',add('Dépôt de transport','Déplacements des ressources','1400 OR','transport:0')+add('Comptoir vendeur','Vente automatisée','1800 OR','seller:0'));
-if(st.buildings.length)out+=section('Personnel','RECRUTEMENT',st.buildings.map((b,i)=>add((b.kind==='worker'?worksites[b.type]:b.kind==='factory'?factories[b.type]:b.kind==='seller'?'Comptoir vendeur':'Dépôt transport')+' #'+(i+1),'Employés : '+(b.workers||0)+' · Stock : '+(b.stock||0),'300 OR','hire:'+i,false,b.type)).join(''));
+if(st.buildings.length)out+=section('Personnel','RECRUTEMENT',st.buildings.map((b,i)=>{
+const title=(b.kind==='worker'?worksites[b.type]:b.kind==='factory'?factories[b.type]:b.kind==='seller'?'Comptoir vendeur':'Dépôt transport')+' #'+(i+1);
+const stock=b.kind==='worker'?'Brut : '+b.stockRaw
+:b.kind==='factory'?'Entrée : '+b.inputRaw+' · Transformé : '+b.stockProcessed
+:'Logistique automatisée';
+return add(title,'Employés : '+b.workers+'/'+industry.limit+' · '+stock,b.workers>=industry.limit?'MAX':'300 OR','hire:'+i,b.workers>=industry.limit,b.type)
+}).join(''));
 }
 if(panel==='talents'){
 const level=st.staminaLevel||0;
@@ -464,7 +495,10 @@ out+=section('Stock en dépôt','ZONE DE VENTE',add('Marchandises à vendre',st.
 }
 $('shopbody').innerHTML=out;$('panelhint').textContent=st.gold.toLocaleString('fr-FR')+' pièces d’or';
 }
-$('panel').onclick=e=>{let b=e.target.closest('button');if(!b)return;if(b.dataset.tab){sound.effect('ui');panel=b.dataset.tab;return renderPanel()}let a=b.dataset.action;if(!a)return;if(a==='sell')return sell();if(a==='bag')return buy(450,()=>st.bag=16);if(a==='stamina')return buy([500,1250,2600,5500][st.staminaLevel||0]||99999,()=>{st.staminaLevel=(st.staminaLevel||0)+1;stamina=maxStamina()});if(a==='cart')return buy(1200,()=>st.cart=true);if(a==='truck')return buy(4500,()=>st.truck=true);let [kind,id]=a.split(':'),i=+id;if(kind==='tool'){let tier=st.tools[i]+1;return buy(tier===0?prices[i]:tier===1?650:2900,()=>st.tools[i]=tier)}if(kind==='hire')return buy(300,()=>st.buildings[i].workers++);if(kind==='talent')return buy(500,()=>st.talents[i]++);if(['factory','worker','transport','seller'].includes(kind))return buy(kind==='factory'?480+i*150:kind==='worker'?550+i*160:kind==='transport'?1400:1800,()=>{placing={kind,type:i};panel=null;renderPanel();pop('Allez à l’emplacement, F pour construire')})};const close=()=>{stopHarvest();panel=null;renderPanel()};$('close').onclick=close;$('resume').onclick=close;
+$('panel').onclick=e=>{let b=e.target.closest('button');if(!b)return;if(b.dataset.tab){sound.effect('ui');panel=b.dataset.tab;return renderPanel()}let a=b.dataset.action;if(!a)return;if(a==='sell')return sell();if(a==='bag')return buy(450,()=>st.bag=16);if(a==='stamina')return buy([500,1250,2600,5500][st.staminaLevel||0]||99999,()=>{st.staminaLevel=(st.staminaLevel||0)+1;stamina=maxStamina()});if(a==='cart')return buy(1200,()=>st.cart=true);if(a==='truck')return buy(4500,()=>st.truck=true);let [kind,id]=a.split(':'),i=+id;if(kind==='tool'){let tier=st.tools[i]+1;return buy(tier===0?prices[i]:tier===1?650:2900,()=>st.tools[i]=tier)}if(kind==='hire'){
+if(st.buildings[i].workers>=industry.limit)return pop('Capacité de recrutement atteinte');
+return buy(300,()=>{st.buildings[i].workers++;industry.sync()})
+}if(kind==='talent')return buy(500,()=>st.talents[i]++);if(['factory','worker','transport','seller'].includes(kind))return buy(kind==='factory'?480+i*150:kind==='worker'?550+i*160:kind==='transport'?1400:1800,()=>{placing={kind,type:i};panel=null;renderPanel();pop('Allez à l’emplacement, F pour construire')})};const close=()=>{stopHarvest();panel=null;renderPanel()};$('close').onclick=close;$('resume').onclick=close;
 addEventListener('keydown',e=>{keys[e.code]=true;if(['KeyW','KeyZ','KeyA','KeyQ','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))stopHarvest();if(e.repeat)return;if(e.code==='KeyF')interact();if(e.code==='KeyG'&&carried){sound.effect('ui');drop()}if(e.code==='KeyB')openPanel('build');if(e.code==='KeyU')openPanel('talents');if(e.code==='KeyI')openPanel('inventory');if(e.code==='KeyR')pop(st.truck?'Camion possédé':'Achetez un camion au comptoir');if(e.code==='Escape'){if(placing){placing=null;pop('Placement annulé')}close()}});addEventListener('keyup',e=>keys[e.code]=false);addEventListener('mousemove',e=>{if(document.pointerLockElement===renderer.domElement){heading-=e.movementX*.0025;pitch=T.MathUtils.clamp(pitch+e.movementY*.002,-.1,1.15)}});addEventListener('wheel',e=>dist=T.MathUtils.clamp(dist+Math.sign(e.deltaY),5,18),{passive:true});addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});renderer.domElement.onclick=()=>{if(!panel)renderer.domElement.requestPointerLock?.()};$('play').onclick=()=>{sound.boot();$('welcome').classList.add('hidden');$('hud').classList.remove('hidden');renderer.domElement.requestPointerLock?.()};
 $('soundToggle').onclick=()=>{sound.boot();audioActive=true;const enabled=sound.toggle();$('soundToggle').classList.toggle('muted',!enabled);$('soundToggle').innerHTML=enabled?'♪ <span>SON</span>':'♪ <span>MUET</span>'};
 const minimap=$('map').getContext('2d');function map(){minimap.clearRect(0,0,168,168);minimap.save();minimap.beginPath();minimap.arc(84,84,82,0,7);minimap.clip();for(let x=0;x<24;x++)for(let z=0;z<24;z++){let b=biome(player.position.x+(x-12)*9,player.position.z+(z-12)*9);minimap.fillStyle=b<0?'#598654':colors[b];minimap.fillRect(x*7,z*7,8,8)}minimap.fillStyle='white';minimap.beginPath();minimap.arc(84,84,4,0,7);minimap.fill();minimap.restore()}
@@ -516,7 +550,7 @@ function positionInteractionTooltip(){
   prompt.classList.remove('hidden');
   prompt.classList.toggle('sale',isSelling(player.position.x,player.position.z));
 }
-let clock=new T.Clock(),ticks=0;
+let clock=new T.Clock(),ticks=0,lastIndustryTime=performance.now();
 const performanceBudget={sampleAt:performance.now(),frames:0,reduced:false};
 function controlQuality(){
 const p=performanceBudget;p.frames++;
@@ -594,18 +628,18 @@ cam.lookAt(target);
 positionInteractionTooltip();
 sun.position.set(player.position.x+70,95,player.position.z+40);
 sun.target.position.set(player.position.x,0,player.position.z);sun.target.updateMatrixWorld();
-workerClock+=dt;
-if(workerClock>3){
-workerClock=0;
-for(const b of st.buildings){
-if(!b.workers)continue;
-if(b.kind==='worker')b.stock+=b.workers;
-if(b.kind==='factory'){const n=Math.min(b.workers,st.inv[b.type]);st.inv[b.type]-=n;st.products[b.type]+=n}
-if(b.kind==='seller'){const n=st.products.reduce((v,n,i)=>v+n*values[i]*3,0);st.products.fill(0);st.gold+=n}
-if(b.kind==='transport'){const n=st.stock.length;st.stock=[];st.gold+=n*65}
+const nowIndustry=performance.now();
+const workDt=Math.min(.22,Math.max(0,(nowIndustry-lastIndustryTime)/1000));
+lastIndustryTime=nowIndustry;
+try{
+  const stats=industry.update(workDt,player.position.x,player.position.z);
+  monitor.employees=stats.employees;monitor.visibleEmployees=stats.visible;
+  monitor.delivered=stats.delivered;monitor.soldByWorkers=stats.sold;
+}catch(error){
+  monitor.lastError=String(error);
+  console.error('Industry update failed',error);
 }
-updateInventory();save()
-}
+
 if(ticks++%12===0){
 stream();updateResourceVisibility();updateInventory();
 $('coins').textContent=st.gold;
