@@ -392,66 +392,121 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     }
     if(a.state==='returnHome'&&walk(a,a.goal,dt))idle(a,.5);
   }
-  function visibleDistance(a,px,pz){return (a.x-px)**2+(a.z-pz)**2}
-  function animate(a,dt,px,pz){
-    const nearby=visibleDistance(a,px,pz)<65*65;
-    if(!nearby){removeView(a);return false}
+  const forward={x:0,z:1},cullOrigin={x:0,z:0};
+  function inView(x,z,range=165){
+    const dx=x-viewer.x,dz=z-viewer.z;
+    if(dx*dx+dz*dz>range*range)return false;
+    if(!camera||!Number.isFinite(cullOrigin.x))return true;
+    const ux=x-cullOrigin.x,uz=z-cullOrigin.z,len=Math.hypot(ux,uz);
+    // Grace margin prevents popping close to the edges of the screen.
+    if(len<18)return true;
+    return (ux*forward.x+uz*forward.z)/Math.max(.01,len)>-.24;
+  }
+  const motionStyles={
+    inspect:[-.49,-.72,.12,.13,.045],
+    feed:[-1.17,-1.22,.53,.34,.11],
+    plane:[-1.12,-1.52,.78,.51,.09],
+    lift:[-.81,-1.09,.64,.42,.22],
+    stack:[-.94,-1.38,.80,.53,.14],
+    cut:[-.72,-1.62,.94,.42,.11],
+    hammer:[-.64,-1.48,.87,.52,.17],
+    polish:[-.96,-1.14,.63,.72,.09],
+    shovel:[-1.00,-1.34,.69,.33,.16],
+    pump:[-.72,-1.28,.71,.65,.12],
+    pour:[-1.18,-1.02,.60,.57,.10],
+    sift:[-1.06,-1.17,.44,.73,.13],
+    rotate:[-1.29,-1.26,.53,.46,.08],
+    pack:[-.90,-1.41,.75,.39,.19],
+    crank:[-1.24,-1.17,.46,.78,.08]
+  };
+  function animate(a,dt){
+    if(!inView(a.x,a.z,145)){removeView(a);return false}
     if(!a.view)a.view=createView(a);
     const v=a.view,g=v.group;
-    const walking=/^to|returnHome/.test(a.state);
-    g.position.set(a.x,Math.sin(a.walkPhase*2)*.025*(walking?1:0),a.z);
+    const walking=a.state.startsWith('to')||a.state.startsWith('factoryTo')||a.state==='factoryPickup'||a.state==='returnHome';
+    g.position.set(a.x,Math.sin(a.walkPhase*2)*.022*(walking?1:0),a.z);
     const diff=Math.atan2(Math.sin(a.angle-g.rotation.y),Math.cos(a.angle-g.rotation.y));
-    g.rotation.y+=diff*Math.min(1,dt*11);
-    const stride=walking?Math.sin(a.walkPhase)*.53:0;
+    g.rotation.y+=diff*Math.min(1,dt*12);
+    const stride=walking?Math.sin(a.walkPhase)*.56:0;
     v.leftLeg.rotation.x=stride;v.rightLeg.rotation.x=-stride;
-    const working=a.state==='gather'||a.state==='operate';
-    const beat=Math.sin(time*(a.role==='factory'?7:5)+a.id.length);
-    if(a.state==='gather'){
+    const work=a.state==='factoryWork',gather=a.state==='gather';
+    const beat=Math.sin(time*(work?4.5:gather?5.5:3.0)+a.slot*.6);
+    v.leftArm.rotation.y=0;v.rightArm.rotation.y=0;
+    v.tool.rotation.z=0;g.rotation.z=0;
+    if(work){
+      const [left,right,power,side,lean]=motionStyles[a.workMotion]||motionStyles.inspect;
+      const sweep=beat*power;
+      v.leftArm.rotation.x=left+sweep*.45;
+      v.rightArm.rotation.x=right+sweep*.72;
+      v.rightArm.rotation.y=Math.cos(time*3+a.slot)*side;
+      v.leftArm.rotation.z=-.11+beat*.14;
+      v.rightArm.rotation.z=.14-beat*.16;
+      g.rotation.z=beat*.045;
+      g.position.y=-(1+beat)*lean*.12;
+      if(a.workMotion==='hammer')v.rightArm.rotation.x=right-Math.max(0,beat)*1.0;
+      if(a.workMotion==='sift')v.leftArm.rotation.y=beat*.38;
+      if(a.workMotion==='crank')v.rightArm.rotation.y=Math.sin(time*5)*.86;
+      // Operators face the actual machine mounted behind their standing point.
+      a.angle=Math.PI;
+    }else if(gather){
       const type=a.home.type;
-      v.leftArm.rotation.x=type===2?-1.05:-.54+beat*.24;
-      v.rightArm.rotation.x=type===0?-1.25+beat*.85:
-          type===1?-1.75+beat*.9:type===2?-1.33+beat*.1:
-          type===3?-.9+beat*.6:-.7;
+      v.leftArm.rotation.x=type===2?-1.05:-.55+beat*.23;
+      v.rightArm.rotation.x=type===0?-1.27+beat*.79:
+        type===1?-1.73+beat*.91:type===2?-1.33+beat*.11:type===3?-.94+beat*.61:-.71;
       v.rightArm.rotation.y=type===4?beat*.8:0;
       v.tool.rotation.z=type===4?beat*.45:0;
-      g.rotation.z=type===1?beat*.035:0;
+      g.rotation.z=type===1?beat*.032:0;
     }else{
-      v.leftArm.rotation.x=working?-.76+beat*.4:walking?-stride*.5:-.13;
-      v.rightArm.rotation.x=working?-1.08+beat*.62:walking?stride*.5:-.16;
-      v.rightArm.rotation.y=0;v.tool.rotation.z=0;g.rotation.z=0;
+      v.leftArm.rotation.x=walking?-stride*.48:-.14;
+      v.rightArm.rotation.x=walking?stride*.48:-.17;
     }
-    v.load.visible=a.carry>0;
-    if(a.carry>0){
-      for(const mesh of v.load.children)mesh.material=cargoMaterials[a.carryType];
-    }
+    v.load.visible=a.carry>0&&!work;
+    if(a.carry>0)for(const mesh of v.load.children)mesh.material=cargoMaterials[a.carryType];
     return true;
   }
   function register(b){ensure(b);reconcile();return b.mesh}
-  function update(dt,px,pz){
-    time+=dt;planningClock+=dt;viewer={x:px,z:pz};
-    if(planningClock>=.30){reconcile();planningClock=0}
+  function update(dt,px,pz,cam=null){
+    time+=dt;planningClock+=dt;viewer={x:px,z:pz};camera=cam;
+    if(camera&&typeof camera.getWorldDirection==='function'&&T.Vector3){
+      const temp=new T.Vector3();camera.getWorldDirection(temp);
+      const length=Math.hypot(temp.x,temp.z)||1;
+      forward.x=temp.x/length;forward.z=temp.z/length;
+      cullOrigin.x=camera.position.x;cullOrigin.z=camera.position.z;
+    }else camera=null;
+    if(planningClock>=.33){reconcile();planningClock=0}
     for(const r of resources)if(r.dead&&r.recoverAt&&time>=r.recoverAt){
       r.dead=false;r.hp=r.max;r.recoverAt=0;r.workerClaim=null;r.mesh.visible=true;
     }
-    let shown=0,transporting=0,carrying=0;
+    let shown=0,transporting=0,carrying=0;abstractCount=0;
     for(const a of agents){
+      const previous=a.abstract;
+      a.abstract=!inView(a.x,a.z,155)&&distance(a,viewer)>32;
+      if(a.abstract)abstractCount++;
+      if(previous&&!a.abstract&&staticBlocked(a.x,a.z,.34,a.target)){
+        const point=homePort(a.home,a.slot);
+        a.x=point.x;a.z=point.z;a.route=null;
+      }
       updateAgent(a,dt);
-      if(animate(a,dt,px,pz))shown++;
+      if(!a.abstract&&animate(a,dt))shown++;
+      else removeView(a);
       if(a.carry>0)carrying++;
       if(a.role==='transport'&&a.carry>0)transporting++;
     }
     for(const b of buildings){
       b.stock=b.kind==='worker'?b.stockRaw:b.kind==='factory'?b.stockProcessed:0;
       const model=models.get(b.id);
-      if(model&&distance(b,{x:px,z:pz})<95*1.5){
-        model.group.visible=true;model.update(time,true);
-      }else if(model)model.group.visible=false;
+      if(!model)continue;
+      const visible=inView(b.x,b.z,170);
+      model.group.visible=visible;
+      if(visible)model.update(time,true);
     }
-    lastStats.employees=agents.length;lastStats.visible=shown;lastStats.carrying=carrying;lastStats.transports=transporting;
+    Object.assign(lastStats,{employees:agents.length,visible:shown,carrying,transports:transporting,
+      abstract:abstractCount,replans:navReplans,separations});
     return lastStats;
   }
   function sync(){for(const b of buildings)ensure(b);reconcile()}
   function readStats(){return {...lastStats}}
   function dispose(){for(const a of agents)removeView(a)}
-  return {register,update,sync,readStats,dispose,capacity:totalCapacity,limit:employeeLimit};
+  function blocked(x,z,radius=.43){return staticBlocked(x,z,radius)}
+  return {register,update,sync,readStats,dispose,blocked,capacity:totalCapacity,limit:employeeLimit};
 }
