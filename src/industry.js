@@ -210,13 +210,6 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       buildingCells.get(key).push(b);
     }
   }
-  function* nearby(map,x,z){
-    const cx=Math.floor(x/gridSize),cz=Math.floor(z/gridSize);
-    for(let dx=-2;dx<=2;dx++)for(let dz=-2;dz<=2;dz++){
-      const list=map.get((cx+dx)+','+(cz+dz));
-      if(list)for(const o of list)yield o;
-    }
-  }
   function staticBlocked(x,z,radius=.35,target=null){
     // Shared collision rules for A* and physical stepping. Low-height
     // scenery is already excluded by the supplied decoration probe.
