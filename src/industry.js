@@ -92,7 +92,11 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       const type=agent.home.type;
       if(agent.role==='road')part(new T.BoxGeometry(.28,.39,.12),cargoMaterials[1],.0,-.55,0,handTool);
       else if(type===0)part(new T.BoxGeometry(.40,.23,.12),cargoMaterials[1],.16,-.51,0,handTool);
-      else if(type===1)part(new T.BoxGeometry(.65,.16,.14),cargoMaterials[1],0,-.5,0,handTool);
+      else if(type===1){
+        part(new T.BoxGeometry(.58,.16,.14),cargoMaterials[1],0,-.5,0,handTool);
+        const tip=part(new T.ConeGeometry(.11,.36,5),cargoMaterials[1],.39,-.5,0,handTool);
+        tip.rotation.z=-Math.PI/2;
+      }
       else if(type===2){shaft.material=cargoMaterials[2];part(new T.CylinderGeometry(.12,.15,.33,7),cargoMaterials[2],0,-.58,0,handTool)}
       else if(type===3)part(new T.BoxGeometry(.26,.33,.08),cargoMaterials[1],0,-.62,0,handTool);
       else part(new T.BoxGeometry(.47,.10,.10),cargoMaterials[1],.14,-.51,0,handTool);
@@ -817,6 +821,9 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       v.tool.rotation.y=type===0?(a.targetLog?0:-Math.PI/2+beat*.14):0;
       v.rightArm.rotation.y=type===0?-.45+beat*.66:v.rightArm.rotation.y;
       v.tool.rotation.z=type===4?beat*.45:0;
+       // +X is the pointed pick tip, now aimed into the rock in front.
+       v.tool.rotation.y=type===1?-Math.PI/2:0;
+       if(type===2)v.tool.rotation.x=-.84+beat*.18;
       g.rotation.z=type===1?beat*.032:0;
     }else{
       v.leftArm.rotation.x=walking?-stride*.48:-.14;
