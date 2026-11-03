@@ -42,13 +42,13 @@ test('trails unused for 5 minutes become demolition candidates',abandoned.length
 const chosen=road.claim('demolisher',{x:job.x,z:job.z});
 test('road crew chooses retired tiles for demolition',chosen?.mode==='demolish');
 const oldStage=road.levelAt(chosen.x,chosen.z);
-assert.equal(road.work('demolisher',chosen,4),'done');
+assert.equal(road.work('demolisher',chosen,8),'done');
 test('unused paved road is first downgraded to a path',oldStage===2?
   road.levelAt(chosen.x,chosen.z)===1:road.levelAt(chosen.x,chosen.z)===0);
 if(oldStage===2){
   const again=road.claim('demolisher',{x:chosen.x,z:chosen.z});
   assert.ok(again?.mode==='demolish'&&again.key===chosen.key);
-  assert.equal(road.work('demolisher',again,4),'done');
+  assert.equal(road.work('demolisher',again,8),'done');
 }
 test('final demolition removes the speed bonus',road.speedAt(chosen.x,chosen.z)===1);
 test('demolition tombstone prevents automatic reconstruction',
