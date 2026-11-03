@@ -995,6 +995,7 @@ addEventListener('keydown',e=>{
   if(e.code===settings.bindings.vehicle)pop(st.truck?'Truck owned':'Buy a truck at the market');
 });
 addEventListener('keyup',e=>keys[e.code]=false);
+addEventListener('blur',()=>{keys={}});
 addEventListener('mousemove',e=>{
   if(document.pointerLockElement===renderer.domElement){
     heading-=e.movementX*.0025*settings.mouseSensitivity;
@@ -1042,7 +1043,7 @@ function interactionAnchor(){
   return [nearby.x,[2.25,1.75,1.9,1.2,1.6][nearby.type],nearby.z];
 }
 function positionInteractionTooltip(){
-  const prompt=$('prompt'),anchor=interactionAnchor();
+  const prompt=$('prompt'),anchor=harvesting?null:interactionAnchor();
   if(!anchor){prompt.classList.add('hidden');return}
   tooltipPosition.set(anchor[0],anchor[1],anchor[2]);
   cam.getWorldDirection(tooltipForward);
@@ -1084,13 +1085,15 @@ applyLocale();
 const cameraTarget=new T.Vector3(),cameraOffset=new T.Vector3();
 function frame(){
 requestAnimationFrame(frame);
-const dt=Math.min(clock.getDelta(),.05);elapsed+=dt;st.gameMinutes=(Number(st.gameMinutes)||0)+dt;
+const frameDelta=Math.min(clock.getDelta(),.05),paused=panel==='settings',dt=paused?0:frameDelta;
+elapsed+=dt;st.gameMinutes=(Number(st.gameMinutes)||0)+dt;
 if(player.position.y>0||jumpVelocity>0){
   jumpVelocity-=23*dt;
   player.position.y=Math.max(0,player.position.y+jumpVelocity*dt);
   if(player.position.y===0)jumpVelocity=0;
 }
 trails.update(dt);
+harvestFx.update(dt);
 pumpWorld();
 placementFrame();
 collectSaleZone();
@@ -1103,6 +1106,7 @@ if(stamina>=maxStamina()*.27)sprintLocked=false;
 const sprinting=moving&&wantsSprint&&!sprintLocked&&stamina>.01;
 if(sprinting)stamina=Math.max(0,stamina-dt*22);
 else stamina=Math.min(maxStamina(),stamina+dt*staminaRegen());
+$('staminaHud').classList.toggle('hidden',!sprinting&&stamina>=maxStamina()-.15);
 $('staminaFill').style.width=(stamina/maxStamina()*100).toFixed(1)+'%';
 $('staminaCount').textContent=Math.round(stamina)+' / '+maxStamina();
 $('staminaRank').textContent=(settings.language==='fr'?'NIV. ':'LVL. ')+((st.staminaLevel||0)+1);
@@ -1158,9 +1162,9 @@ positionInteractionTooltip();
 sun.position.set(player.position.x+70,95,player.position.z+40);
 sun.target.position.set(player.position.x,0,player.position.z);sun.target.updateMatrixWorld();
 const nowIndustry=performance.now();
-const workDt=Math.min(.22,Math.max(0,(nowIndustry-lastIndustryTime)/1000));
+const workDt=paused?0:Math.min(.22,Math.max(0,(nowIndustry-lastIndustryTime)/1000));
 lastIndustryTime=nowIndustry;
-try{
+if(!paused)try{
   const stats=industry.update(workDt,player.position.x,player.position.z,cam);
   monitor.employees=stats.employees;monitor.visibleEmployees=stats.visible;
   monitor.delivered=stats.delivered;monitor.soldByWorkers=stats.sold;
@@ -1172,10 +1176,9 @@ try{
 }
 
 if(ticks++%12===0){
-stream();updateResourceVisibility();updateInventory();
+stream();renewResources();updateResourceVisibility();updateInventory();
 $('coins').textContent=st.gold;
 $('goldUnit').textContent=settings.language==='fr'?'OR':'GOLD';
-$('coordinates').textContent=Math.round(player.position.x)+' / '+Math.round(player.position.z);
 const biomeId=biome(player.position.x,player.position.z);
 $('biomeName').textContent=tr(biomeId<0?'CAMP CENTRAL':types[biomeId],settings.language);
 const gameClock=Math.floor(st.gameMinutes||0)+8*60;
