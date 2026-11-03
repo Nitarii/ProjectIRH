@@ -1,7 +1,7 @@
 import * as T from 'three';
 import {createSound} from './sound.js?v=20261103s6';
 import {createAtmosphere} from './atmosphere.js?v=20261103ad';
-import {createIndustry} from './industry.js?v=20261106d';
+import {createIndustry} from './industry.js?v=20261106e';
 import {inventoryIcon} from './item-icons.js?v=20261103k';
 import {createResourceGraphics} from './resource-visuals.js?v=20261103ac';
 import {createFieldBuilder} from './wheat-fields.js?v=20261104n';
@@ -12,7 +12,7 @@ import {tr,translateTree,UI} from './language.js?v=20261106d';
 import {createBaseCamp} from './basecamp.js';
 import {optionsMarkup} from './options-ui.js?v=20261106d';
 import {createTrails} from './trails.js?v=20261106d';
-import {createRoadNetwork} from './road-network.js?v=20261106d';
+import {createRoadNetwork} from './road-network.js?v=20261106e';
 import {decorationCollider} from './decor-collision.js?v=20261103p4';
 import {batchResourceNodes,setDistantResource} from './resource-batches.js?v=20261103p4';
 import {createResourceLifecycle} from './resource-life.js?v=20261103s6';
