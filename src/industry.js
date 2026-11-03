@@ -550,5 +550,13 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
   function readStats(){return {...lastStats}}
   function dispose(){for(const a of agents)removeView(a)}
   function blocked(x,z,radius=.43){return staticBlocked(x,z,radius)}
-  return {register,update,sync,readStats,dispose,blocked,capacity:totalCapacity,limit:employeeLimit};
+  function snapshot(){
+    return agents.map(a=>({id:a.id,role:a.role,slot:a.slot,state:a.state,workMotion:a.workMotion,
+      x:a.x,z:a.z,abstract:a.abstract,carry:a.carry,home:a.home.id}));
+  }
+  function buildingGeometry(id){const model=models.get(id);return model?{
+    colliders:model.colliders.length,workstations:model.workstations.length,
+    stockPoints:model.stockPoints
+  }:null}
+  return {register,update,sync,readStats,snapshot,buildingGeometry,dispose,blocked,capacity:totalCapacity,limit:employeeLimit};
 }
