@@ -1,5 +1,5 @@
 import {worldPoint,normalizeRotation} from './facility-layout.js';
-import {FACTORY_TASKS,YARD,yardPoint,storagePoint} from './factory-tasks.js';
+import {FACTORY_TASKS,YARD,yardPoint,storagePoint} from './factory-tasks.js?v=20261104b';
 
 export function decorateFacility(T,group,b,materials){
   const [wood,stone,metal,trim,roof,amber]=materials;
