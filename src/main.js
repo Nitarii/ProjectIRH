@@ -1,7 +1,7 @@
 import * as T from 'three';
 import {createSound} from './sound.js?v=20261103r';
 import {createAtmosphere} from './atmosphere.js?v=20261103r';
-import {createIndustry} from './industry.js?v=20261103x';
+import {createIndustry} from './industry.js?v=20261103z';
 import {inventoryIcon} from './item-icons.js?v=20261103k';
 import {createResourceGraphics} from './resource-visuals.js?v=20261103n';
 import {createFieldBuilder} from './wheat-fields.js?v=20261103k';
