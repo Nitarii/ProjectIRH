@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-<meta name="theme-color" content="#0b1516">
+<meta name="theme-color" content="#0b1516"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
 <meta name="author" content="Nitarii">
 <meta name="copyright" content="Copyright 2026 Nitarii. All rights reserved.">
 <meta name="description" content="Nitari's Industrial Madness, an original procedural game by Nitarii.">
-<title>Nitari's Industrial Madness (NIM)</title>
+<title>N.I.M — Nitari's Industrial Madness</title>
 <link rel="icon" href="./assets/nim-logo.svg" type="image/svg+xml"><link rel="stylesheet" href="./assets/ui.css?v=20261105a">
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js"}}</script>
 </head>
@@ -43,7 +43,7 @@
 <div id="mobileControls" class="mobile-controls hidden" aria-label="Commandes tactiles du jeu">
 <div class="touch-top-nav"><button type="button" data-touch-action="market" aria-label="Comptoir">🪙</button><button type="button" data-touch-action="build" aria-label="Construction">▦</button><button type="button" data-touch-action="talents" aria-label="Progression">★</button><button type="button" data-touch-action="map" aria-label="Carte">▤</button><button type="button" data-touch-action="settings" aria-label="Paramètres">☰</button></div>
 <div class="touch-pad" id="touchPad" aria-label="Joystick de déplacement"><div class="touch-knob" id="touchKnob"></div></div>
-<div class="touch-action-pad"><button type="button" class="touch-action-primary" data-touch-action="interact">AGIR</button><button type="button" data-touch-action="jump">SAUT</button><button type="button" data-touch-action="auto">AUTO</button><button type="button" data-touch-action="sprint" data-touch-hold="true">COURIR</button><button type="button" data-touch-action="drop">POSER</button><button type="button" data-touch-action="vehicle">VÉLO</button><button type="button" class="touch-placing" data-touch-action="rotateLeft">↶</button><button type="button" class="touch-placing" data-touch-action="rotateRight">↷</button></div>
+<div class="touch-action-pad"><button type="button" class="touch-action-primary" data-touch-action="interact">AGIR</button><button type="button" data-touch-action="jump">SAUT</button><button type="button" data-touch-action="auto">AUTO</button><button type="button" data-touch-action="sprint" data-touch-hold="true">COURIR</button><button type="button" data-touch-action="drop">POSER</button><button type="button" data-touch-action="vehicle">VÉLO</button><button type="button" class="touch-placing" data-touch-action="rotateLeft">↶</button><button type="button" class="touch-placing" data-touch-action="rotateRight">↷</button><button type="button" class="touch-placing" data-touch-action="cancel">ANNULER</button></div>
 </div>
 <div id="worldMap" class="world-map hidden" role="dialog" aria-modal="true" aria-label="Carte du monde"><div class="world-map-sheet"><header class="world-map-heading"><div><small>EXPLORATION</small><h2 id="worldMapTitle">CARTE DU MONDE</h2></div><button id="worldMapClose" type="button" aria-label="Fermer la carte">×</button></header><canvas id="worldMapCanvas" width="800" height="520" aria-label="Carte explorée, glisser pour déplacer"></canvas><footer class="world-map-footer"><span id="worldMapCoords">X 0 · Z 0</span><span id="worldMapHelp">Glisser pour déplacer · molette pour zoomer · zones sombres inexplorées</span><div class="world-map-zoom"><button id="worldMapZoomOut" type="button" aria-label="Dézoomer">−</button><button id="worldMapCenter" type="button" aria-label="Centrer sur le joueur">⌖</button><button id="worldMapZoomIn" type="button" aria-label="Zoomer">+</button></div></footer></div></div>
 <div id="panel" class="panel hidden"><div class="sheet"><header><div><div class="eyebrow" id="panelTag">COMPTOIR</div><h2 id="panelTitle">Marché</h2></div><button id="close" class="close" title="Fermer">×</button></header><nav id="tabs"></nav><div id="shopbody" class="shopbody"></div><footer><span id="panelhint"></span><button id="resume" class="cta small">REPRENDRE ↗</button></footer></div></div>
