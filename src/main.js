@@ -7,7 +7,7 @@ import {createResourceGraphics} from './resource-visuals.js?v=20261103ac';
 import {createFieldBuilder} from './wheat-fields.js?v=20261103k';
 import {makeStructure} from './structures.js?v=20261103r2';
 import {EQUIPMENT,EQUIPMENT_FR,TOOL_SPEED,TOOL_YIELD,ECONOMY,toolCost,buildingCost,workerCarryCost,MAX_EXPERTISE,expertiseCost,expertiseMultiplier,expertiseHarvestSpeed} from './balance.js?v=20261103s6';
-import {loadSettings,storeSettings,keyLabel,isPressed,applyQuality,ACTIONS} from './settings.js?v=20261103s6';
+import {loadSettings,storeSettings,keyLabel,isPressed,applyQuality,ACTIONS,detectKeyboardLayout} from './settings.js?v=20261104a';
 import {tr,translateTree,UI} from './language.js?v=20261103p7';
 import {createBaseCamp} from './basecamp.js';
 import {optionsMarkup} from './options-ui.js?v=20261103p7';
@@ -23,6 +23,8 @@ import {openSaveVault} from './save-vault.js?v=20261103p7';
 import {normalizeAvatar,attachAvatarDesigner} from './avatar-style.js?v=20261103p7';
 import {avatarBuilderMarkup} from './avatar-ui.js?v=20261103p7';
 import {nearestStock,transferStock} from './stock-interaction.js?v=20261103p7';
+import {worldPoint,facilityFootprint,footprintsOverlap,pointInOrientedRect,normalizeRotation} from './facility-layout.js';
+import {createBicycle} from './bicycle.js';
 const $=id=>document.getElementById(id), scene=new T.Scene();scene.background=new T.Color('#a6cbd1');scene.fog=new T.FogExp2('#a6cbd1',.0039);
 const cam=new T.PerspectiveCamera(65,innerWidth/innerHeight,.1,450),renderer=new T.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.25));renderer.shadowMap.enabled=true;$('game').append(renderer.domElement);
 scene.add(new T.HemisphereLight(0xffffff,0x657449,2.4));const sun=new T.DirectionalLight(0xffe7bc,2.3);sun.position.set(70,95,40);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.bias=-.0004;sun.shadow.normalBias=.024;sun.shadow.radius=2;sun.shadow.camera.left=-60;sun.shadow.camera.right=60;sun.shadow.camera.top=60;sun.shadow.camera.bottom=-60;scene.add(sun);
@@ -30,8 +32,8 @@ const M=c=>new T.MeshLambertMaterial({color:c}),m={grass:M(0x658b55),forest:M(0x
 function cube(w,h,d,mat,x=0,y=0,z=0){let q=new T.Mesh(new T.BoxGeometry(w,h,d),mat);q.position.set(x,y,z);q.castShadow=true;q.receiveShadow=true;return q}function orb(r,mat,x=0,y=0,z=0){let q=new T.Mesh(new T.IcosahedronGeometry(r,1),mat);q.position.set(x,y,z);q.castShadow=true;return q}function cy(r,h,mat,x=0,y=0,z=0){let q=new T.Mesh(new T.CylinderGeometry(r,r,h,8),mat);q.position.set(x,y,z);q.castShadow=true;return q}
 const types=['FORÊT','MONTAGNE','EXCAVATION','DÉSERT','CHAMPS'],raw=['Bois','Pierre','Minerai','Sable','Blé'],processed=['Planches','Pierre taillée','Lingots','Verre','Farine'],tools=EQUIPMENT_FR,worksites=['Cabane de bûcheron','Carrière','Mine','Camp de terrassiers','Ferme'],factories=['Scierie','Atelier de taille','Fonderie','Verrerie','Moulin'],values=[12,15,22,10,14],colors=['#488756','#87938b','#b88f6b','#e3c67c','#c8b64e'];
 const vault=await openSaveVault();
-let defaultState={gold:100,bag:8,inv:[0,0,0,0,0],products:[0,0,0,0,0],tools:[-1,-1,-1,-1,-1],talents:[0,0,0,0,0],buildings:[],stock:[],truck:false,cart:false,staminaLevel:0,gameMinutes:0,x:0,z:9,seed:Math.floor(Math.random()*2000000000)+10000,worldVersion:2,exhausted:{},avatar:null};let st={...defaultState};
-const settings=loadSettings();let awaitingBinding=null;let observedGold=st.gold,goldHideAt=0;try{
+let defaultState={gold:100,bag:8,bicycle:false,inv:[0,0,0,0,0],products:[0,0,0,0,0],tools:[-1,-1,-1,-1,-1],talents:[0,0,0,0,0],buildings:[],stock:[],bicycle:false,staminaLevel:0,gameMinutes:0,x:0,z:9,seed:Math.floor(Math.random()*2000000000)+10000,worldVersion:2,exhausted:{},avatar:null};let st={...defaultState};
+const settings=loadSettings();await detectKeyboardLayout();let awaitingBinding=null;let observedGold=st.gold,goldHideAt=0;try{
  const a=vault.state||{};
  for(const k in defaultState)if(a[k]!==undefined)st[k]=a[k];
  // Existing maps retain their original nearby forest; only newly generated
@@ -41,13 +43,14 @@ const settings=loadSettings();let awaitingBinding=null;let observedGold=st.gold,
 observedGold=st.gold;
 const save=()=>{st.x=player.position.x;st.z=player.position.z;
 const cleanBuildings=st.buildings.map(b=>({
-id:b.id,kind:b.kind,type:b.type,x:b.x,z:b.z,workers:b.workers,carryLevel:b.carryLevel,
+id:b.id,kind:b.kind,type:b.type,x:b.x,z:b.z,rotation:b.rotation||0,workers:b.workers,carryLevel:b.carryLevel,
 stock:b.stock,stockRaw:b.stockRaw,inputRaw:b.inputRaw,stockProcessed:b.stockProcessed,progress:b.progress
 }));
 vault.save({...st,buildings:cleanBuildings}).catch(e=>console.warn('Encrypted storage unavailable',e));
 };
 
 const player=new T.Group(),avatar=new T.Group();player.add(avatar);
+const bicycle=createBicycle(T,player);let bikeRiding=false;
 avatar.add(cy(.42,1.12,m.shirt,0,1.4,0),orb(.35,m.skin,0,2.15,.04));
 avatar.add(cube(.1,.055,.08,M(0x312b27),-.14,2.18,.35),cube(.1,.055,.08,M(0x312b27),.14,2.18,.35));
 function limb(x,y,len,thick){const g=new T.Group();g.position.set(x,y,0);g.add(cube(thick,len,thick,m.shirt,0,-len/2,0));avatar.add(g);return g}
@@ -391,7 +394,7 @@ if(!blocked(x+dx,z))player.position.x=x+dx;
 if(!blocked(player.position.x,z+dz))player.position.z=z+dz;
 }
 const stopHarvest=()=>{harvesting=null;harvestProgress=0};
-const harvestInterval=type=>([1.00,1.10,1.08,.94,.86][type])*TOOL_SPEED[Math.max(0,Math.min(5,st.tools[type]+1))]/expertiseHarvestSpeed(st,type);
+const harvestInterval=type=>([1.00,1.10,1.08,.94,.86][type])*TOOL_SPEED[Math.max(0,Math.min(5,st.tools[type]+1))]/expertiseHarvestSpeed(st,type)*(autoMode?1.25:1);
 const TOOL_STROKES=[
   [[.55,1.15,.16],[.7,1.34,.19],[.92,1.58,.23],[.27,.6,.11],[.12,.3,.08]],
   [[.67,.9,.13],[.82,1.1,.16],[.94,1.3,.20],[.21,.4,.08],[.11,.24,.07]],
@@ -814,10 +817,10 @@ group+=add(settings.language==='en'?EQUIPMENT[i][tier]:tools[i][tier],types[i]+'
 out+=section('Outils & récolte','CINQ INDUSTRIES',group||'<p class="catalog-empty">Tous les outils sont au niveau maximum.</p>');
 const level=st.staminaLevel||0;
 let utility='';
-if(st.bag===8)utility+=add('Capacité de stockage','8 → 16 emplacements',ECONOMY.bag+' OR','bag');
+if(st.bag===8)utility+=add('Sac renforcé','8 → 16 emplacements',ECONOMY.bag+' OR','bag');
+if(st.bag===16)utility+=add('Sac de randonnée','16 → 24 emplacements',ECONOMY.bag24+' OR','bag24');
 if(level<4)utility+=add('Condition physique','Endurance '+maxStamina()+' → '+(maxStamina()+32),ECONOMY.stamina[level]+' OR','stamina');
-if(!st.cart)utility+=add('Chariot utilitaire','Transport de petites charges',ECONOMY.cart+' OR','cart');
-if(!st.truck)utility+=add('Camion de ressources','Grand volume de transport',ECONOMY.truck+' OR','truck');
+if(!st.bicycle)utility+=add('Vélo utilitaire','Déplacement accéléré · sprint à vélo · V pour monter',ECONOMY.bicycle+' OR','bicycle');
 out+=section('Équipement','CONSERVATION & MOBILITÉ',utility||'<p class="catalog-empty">Équipement entièrement amélioré.</p>');
 
 }
@@ -903,7 +906,7 @@ function resetEntireGame(){
   const fresh={
     gold:100,bag:8,inv:[0,0,0,0,0],products:[0,0,0,0,0],
     tools:[-1,-1,-1,-1,-1],talents:[0,0,0,0,0],
-    buildings:[],stock:[],truck:false,cart:false,staminaLevel:0,
+    buildings:[],stock:[],bicycle:false,staminaLevel:0,
     gameMinutes:0,x:0,z:9,
     seed:Math.floor(Math.random()*2000000000)+10000,worldVersion:2,
     avatar:null,exhausted:{},trails:{}
@@ -971,9 +974,9 @@ if(a==='stockDeposit'||a==='stockWithdraw'){
 }
 if(a==='sell')return sell();
 if(a==='bag')return buy(ECONOMY.bag,()=>st.bag=16);
+if(a==='bag24')return buy(ECONOMY.bag24,()=>st.bag=24);
 if(a==='stamina')return buy(ECONOMY.stamina[st.staminaLevel||0]||Infinity,()=>{st.staminaLevel=(st.staminaLevel||0)+1;stamina=maxStamina()});
-if(a==='cart')return buy(ECONOMY.cart,()=>st.cart=true);
-if(a==='truck')return buy(ECONOMY.truck,()=>st.truck=true);
+if(a==='bicycle')return buy(ECONOMY.bicycle,()=>st.bicycle=true);
 const [kind,id]=a.split(':'),i=+id;
 if(kind==='tool'){
   const tier=st.tools[i]+1;
