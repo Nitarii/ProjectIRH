@@ -11,7 +11,7 @@ import {loadSettings,storeSettings,keyLabel,isPressed,applyQuality,ACTIONS} from
 import {tr,translateTree,UI} from './language.js?v=20261103t';
 import {createBaseCamp} from './basecamp.js';
 import {optionsMarkup} from './options-ui.js';
-const $=id=>document.getElementById(id), scene=new T.Scene();scene.background=new T.Color('#a6cbd1');scene.fog=new T.FogExp2('#a6cbd1',.007);
+const $=id=>document.getElementById(id), scene=new T.Scene();scene.background=new T.Color('#a6cbd1');scene.fog=new T.FogExp2('#a6cbd1',.0039);
 const cam=new T.PerspectiveCamera(65,innerWidth/innerHeight,.1,450),renderer=new T.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.25));renderer.shadowMap.enabled=true;$('game').append(renderer.domElement);
 scene.add(new T.HemisphereLight(0xffffff,0x657449,2.4));const sun=new T.DirectionalLight(0xffe7bc,2.3);sun.position.set(70,95,40);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.bias=-.0004;sun.shadow.normalBias=.024;sun.shadow.radius=2;sun.shadow.camera.left=-60;sun.shadow.camera.right=60;sun.shadow.camera.top=60;sun.shadow.camera.bottom=-60;scene.add(sun);
 const M=c=>new T.MeshLambertMaterial({color:c}),m={grass:M(0x658b55),forest:M(0x3a784e),mountain:M(0x858b83),mine:M(0x94775c),desert:M(0xd7bd7d),field:M(0xb2b75e),tree:M(0x845b35),leaf:M(0x388653),rock:M(0x888e90),ore:M(0x709fad),wheat:M(0xebbb53),skin:M(0xe8b997),shirt:M(0x275c70),wood:M(0xac7852),roof:M(0x965e46),gold:M(0xffd068)};
@@ -110,7 +110,7 @@ saleLabel.scale.set(7.2,2.03,1);
 saleLabel.position.set(SALE.x,6.3,SALE.z);scene.add(saleLabel);
 
 
-const world=new Map(),resources=[],CH=32;let R=settings.quality==='low'?1:2;const hash=(x,z,s=0)=>{let n=Math.sin(x*127.1+z*311.7+s*51.6)*43758.5453;return n-Math.floor(n)},blend=t=>t*t*(3-2*t);function noise(x,z,k,s){let a=Math.floor(x/k),b=Math.floor(z/k),u=blend(x/k-a),v=blend(z/k-b);return T.MathUtils.lerp(T.MathUtils.lerp(hash(a,b,s),hash(a+1,b,s),u),T.MathUtils.lerp(hash(a,b+1,s),hash(a+1,b+1,s),u),v)}
+const world=new Map(),resources=[],CH=32;let R=settings.quality==='low'?2:settings.quality==='high'?4:3;const hash=(x,z,s=0)=>{let n=Math.sin(x*127.1+z*311.7+s*51.6)*43758.5453;return n-Math.floor(n)},blend=t=>t*t*(3-2*t);function noise(x,z,k,s){let a=Math.floor(x/k),b=Math.floor(z/k),u=blend(x/k-a),v=blend(z/k-b);return T.MathUtils.lerp(T.MathUtils.lerp(hash(a,b,s),hash(a+1,b,s),u),T.MathUtils.lerp(hash(a,b+1,s),hash(a+1,b+1,s),u),v)}
 function biome(x,z){
 if(Math.hypot(x,z)<22)return -1;
 if(Math.hypot(x-34,z)<76)return 0;
@@ -260,7 +260,9 @@ world.delete(key)
 }
 }
 function updateResourceVisibility(){
-const px=player.position.x,pz=player.position.z,maximum=53*53;
+const px=player.position.x,pz=player.position.z;
+const range=settings.quality==='low'?100:settings.quality==='high'?216:164;
+const maximum=range*range;
 for(const o of resources)o.mesh.visible=!o.dead&&(o.x-px)**2+(o.z-pz)**2<maximum;
 }
 const count=()=>st.inv.reduce((a,b)=>a+b,0)+st.products.reduce((a,b)=>a+b,0);
@@ -279,6 +281,7 @@ const staminaRegen=()=>16+Math.max(0,st.staminaLevel||0)*4;
 let stamina=maxStamina(),sprintLocked=false,footstepTimer=0;
 const PLAYER_RADIUS=.43;
 function blocked(x,z){
+if(industry.blocked(x,z,PLAYER_RADIUS))return true;
 const box=(bx,bz,w,d)=>Math.abs(x-bx)<w/2+PLAYER_RADIUS&&Math.abs(z-bz)<d/2+PLAYER_RADIUS;
 if(box(0,0,5,4))return true;
 for(const b of st.buildings)if(box(b.x,b.z,3.5,3.3))return true;
@@ -703,7 +706,7 @@ const id=e.target.id;
 if(id==='settingAudio')settings.muted=!e.target.checked;
 else if(id==='settingQuality'){
   settings.quality=e.target.value;
-  R=settings.quality==='low'?1:2;streamingCenter='';
+  R=settings.quality==='low'?2:settings.quality==='high'?4:3;streamingCenter='';
   applyQuality(renderer,sun,settings.quality);
   atmosphere.setEnabled(settings.effects&&settings.quality!=='low');
 }else if(id==='settingEffects'){
@@ -905,9 +908,11 @@ const nowIndustry=performance.now();
 const workDt=Math.min(.22,Math.max(0,(nowIndustry-lastIndustryTime)/1000));
 lastIndustryTime=nowIndustry;
 try{
-  const stats=industry.update(workDt,player.position.x,player.position.z);
+  const stats=industry.update(workDt,player.position.x,player.position.z,cam);
   monitor.employees=stats.employees;monitor.visibleEmployees=stats.visible;
   monitor.delivered=stats.delivered;monitor.soldByWorkers=stats.sold;
+  monitor.abstractWorkers=stats.abstract;monitor.workerAvoidance=stats.separations;
+  monitor.routeReplans=stats.replans;
 }catch(error){
   monitor.lastError=String(error);
   console.error('Industry update failed',error);
