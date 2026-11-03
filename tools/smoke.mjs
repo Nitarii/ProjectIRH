@@ -162,11 +162,28 @@ try{
   const optionsContext=await browser.newContext({viewport:{width:1280,height:800},locale:'en-US'});
   const optionsPage=await optionsContext.newPage();
   optionsPage.on('pageerror',e=>errors.push('OPTIONS SCRIPT '+e.message));
+  await optionsPage.addInitScript(()=>{
+    if(!localStorage.getItem('irh-state')){
+      localStorage.setItem('irh-state',JSON.stringify({x:0,z:9,gold:100,
+        buildings:[{id:'b-l10',kind:'worker',type:0,x:35,z:20,workers:0}]}));
+    }
+  });
   await optionsPage.goto('http://127.0.0.1:8765/',{waitUntil:'domcontentloaded',timeout:30000});
   await optionsPage.locator('#play').click({timeout:15000});
   await optionsPage.waitForFunction(()=>window.__irhMonitor?.frames>10,null,{timeout:30000});
   const initialLanguage=await optionsPage.evaluate(()=>document.documentElement.lang);
   if(initialLanguage!=='en')throw new Error('English locale should be default for non-French visitors');
+  const initialState=await optionsPage.evaluate(()=>({
+    labels:window.__irhMonitor?.buildingLabels,
+    hints:document.querySelector('.keyline')?.textContent,
+    soundButton:!!document.querySelector('#soundToggle')
+  }));
+  if(initialState.soundButton||/ZQSD|SHIFT|SOURIS|MAJ|CAMÉRA/.test(initialState.hints))
+    throw new Error('Old HUD shortcuts or sound toggle remain: '+JSON.stringify(initialState));
+  if(initialState.labels?.[0]?.label!=='LOGGING HUT')
+    throw new Error('English building signage missing: '+JSON.stringify(initialState));
+  await optionsPage.keyboard.press('Space');
+  await optionsPage.waitForFunction(()=>window.__irhMonitor?.jumpHeight>.15,null,{timeout:19000});
   await optionsPage.keyboard.press('Escape');
   await optionsPage.waitForFunction(()=>!!document.querySelector('#settingVolume'),null,{timeout:15000});
   await optionsPage.locator('#settingVolume').evaluate(el=>{el.value='28';el.dispatchEvent(new Event('input',{bubbles:true}))});
@@ -176,6 +193,7 @@ try{
   await optionsPage.locator('#settingSensitivity').evaluate(el=>{el.value='140';el.dispatchEvent(new Event('input',{bubbles:true}))});
   await optionsPage.locator('#settingAudio').uncheck();
   await optionsPage.locator('#settingLanguage').selectOption('fr');
+  await optionsPage.waitForFunction(()=>window.__irhMonitor?.buildingLabels?.[0]?.label==='BÛCHERONS',null,{timeout:15000});
   await optionsPage.locator('button[data-bind="build"]').click();
   await optionsPage.keyboard.press('j');
   const optionsState=await optionsPage.evaluate(()=>({
@@ -194,7 +212,24 @@ try{
   await optionsPage.waitForFunction(()=>!document.querySelector('#panel').classList.contains('hidden'),null,{timeout:12000});
   const newKeyWorks=await optionsPage.evaluate(()=>document.querySelector('#panelTitle').textContent);
   if(newKeyWorks!=='CONSTRUCTION')throw new Error('Remapped construction binding did not open menu');
-  console.log(JSON.stringify({options:optionsState,remappedBuild:true},null,2));
+  await optionsPage.keyboard.press('Tab'); // close construction panel
+  await optionsPage.keyboard.press('Tab'); // open settings
+  await optionsPage.waitForFunction(()=>!!document.querySelector('#resetConfirm'),null,{timeout:15000});
+  await optionsPage.locator('button[data-system="requestReset"]').click();
+  const confirmed=await optionsPage.locator('#resetConfirm').evaluate(el=>!el.classList.contains('hidden'));
+  if(!confirmed)throw new Error('Reset confirmation was not shown');
+  await optionsPage.locator('button[data-system="cancelReset"]').click();
+  const cancelled=await optionsPage.locator('#resetConfirm').evaluate(el=>el.classList.contains('hidden'));
+  if(!cancelled)throw new Error('Reset confirmation could not be cancelled');
+  await optionsPage.locator('button[data-system="requestReset"]').click();
+  await optionsPage.locator('button[data-system="confirmReset"]').click();
+  await optionsPage.waitForFunction(()=>!document.querySelector('#welcome').classList.contains('hidden')===false,
+    null,{timeout:30000}).catch(()=>{});
+  const freshState=await optionsPage.evaluate(()=>JSON.parse(localStorage.getItem('irh-state')||'{}'));
+  if(freshState.gold!==100||freshState.buildings?.length!==0||freshState.seed===7331||
+      freshState.tools?.some(n=>n!==-1)||Object.keys(freshState.trails||{}).length)
+    throw new Error('Reset did not produce a fresh procedural world: '+JSON.stringify(freshState));
+  console.log(JSON.stringify({options:optionsState,remappedBuild:true,resetSeed:freshState.seed,jump:true,signs:true},null,2));
   await optionsContext.close();
   if(errors.length)throw new Error('Browser errors after scenarios: '+errors.join(' | '));
 
