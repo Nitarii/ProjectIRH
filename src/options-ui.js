@@ -1,4 +1,4 @@
-import {UI} from './language.js?v=20261103p7';
+import {UI} from './language.js?v=20261106c';
 import {keyLabel,ACTIONS} from './settings.js?v=20261105d';
 const actionText={
  fr:{forward:'Avancer',backward:'Reculer',left:'Aller à gauche',right:'Aller à droite',
