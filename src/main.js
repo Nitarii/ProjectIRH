@@ -2036,4 +2036,20 @@ monitor.renderResolution=renderer.getPixelRatio();monitor.viewDistance=settings.
 monitor.jumpHeight=player.position.y;
 controlQuality();
 }
-stream();pumpWorld();updateInventory();frame();setInterval(save,15000);
+stream();pumpWorld();updateInventory();frame();
+// Encrypt the periodic save while the browser is idle, rather than forcing a
+// potentially large serialized road network in the middle of a rendered frame.
+let autosavePending=false;
+function scheduleAutosave(){
+  if(autosavePending)return;
+  autosavePending=true;
+  const write=()=>{autosavePending=false;save()};
+  if(typeof requestIdleCallback==='function')
+    requestIdleCallback(write,{timeout:1700});
+  else setTimeout(write,0);
+}
+setInterval(scheduleAutosave,15000);
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='hidden')save();
+});
+addEventListener('pagehide',save);
