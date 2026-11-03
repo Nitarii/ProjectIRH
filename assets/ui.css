@@ -259,3 +259,62 @@ border:1px solid #7cc9ac85;border-radius:13px;padding:15px 18px;box-shadow:0 14p
   .auto-state{bottom:116px;font-size:17px;letter-spacing:2.4px}
   #hud .gold-gain{font-size:17px!important;right:calc(100% + 6px)!important}
 }
+
+/* Character creation: three-dimensional preview plus ergonomic independent controls. */
+.creator{position:fixed;inset:0;z-index:12;display:grid;place-items:center;
+ background:radial-gradient(ellipse at 62% 32%,#416a5a6c,transparent 65%),#081513ed;
+ backdrop-filter:blur(9px);padding:18px;overflow:auto}
+.creator-body{width:min(830px,95vw);max-height:92vh;overflow-y:auto;
+ border:1px solid #b4d4b149;border-radius:17px;padding:26px 32px 22px;
+ background:linear-gradient(145deg,#142928e8,#0d1d20f3);box-shadow:0 25px 100px #000b}
+.creator-kicker{font:800 10px 'DM Sans',sans-serif;color:#c4e9bc;letter-spacing:2px}
+.creator-copy h2{font:900 clamp(28px,4vw,47px) 'Barlow Condensed',sans-serif;
+ text-transform:uppercase;letter-spacing:1px;margin:7px 0 4px}
+.creator-copy p{color:#b4c8bb;font:12px/1.65 'DM Sans',sans-serif;margin:0 0 13px}
+.creator-layout{display:grid;grid-template-columns:minmax(220px,310px) minmax(280px,1fr);gap:22px}
+.creator-preview{position:relative;border:1px solid #ffffff22;border-radius:11px;
+ background:radial-gradient(circle at 50% 55%,#56877967 0%,#1a363559 65%,#102a25b0 100%);
+ min-height:330px;display:grid;place-items:center;overflow:hidden}
+.creator-preview canvas{max-width:100%;max-height:330px}
+.preview-caption{position:absolute;bottom:15px;left:16px;color:#bed2c4;
+ font:800 10px 'Barlow Condensed';letter-spacing:1.7px;z-index:2;pointer-events:none}
+.creator-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-content:start}
+.creator-field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.creator-field span,.creator-color span{color:#cadace;font:700 11px 'DM Sans',sans-serif}
+.creator-field select{width:100%;background:#25433f;color:#f2f6e9;border:1px solid #ffffff35;
+ border-radius:7px;padding:10px 7px;font:600 12px 'DM Sans',sans-serif}
+.creator-field:has(select[data-avatar="hairStyle"]){grid-column:1 / -1}
+.creator-toggle{flex-direction:row;align-items:center;justify-content:space-between;
+ background:#1d3834;border-radius:8px;padding:7px 12px}
+.creator-toggle input{width:17px;height:17px;accent-color:#a0dfa9}
+.creator-colors{grid-column:1 / -1;display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.creator-color{display:flex;align-items:center;justify-content:space-between;gap:5px;
+ background:#193530;border:1px solid #ffffff19;padding:7px;border-radius:8px}
+.creator-color input{width:37px;height:28px;padding:1px;border:0;background:transparent;cursor:pointer}
+.creator-footer{display:flex;align-items:center;justify-content:space-between;gap:15px;
+ margin-top:17px;border-top:1px solid #ffffff19;padding-top:14px}
+.creator-footer span{color:#9cb7aa;font-size:10px}
+.creator-footer button{background:#b0e2b2;color:#092923;font:800 15px 'Barlow Condensed';
+ border:0;border-radius:8px;padding:13px 21px}
+.creator-footer button:hover{filter:brightness(1.15)}
+/* Individual encrypted save management in the pause menu. */
+.vault-info{margin-top:18px;padding:14px;border-top:1px solid #ffffff23}
+.vault-code{font:800 16px 'Barlow Condensed';letter-spacing:1.6px;color:#b5f0c1;user-select:text}
+.vault-actions{display:flex;flex-wrap:wrap;gap:9px;margin:10px 0}
+.vault-actions button{background:#284940;border:1px solid #acdfb057;color:#ebf7e9;
+ border-radius:6px;padding:10px 13px;font-size:11px;font-weight:700}
+.vault-actions button:hover{background:#386052}
+.vault-info textarea{width:100%;max-height:90px;min-height:58px;background:#102925;color:#e7f6ed;
+ border:1px solid #91cdaf55;padding:10px;border-radius:6px;resize:vertical;
+ font:11px 'DM Sans',sans-serif}
+.vault-info p{font:11px/1.6 'DM Sans',sans-serif;color:#adc9b7}
+.vault-message{font-size:11px;color:#b6f0ba}
+@media(max-width:700px){
+ .creator-body{padding:15px}
+ .creator-layout{grid-template-columns:1fr}
+ .creator-preview{min-height:220px}
+ .creator-preview canvas{max-height:225px}
+ .creator-fields{grid-template-columns:1fr 1fr}
+ .creator-colors{grid-template-columns:repeat(2,1fr)}
+ .creator-footer{flex-direction:column;align-items:stretch}
+}
