@@ -130,18 +130,30 @@ export function tr(text,lang){
   for(const [re,to] of patterns)str=str.replace(re,to);
   return str;
 }
+const attributeOriginals=new WeakMap();
 export function translateTree(root,lang){
   if(!root)return;
   const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
   const nodes=[];while(walker.nextNode())nodes.push(walker.currentNode);
   for(const n of nodes){
     if(!n.nodeValue.trim())continue;
-    if(!n.__originalText)n.__originalText=n.nodeValue;
+    if(n.__originalText===undefined)n.__originalText=n.nodeValue;
     n.nodeValue=tr(n.__originalText,lang);
+  }
+  const elements=[root,...root.querySelectorAll('[title],[aria-label],[placeholder]')];
+  for(const element of elements){
+    let original=attributeOriginals.get(element);
+    if(!original){
+      original={};
+      for(const attr of ['title','aria-label','placeholder'])
+        if(element.hasAttribute?.(attr))original[attr]=element.getAttribute(attr);
+      attributeOriginals.set(element,original);
+    }
+    for(const attr in original)element.setAttribute(attr,tr(original[attr],lang));
   }
 }
 export const UI={
-  fr:{resolution:'Résolution de rendu',distance:"Distance d’affichage",sensitivity:'Sensibilité souris',
+  fr:{on:'ACTIVÉ',off:'DÉSACTIVÉ',resolution:'Résolution de rendu',distance:"Distance d’affichage",sensitivity:'Sensibilité souris',
     recovery:'Sécurité de la partie',recoveryInfo:'Le débloquage vide les ressources transportées et replace le personnage à la base.',
     unstuck:'Débloquer le personnage (inventaire vidé)',resetGame:'Nouvelle partie / tout réinitialiser',
     resetQuestion:'Recommencer une nouvelle partie ?',resetWarning:'Tous les bâtiments, employés, équipements, pièces, stocks et chemins seront définitivement effacés. Une nouvelle carte sera créée.',
@@ -150,7 +162,7 @@ export const UI={
     effects:'Effets de l’environnement',language:'Langue',controls:'Commandes',rebinding:'Appuyez sur une touche...',
     apply:'Appliquer',back:'Reprendre',stamina:'Endurance',work:'Travailleurs',capacity:'Charge transportée',fists:'Poings',
     lowHint:'Le préréglage faible désactive les ombres et diminue le chargement du monde. La résolution reste réglable séparément.'},
-  en:{resolution:'Render resolution',distance:'View distance',sensitivity:'Mouse sensitivity',
+  en:{on:'ON',off:'OFF',resolution:'Render resolution',distance:'View distance',sensitivity:'Mouse sensitivity',
     recovery:'Game recovery',recoveryInfo:'Unstuck clears carried resources and moves your character back to the home base.',
     unstuck:'Unstuck character (empty inventory)',resetGame:'New game / reset progress',
     resetQuestion:'Start a new game?',resetWarning:'All buildings, employees, equipment, money, stockpiles and paths will be permanently erased. A new map will be created.',
