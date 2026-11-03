@@ -1,4 +1,5 @@
 import {makeStructure} from './structures.js';
+import {createRouter} from './navigation.js';
 
 export function createIndustry(T, scene, st, resources, biome, sale, values, hooks={}) {
   const agents=[], buildings=st.buildings;
@@ -29,6 +30,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     if(b.id.startsWith('b'))nextId=Math.max(nextId,(Number(b.id.slice(1))||0)+1);
     b.type=Number.isInteger(b.type)?Math.max(0,Math.min(4,b.type)):Math.max(0,biome(b.x,b.z));
     b.workers=limited(Math.floor(num(b.workers)),employeeLimit);
+    b.carryLevel=Math.min(5,Math.floor(num(b.carryLevel)));
     b.stockRaw=limited(num(b.stockRaw??(b.kind==='worker'?b.stock:0)));
     b.inputRaw=limited(num(b.inputRaw));
     b.stockProcessed=limited(num(b.stockProcessed));
@@ -91,7 +93,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     const role=b.kind==='worker'?'worker':b.kind==='factory'?'factory':b.kind==='transport'?'transport':'seller';
     agents.push({id:b.id+'-'+i,home:b,role,x:b.x+(i%3-1)*.32,z:b.z+2.35+(i%2)*.22,
       state:'idle',target:null,targetBuilding:null,receiver:null,goal:null,carry:0,carryType:b.type,
-      processed:false,timer:0,wait:0,walkPhase:i,angle:0,view:null,selectionCooldown:0});
+      processed:false,timer:0,wait:0,walkPhase:i,angle:0,view:null,selectionCooldown:0,route:null,waypoint:0,goalKey:'',routeCooldown:0});
   }
   function reconcile(){
     for(const b of buildings)ensure(b);
@@ -114,37 +116,49 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     const dx=fx-target.x,dz=fz-target.z,len=Math.max(.001,Math.hypot(dx,dz));
     return {x:target.x+dx/len*approach,z:target.z+dz/len*approach};
   }
+
   function blockers(x,z,agent,goal){
-    for(const b of buildings) {
-      if(Math.abs(x-b.x)<2.1&&Math.abs(z-b.z)<2.05){
-        // Doors face local +Z; agents do not walk through walls.
-        if(Math.abs(goal?.x-b.x)<2.7&&Math.abs(goal?.z-b.z)<2.8&&z>b.z+1.7)continue;
-        return true;
-      }
+    const radius=.33;
+    for(const b of buildings){
+      const dx=Math.abs(x-b.x),dz=Math.abs(z-b.z);
+      if(dx<2.04+radius&&dz<1.95+radius)return true;
     }
     for(const r of resources){
       if(r.dead||r===agent.target)continue;
-      const d=[.76,1.05,1,.8,.6][r.type]+.33;
-      if((x-r.x)**2+(z-r.z)**2<d*d)return true;
+      const rad=[.7,1.05,1,.78,.5][r.type]+radius;
+      if((x-r.x)**2+(z-r.z)**2<rad*rad)return true;
     }
     return false;
   }
   function walk(a,goal,dt,speed=2.65){
     if(!goal)return false;
-    const dx=goal.x-a.x,dz=goal.z-a.z,dist=Math.hypot(dx,dz);
-    if(dist<.32)return true;
-    const vx=dx/dist,vz=dz/dist,step=Math.min(dist,dt*speed);
-    const turns=[0,.52,-.52,1.1,-1.1,1.58,-1.58,3.14];
-    let next=null;
-    for(const angle of turns){
-      const rx=vx*Math.cos(angle)-vz*Math.sin(angle),rz=vx*Math.sin(angle)+vz*Math.cos(angle);
-      const nx=a.x+rx*step,nz=a.z+rz*step;
-      if(!blockers(nx,nz,a,goal)){next={x:nx,z:nz,rx,rz};break}
+    a.routeCooldown=Math.max(0,(a.routeCooldown||0)-dt);
+    const distanceToGoal=distance(a,goal);
+    if(distanceToGoal<.37){a.route=null;a.wait=0;return true}
+    const key=goal.x.toFixed(1)+':'+goal.z.toFixed(1);
+    if(!a.route||a.goalKey!==key||a.waypoint>=a.route.length){
+      if(a.routeCooldown>0)return false;
+      const router=createRouter((x,z)=>blockers(x,z,a,goal),{cell:1.2,maxVisits:1600});
+      a.route=router.route(a,goal);
+      a.waypoint=0;a.goalKey=key;a.routeCooldown=1.1;
+      if(!a.route){a.wait+=dt;return false}
     }
-    if(!next){a.wait+=dt;return false}
-    a.wait=0;a.x=next.x;a.z=next.z;
-    a.angle=Math.atan2(next.rx,next.rz);a.walkPhase+=dt*11;
-    return dist<.32+step;
+    let waypoint=a.route[a.waypoint];
+    if(!waypoint){a.route=null;return false}
+    if(distance(a,waypoint)<.30&&a.waypoint<a.route.length-1){
+      a.waypoint++;waypoint=a.route[a.waypoint];
+    }
+    const dx=waypoint.x-a.x,dz=waypoint.z-a.z,len=Math.hypot(dx,dz);
+    if(len<.001){a.waypoint++;return false}
+    const step=Math.min(len,dt*speed);
+    const nx=a.x+dx/len*step,nz=a.z+dz/len*step;
+    if(blockers(nx,nz,a,goal)){
+      a.route=null;a.routeCooldown=.4;a.wait+=dt;
+      return false;
+    }
+    a.wait=0;a.x=nx;a.z=nz;
+    a.angle=Math.atan2(dx,dz);a.walkPhase+=dt*11;
+    return distance(a,goal)<.38;
   }
   function reserveResource(a){
     const b=a.home;
@@ -171,7 +185,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     a.carry=0;
   }
   function idle(a,delay=.5){
-    release(a);a.state='idle';a.goal=null;a.targetBuilding=null;a.receiver=null;
+    release(a);a.state='idle';a.goal=null;a.targetBuilding=null;a.receiver=null;a.route=null;a.waypoint=0;
     a.timer=0;a.selectionCooldown=delay;
   }
   function beginHarvester(a){
@@ -215,13 +229,13 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     a.timer+=dt;
     if(a.timer<2.2)return;
     a.timer=0;
-    const amount=Math.min(2,totalCapacity-a.home.stockRaw);
+    const amount=Math.min(2+2*a.home.carryLevel,totalCapacity-a.home.stockRaw);
     if(amount<=0){idle(a,.8);return}
     a.carry=amount;a.carryType=a.home.type;
     target.hp=Math.max(0,target.hp-amount);
     if(target.hp<=0){
       target.dead=true;target.mesh.visible=false;
-      target.recoverAt=time+45;release(a);
+      target.recoverAt=time+210;release(a);
     }else release(a);
     a.goal=homePort(a.home);a.state='toHome';
   }
@@ -231,7 +245,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       if(a.home.stockRaw>=totalCapacity){a.timer=0;return}
       a.timer+=dt;
       if(a.timer>=4.8){
-        const n=Math.min(Math.floor(a.timer/4.8),totalCapacity-a.home.stockRaw);
+        const n=Math.min(Math.floor(a.timer/4.8)*(1+a.home.carryLevel),totalCapacity-a.home.stockRaw);
         a.home.stockRaw+=n;a.timer%=4.8;
       }
       return;
@@ -272,13 +286,13 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       if(!walk(a,a.goal,dt))return;
       const b=a.targetBuilding;
       if(a.role==='transport'){
-        const n=Math.min(6,b.stockRaw,totalCapacity-a.receiver.inputRaw);
+        const n=Math.min(6+3*a.home.carryLevel,b.stockRaw,totalCapacity-a.receiver.inputRaw);
         if(n<=0){idle(a,.7);return}
         b.stockRaw-=n;a.carry=n;a.carryType=b.type;a.goal=homePort(a.receiver);
         a.state='toFactory';return;
       }
       const available=a.processed?b.stockProcessed:b.stockRaw;
-      const n=Math.min(6,available);
+      const n=Math.min(6+3*a.home.carryLevel,available);
       if(n<=0){idle(a,.8);return}
       if(a.processed)b.stockProcessed-=n;else b.stockRaw-=n;
       a.carry=n;a.carryType=b.type;a.goal={x:sale.x,z:sale.z+sale.d*.32};
