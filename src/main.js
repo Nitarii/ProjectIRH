@@ -983,14 +983,23 @@ function renderPanel(){
 const box=$('panel');box.classList.toggle('hidden',!panel);if(!panel)return;
 const focus=panel==='employees'&&employeeFilterId
   ?st.buildings.find(b=>b.id===employeeFilterId):null;
-$('panelTitle').textContent=focus?facilityName(focus):
+const storageBuilding=panel==='storage'
+ ?st.buildings.find(b=>b.id===activeStorage?.buildingId):null;
+$('panelTitle').textContent=storageBuilding?facilityName(storageBuilding):focus?facilityName(focus):
   panel==='settings'?UI[settings.language].settings:tr(panels[panel],settings.language);
-$('panelTag').textContent='INDUSTRIAL MADNESS';
-$('tabs').innerHTML=(panel==='settings'?['settings']:['market','build','employees','talents']).map(k=>'<button data-tab="'+k+'" '+(panel===k?'class="active"':'')+'>'+tr(panels[k],settings.language)+'</button>').join(' ');
-$('resume').textContent=UI[settings.language].back;
+const tagNames=settings.language==='fr'
+ ?{market:'ÉQUIPEMENT',build:'BÂTIMENTS',employees:'PERSONNEL',storage:'STOCK',talents:'AMÉLIORATIONS',settings:'OPTIONS'}
+ :{market:'EQUIPMENT',build:'BUILDINGS',employees:'STAFF',storage:'STOCK',talents:'UPGRADES',settings:'OPTIONS'};
+$('panelTag').textContent=tagNames[panel]||'N.I.M';
+const noTabs=panel==='settings'||panel==='storage';
+$('tabs').classList.toggle('hidden',noTabs);
+$('tabs').innerHTML=noTabs?'':['market','build','employees','talents'].map(k=>
+  '<button data-tab="'+k+'" '+(panel===k?'class="active"':'')+'>'+tr(panels[k],settings.language)+'</button>').join(' ');
+$('resume').textContent=panel==='storage'
+ ?(settings.language==='fr'?'Fermer':'Close'):UI[settings.language].back;
 if(panel==='settings'){
   $('shopbody').innerHTML=optionsMarkup(settings,awaitingBinding,vault.id);
-  $('panelhint').textContent=UI[settings.language].lowHint;
+  $('panelhint').textContent='';
   return;
 }
 let out='';
@@ -1020,16 +1029,16 @@ if(panel==='employees'){
   const chosen=employeeFilterId?st.buildings.filter(b=>b.id===employeeFilterId):st.buildings;
   if(!chosen.length)out+=section('Personnel','RECRUTEMENT',
     '<p class="catalog-empty">'+(settings.language==='fr'?'Construisez un bâtiment pour recruter du personnel.':'Build a facility to hire workers.')+'</p>');
-  else out+=section(settings.language==='fr'?'Employés et équipements':'Employees and equipment',
-    settings.language==='fr'?'RECRUTEMENT ET AMÉLIORATIONS':'HIRING AND UPGRADES',chosen.map(b=>{
+  else out+=section(settings.language==='fr'?'Recrutement et transport':'Recruitment and transport',
+    settings.language==='fr'?'PERSONNEL':'STAFF',chosen.map(b=>{
     const i=st.buildings.indexOf(b);
-    const title=facilityName(b)+' #'+(i+1);
+    const title=focus?(settings.language==='fr'?'Recruter : ':'Hire: ')+recruitName(b):facilityName(b)+' #'+(i+1);
     const fr=settings.language==='fr';
     const stock=b.kind==='worker'?(fr?'Brut : ':'Raw: ')+b.stockRaw
       :b.kind==='factory'?(fr?'Entrée : ':'Input: ')+b.inputRaw+' · '+(fr?'Transformé : ':'Processed: ')+b.stockProcessed
       :(fr?'Logistique automatisée':'Automated logistics');
     return add(title,
-      (fr?'Recruter un ':'Hire a ')+recruitName(b)+' · '+b.workers+'/'+industry.limit+' '+(fr?'employés':'staff')+' · '+stock,
+      (focus?'':(fr?'Recruter un ':'Hire a ')+recruitName(b)+' · ')+b.workers+'/'+industry.limit+' '+(fr?'employés':'staff')+' · '+stock,
       b.workers>=industry.limit?'MAX':ECONOMY.hire+' OR','hire:'+i,
       b.workers>=industry.limit,b.type)
       +add(UI[settings.language].capacity,
@@ -1039,23 +1048,23 @@ if(panel==='employees'){
   }).join(''));
 }
 if(panel==='storage'){
-  const building=st.buildings.find(b=>b.id===activeStorage?.buildingId);
+  const building=storageBuilding;
   if(!building){panel=null;return renderPanel()}
   const field=building.kind==='worker'?'stockRaw':activeStorage.kind==='processed'?'stockProcessed':'inputRaw';
   const item=activeStorage.kind==='processed'?processed[building.type]:raw[building.type];
   const carrying=activeStorage.kind==='processed'?st.products[building.type]:st.inv[building.type];
-  out+=section(settings.language==='fr'?'Stockage du bâtiment':'Facility stockpile',
-    tr(item,settings.language),'<div class="storage-overview">'+
-    '<strong>'+tr(item,settings.language)+'</strong>'+
-    '<span>'+(settings.language==='fr'?'Stock':'Stock')+' : '+(building[field]||0)+' / '+industry.capacity+'</span>'+
-    '<span>'+(settings.language==='fr'?'Transporté':'Carried')+' : '+carrying+'</span><span>'+(settings.language==='fr'?'A/Q : déposer · E : récupérer · F : fermer':'A: deposit · E: withdraw · F: close')+'</span></div>'+
-    add(settings.language==='fr'?'Déposer':'Deposit',
-      settings.language==='fr'?'Depuis votre inventaire':'From your inventory',
-      settings.language==='fr'?'DÉPOSER':'DEPOSIT','stockDeposit',carrying<=0,building.type)+
-    add(settings.language==='fr'?'Récupérer':'Withdraw',
-      settings.language==='fr'?'Vers votre inventaire':'To your inventory',
-      settings.language==='fr'?'RÉCUPÉRER':'WITHDRAW','stockWithdraw',
-      (building[field]||0)<=0||count()>=st.bag,building.type));
+  const fr=settings.language==='fr',name=tr(item,settings.language);
+  const held=Math.max(0,Number(carrying)||0),stored=Math.max(0,Number(building[field])||0);
+  const card=(action,shortcut,label,disabled)=>'<button class="stock-action" type="button" data-action="'+action+'"'+(disabled?' disabled':'')+
+    '><kbd>'+keyLabel(shortcut)+'</kbd><span>'+label+'</span></button>';
+  out+=section(name,fr?'GESTION DU STOCK':'STOCK MANAGEMENT',
+    '<div class="storage-management"><div class="storage-overview">'+
+      '<span>'+(fr?'Entrepôt':'Storage')+' <strong>'+stored+' / '+industry.capacity+'</strong></span>'+
+      '<span>'+(fr?'Sac':'Bag')+' <strong>'+held+'</strong></span></div>'+
+      '<div class="storage-actions">'+
+        card('stockDeposit','KeyA',fr?'Déposer':'Deposit',held<=0||stored>=industry.capacity)+
+        card('stockWithdraw','KeyE',fr?'Retirer':'Withdraw',stored<=0||count()>=st.bag)+
+      '</div></div>');
 }
 
 if(panel==='talents'){
@@ -1076,7 +1085,9 @@ out+=section('Expertise des métiers','SPÉCIALISATIONS',types.map((name,i)=>{
 }).join(''));
 }
 $('shopbody').innerHTML=out;translateTree($('shopbody'),settings.language);
-$('panelhint').textContent=tr(st.gold.toLocaleString(settings.language==='fr'?'fr-FR':'en-US')+' pièces d’or',settings.language);
+$('panelhint').textContent=panel==='storage'
+ ?keyLabel('KeyF')+' · '+(settings.language==='fr'?'Fermer':'Close')
+ :st.gold.toLocaleString(settings.language==='fr'?'fr-FR':'en-US')+' '+(settings.language==='fr'?'or':'gold');
 }
 function clearCarriedInventory(){
   st.inv=[0,0,0,0,0];st.products=[0,0,0,0,0];st.stock=[];
