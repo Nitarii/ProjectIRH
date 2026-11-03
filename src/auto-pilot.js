@@ -94,7 +94,7 @@ export function createAutoPilot({
       }else clearRoute();
       return false;
     }
-    const speed=5.35,speedStep=Math.min(d,dt*speed);
+    const speed=5.35*.8,speedStep=Math.min(d,dt*speed);
     const dx=(point.x-player.position.x)/d,dz=(point.z-player.position.z)/d;
     const oldX=player.position.x,oldZ=player.position.z;
     move(dx*speedStep,dz*speedStep);
