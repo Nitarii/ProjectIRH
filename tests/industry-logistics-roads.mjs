@@ -10,7 +10,7 @@ const layout=load('src/facility-layout.js',['worldPoint','rotateOffset','normali
 const nav=load('src/navigation.js',['createRouter']);
 const economy=load('src/logistics.js',['prepareWarehouse','warehouseRoom','chooseWarehouseSale',
   'pickupWarehouse','selectTransportJob','transportSpace','deliverTransport']);
-const tasks=load('src/factory-tasks.js',['workstation','storagePoint','yardPoint'],{worldPoint:layout.worldPoint});
+const tasks=load('src/factory-tasks.js',['workstation','storagePoint','yardPoint','factoryWorkPath','factoryOutputPath'],{worldPoint:layout.worldPoint});
 const roadsApi=load('src/road-network.js',['createRoadNetwork'],{
   createRouter:nav.createRouter,worldPoint:layout.worldPoint});
 let checks=0;
@@ -88,7 +88,8 @@ const makeStructure=(T,scene,b)=>{
 const industryApi=load('src/industry.js',['createIndustry'],{
   makeStructure,createRouter:nav.createRouter,
   workstation:tasks.workstation,storagePoint:tasks.storagePoint,
-  yardPoint:tasks.yardPoint,worldPoint:layout.worldPoint,
+  yardPoint:tasks.yardPoint,factoryWorkPath:tasks.factoryWorkPath,
+  factoryOutputPath:tasks.factoryOutputPath,worldPoint:layout.worldPoint,
   rotateOffset:layout.rotateOffset,normalizeRotation:layout.normalizeRotation,
   pointInOrientedRect:layout.pointInOrientedRect,...economy
 });
