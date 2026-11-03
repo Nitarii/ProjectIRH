@@ -1,5 +1,5 @@
 import {makeStructure} from './structures.js?v=20261103r2';
-import {createRouter} from './navigation.js?v=20261103w';
+import {createRouter} from './navigation.js?v=20261103aa';
 import {workstation,storagePoint} from './factory-tasks.js?v=20261103v';
 
 export function createIndustry(T, scene, st, resources, biome, sale, values, hooks={}) {
@@ -256,40 +256,103 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     }
     return false;
   }
+  function abandonBlockedTask(a){
+    stuckRecoveries++;
+    // An unreachable source must not be assigned back to the same worker next frame.
+    if(a.target&&!a.target.dead)a.target.unreachableUntil=time+26+a.slot*3;
+    if(a.carry)refundCargo(a);
+    idle(a,2+a.slot*.32);
+  }
   function walk(a,goal,dt,speed=2.65){
     if(!goal)return false;
-    const remaining=distance(a,goal);
-    if(remaining<.37){a.route=null;a.wait=0;return true}
+    const key=goal.x.toFixed(2)+':'+goal.z.toFixed(2);
+    if(a.goalKey!==key){
+      a.route=null;a.goalKey=key;a.routeCooldown=0;a.routeGoal=null;
+      a.blockedAge=0;a.noPathAge=0;a.stagnationAge=0;
+      a.navWatch=0;a.navStartX=a.x;a.navStartZ=a.z;
+    }
+    const endpoint=a.routeGoal||goal;
+    const remaining=distance(a,endpoint);
+    if(remaining<.39){a.route=null;a.wait=0;a.blockedAge=0;return true}
     if(a.abstract){
       const step=Math.min(remaining,dt*speed);
-      a.x+=(goal.x-a.x)/remaining*step;
-      a.z+=(goal.z-a.z)/remaining*step;
-      return remaining<=step+.35;
+      a.x+=(endpoint.x-a.x)/remaining*step;
+      a.z+=(endpoint.z-a.z)/remaining*step;
+      return remaining<=step+.38;
     }
     a.routeCooldown=Math.max(0,(a.routeCooldown||0)-dt);
-    const key=goal.x.toFixed(2)+':'+goal.z.toFixed(2);
-    if(!a.route||a.goalKey!==key||a.waypoint>=a.route.length){
-      if(a.routeCooldown>0){a.wait+=dt;return false}
-      const router=createRouter((x,z)=>staticBlocked(x,z,.35,a.target),{cell:1.2,maxVisits:1550});
-      a.route=router.route(a,goal);a.waypoint=0;a.goalKey=key;
-      a.routeCooldown=.75;navReplans++;
-      if(!a.route){a.wait+=dt;return false}
+    // Side-steps are not progress: detect repeated shuffling inside a tight gap.
+    a.navWatch+=dt;
+    if(a.navWatch>=1.40){
+      const displacement=Math.hypot(a.x-a.navStartX,a.z-a.navStartZ);
+      if(displacement<.29&&distance(a,goal)>.70)
+        a.stagnationAge+=a.navWatch;
+      else a.stagnationAge=Math.max(0,a.stagnationAge-a.navWatch*1.5);
+      a.navWatch=0;a.navStartX=a.x;a.navStartZ=a.z;
+    }
+    if(a.blockedAge>6.5||a.noPathAge>7||a.stagnationAge>6.5){
+      abandonBlockedTask(a);return false;
+    }
+    if(!a.route||a.waypoint>=a.route.length){
+      if(a.routeCooldown>0)return false;
+      if(navigationBudget<=0){a.routeCooldown=.045;return false}
+      navigationBudget--;
+      // Dynamic actors only enter the search once a physical encounter occurred.
+      const avoidPeople=a.blockedAge>.30;
+      const nearbyPeople=avoidPeople?agents.filter(other=>other!==a&&!other.abstract&&
+        (distance(other,a)<9||distance(other,goal)<9)).map(other=>({x:other.x,z:other.z})):[];
+      const blockedForPlan=(x,z)=>{
+        if(staticBlocked(x,z,.39))return true;
+        for(const other of nearbyPeople)
+          if((x-other.x)**2+(z-other.z)**2<.77*.77)return true;
+        return false;
+      };
+      const router=createRouter(blockedForPlan,{cell:1.15,maxVisits:1420});
+      const path=router.route(a,goal,{allowNearby:true,arrivalRadius:.80});
+      navReplans++;a.routeEpoch++;
+      if(!path){
+        routeFailures++;
+        a.noPathAge+=Math.max(.35,dt);
+        a.routeCooldown=.35+Math.min(.8,a.noPathAge*.09);
+        // Rotate the approach around an unreachable node, not back into the gap.
+        if(a.target&&a.state==='toResource'&&a.noPathAge>1.4){
+          a.approachAttempts++;
+          const alternative=a.approachAttempts<9?approachNode(a,a.target,a.approachAttempts):null;
+          if(alternative){
+            a.goal=alternative;a.route=null;a.goalKey='';
+            a.routeCooldown=.19;a.noPathAge=0;
+          }else abandonBlockedTask(a);
+        }else if(!a.target&&a.noPathAge>2.2){
+          const alternate=clearStockAccess(a,goal);
+          if(alternate&&Math.hypot(alternate.x-goal.x,alternate.z-goal.z)>.12){
+            a.goal=alternate;a.goalKey='';a.noPathAge=0;a.routeCooldown=.20;
+          }
+        }
+        return false;
+      }
+      a.route=path;a.routeGoal=path[path.length-1];
+      a.waypoint=0;a.routeCooldown=.30;
+      a.noPathAge=0;
     }
     let wp=a.route[a.waypoint];
     if(Math.hypot(a.x-wp.x,a.z-wp.z)<.33&&a.waypoint<a.route.length-1)
       wp=a.route[++a.waypoint];
     const dx=wp.x-a.x,dz=wp.z-a.z,len=Math.hypot(dx,dz);
     if(len<.001){a.waypoint++;return false}
-    const step=Math.min(len,dt*speed);
-    const nx=a.x+dx/len*step,nz=a.z+dz/len*step;
-    if(staticBlocked(nx,nz,.35,a.target)||humanBlocked(nx,nz,a)){
+    const step=Math.min(len,dt*speed),nx=a.x+dx/len*step,nz=a.z+dz/len*step;
+    const wall=staticBlocked(nx,nz,.36),person=!wall&&humanBlocked(nx,nz,a);
+    if(wall||person){
+      a.blockedAge+=dt;
+      if(a.blockedAge>.75){
+        a.route=null;a.routeCooldown=Math.max(.15,Math.min(.65,a.blockedAge*.10));
+      }
       if(!moveAside(a,goal,dt,speed))a.wait+=dt;
-      if(a.wait>.95){a.route=null;a.routeCooldown=.15}
       return false;
     }
+    a.blockedAge=Math.max(0,a.blockedAge-dt*2.8);
     a.wait=0;a.x=nx;a.z=nz;a.angle=Math.atan2(dx,dz);a.walkPhase+=dt*10;
     hooks.onMove?.(a.id,a.x,a.z);
-    return distance(a,goal)<.37;
+    return distance(a,a.routeGoal||goal)<.38;
   }
   function reserveResource(a){
     const b=a.home;
@@ -320,8 +383,9 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     a.carry=0;
   }
   function idle(a,delay=.5){
-    release(a);a.state='idle';a.goal=null;a.targetBuilding=null;a.receiver=null;a.route=null;a.waypoint=0;
-    a.timer=0;a.selectionCooldown=delay;a.wait=0;
+    release(a);a.state='idle';a.goal=null;a.targetBuilding=null;a.receiver=null;a.route=null;a.waypoint=0;a.routeGoal=null;
+    a.timer=0;a.selectionCooldown=delay;a.wait=0;a.goalKey='';
+    a.blockedAge=0;a.noPathAge=0;a.stagnationAge=0;a.navWatch=0;
   }
   function beginHarvester(a){
     if(a.home.stockRaw>=totalCapacity)return;
@@ -407,9 +471,8 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       }
       a.selectionCooldown=.7;return;
     }
-    if(a.wait>7){
-      if(a.carry)refundCargo(a);
-      idle(a,1.25);a.wait=0;a.route=null;return
+    if(a.wait>10||a.blockedAge>7||a.stagnationAge>8){
+      abandonBlockedTask(a);return;
     }
     if(a.state==='factoryStandby'){
       // Five assigned workstations prevent workers from queuing on a single spot.
