@@ -49,7 +49,13 @@ for(let type=0;type<5;type++){
     const shaft=cy(tier>=3?.065:.045,.62+tier*.08,tier>=3?m.shirt:m.wood,0,-.33,0);
     g.add(shaft);
     if(type===0){
-      if(tier<3)g.add(cube(.36+tier*.15,.20+tier*.025,.12,metal,.12,-.65,0));
+      if(tier<3){
+        g.add(cube(.27+tier*.09,.24+tier*.035,.13,metal,.06,-.59,0));
+        const edge=new T.Mesh(new T.ConeGeometry(.17+tier*.028,.37+tier*.055,3),metal);
+        edge.position.set(.30+tier*.08,-.60,0);
+        edge.rotation.z=-Math.PI/2;edge.rotation.x=Math.PI/2;
+        edge.castShadow=true;g.add(edge);
+      }
       else {g.add(cube(.82,.25,.22,m.shirt,0,-.7,0),cube(.68,.11,.06,metal,.33,-.85,0))}
     }else if(type===1){
       if(tier<3)g.add(cube(.65+tier*.12,.19,.16,metal,0,-.65,0));
@@ -364,12 +370,13 @@ const TOOL_STROKES=[
   [[.52,.7,.15],[.72,.95,.18],[.78,1.08,.20],[.25,.44,.10],[.12,.21,.06]],
   [[.64,.80,.18],[.86,.95,.2],[.99,1.12,.22],[.30,.51,.12],[.16,.25,.08]]
 ];
-function animatePlayer(dt,moving){
-stepPhase+=dt*(moving?12:2.1);
-const stride=moving?Math.sin(stepPhase)*.63:0;
+function animatePlayer(dt,moving,sprinting=false){
+stepPhase+=dt*(moving?(sprinting?16.8:11.4):2.1);
+const stride=moving?Math.sin(stepPhase)*(sprinting?.91:.59):0;
 leftLeg.rotation.x=T.MathUtils.damp(leftLeg.rotation.x,stride,13,dt);
 rightLeg.rotation.x=T.MathUtils.damp(rightLeg.rotation.x,-stride,13,dt);
-avatar.position.y=T.MathUtils.damp(avatar.position.y,moving?Math.abs(Math.sin(stepPhase))*.08:0,12,dt);
+avatar.position.y=T.MathUtils.damp(avatar.position.y,
+  moving?Math.abs(Math.sin(stepPhase))*(sprinting?.115:.07):0,12,dt);
 for(const variants of toolModels)for(const model of variants)model.visible=false;
 if(harvesting){
 const type=harvesting.type,tier=st.tools[type],interval=harvestInterval(type);
@@ -390,11 +397,16 @@ if(tier<0){
 }else{
   toolModels[type][tier].visible=true;
   if(type===0){
-    // Axe / saw: tool sweeps forward and down toward the trunk.
-    pose(rightArm,heavy?-1.2-stroke:-.90-reach*swing,.05*stroke,-.16);
-    pose(leftArm,heavy?-1.15:-.70-.5*lift,0,.12);
-    toolHolder.rotation.set(heavy?-.62+stroke:-.9+(.40+effort*.25)*lift,0,stroke*.7);
-    avatar.rotation.x=.045*impact;avatar.rotation.z=-.09*lift;
+    // The tree stands along the avatar's +Z axis. The axe bit is modelled
+    // toward local +X, so rotate the blade -90° around Y to face the trunk.
+    // The swing is sideways at chest height, not a vertical pickaxe chop.
+    const sideSwing=Math.sin(phase*Math.PI*2);
+    const arc=Math.sin(phase*Math.PI);
+    pose(rightArm,heavy?-1.13:-1.28,-.64+sideSwing*(heavy?.29:.78),-.27+arc*.15);
+    pose(leftArm,heavy?-1.09:-1.11,-.30+sideSwing*.27,.21-arc*.14);
+    toolHolder.rotation.set(-.22+arc*.10,-Math.PI/2+sideSwing*.12,.12);
+    avatar.rotation.y=sideSwing*(heavy?.055:.14);
+    avatar.rotation.x=.018*impact;avatar.rotation.z=-.036*sideSwing;
   }else if(type===1){
     pose(rightArm,heavy?-1.25+stroke:-1.00-reach*swing,0,-.2-stroke*.3);
     pose(leftArm,-.7-.6*lift,0,-.26);
@@ -419,12 +431,28 @@ if(tier<0){
 }
 }else{
 const smooth=v=>T.MathUtils.damp(v,0,12,dt);
-avatar.rotation.set(smooth(avatar.rotation.x),smooth(avatar.rotation.y),smooth(avatar.rotation.z));
-rightArm.rotation.set(T.MathUtils.damp(rightArm.rotation.x,moving?stride*.6:0,13,dt),smooth(rightArm.rotation.y),smooth(rightArm.rotation.z));
-leftArm.rotation.set(T.MathUtils.damp(leftArm.rotation.x,moving?-stride*.6:0,13,dt),smooth(leftArm.rotation.y),smooth(leftArm.rotation.z));
+const jumping=player.position.y>.07;
+if(jumping){
+  const fall=jumpVelocity<0,amplitude=Math.min(1,player.position.y/1.35);
+  avatar.rotation.x=T.MathUtils.damp(avatar.rotation.x,fall?.11:-.13,10,dt);
+  avatar.rotation.y=smooth(avatar.rotation.y);
+  avatar.rotation.z=T.MathUtils.damp(avatar.rotation.z,Math.sin(stepPhase)*.035,8,dt);
+  leftLeg.rotation.x=T.MathUtils.damp(leftLeg.rotation.x,fall?.30:-.51,13,dt);
+  rightLeg.rotation.x=T.MathUtils.damp(rightLeg.rotation.x,fall?-.13:-.28,13,dt);
+  leftArm.rotation.x=T.MathUtils.damp(leftArm.rotation.x,-.48-amplitude*.38,12,dt);
+  rightArm.rotation.x=T.MathUtils.damp(rightArm.rotation.x,-.36-amplitude*.47,12,dt);
+}else{
+  avatar.rotation.x=T.MathUtils.damp(avatar.rotation.x,sprinting?-.11:0,13,dt);
+  avatar.rotation.y=smooth(avatar.rotation.y);
+  avatar.rotation.z=T.MathUtils.damp(avatar.rotation.z,sprinting?.035*Math.sin(stepPhase):0,12,dt);
+  rightArm.rotation.x=T.MathUtils.damp(rightArm.rotation.x,moving?stride*(sprinting?.85:.64):0,13,dt);
+  leftArm.rotation.x=T.MathUtils.damp(leftArm.rotation.x,moving?-stride*(sprinting?.85:.64):0,13,dt);
+}
+rightArm.rotation.y=smooth(rightArm.rotation.y);rightArm.rotation.z=smooth(rightArm.rotation.z);
+leftArm.rotation.y=smooth(leftArm.rotation.y);leftArm.rotation.z=smooth(leftArm.rotation.z);
 toolHolder.rotation.set(smooth(toolHolder.rotation.x),smooth(toolHolder.rotation.y),smooth(toolHolder.rotation.z));
 }
-cargo.rotation.z=moving?Math.sin(stepPhase)*.04:0;
+cargo.rotation.z=moving?Math.sin(stepPhase)*(sprinting?.065:.04):0;
 }
 function updateInventory(){
 const grid=$('inventoryGrid');if(!grid)return;
@@ -1111,7 +1139,7 @@ const interval=harvestInterval(harvesting.type);
 if(harvestProgress>=interval){harvestProgress-=interval;strikeHarvest()}
 }
 }
-animatePlayer(dt,moving||autoWalking);
+animatePlayer(dt,moving||autoWalking,sprinting);
 baseCamp.update(elapsed);
 if(audioActive){
 try{sound.update(biome(player.position.x,player.position.z),dt)}
