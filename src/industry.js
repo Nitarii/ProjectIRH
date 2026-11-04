@@ -490,11 +490,9 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
   }
   function beginHarvester(a){
     if(a.home.stockRaw>=totalCapacity){
-      // Full stock never deadlocks collection: a harvester carries its own goods
-      // to the market as an emergency fallback, including when no hauler exists.
-      a.targetBuilding=a.home;a.receiver=null;a.carryType=a.home.type;
-      a.processed=false;a.goal=stockAccess(a.home,false,a.slot);
-      a.state='toPickup';return;
+      // Logging staff never sell: wait at the hut for a transporter to
+      // collect the stock. Resume harvesting as soon as capacity is available.
+      return;
     }
     const target=reserveResource(a);
     if(!target){if(distance(a.home,viewer)>80){a.state='remoteGather';a.timer=0}return}
@@ -555,6 +553,15 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     a.goal=stockAccess(a.home,false,a.slot);a.state='toHome';
   }
   function updateAgent(a,dt){
+    // Guard against any leftover direct-sale state from an older game session
+    // or another code path: only designated sellers may travel to the market.
+    if(a.role==='worker'&&
+      ['toPickup','pickupStock','toMarket','selling'].includes(a.state)){
+      if(a.carry>0){
+        a.goal=stockAccess(a.home,false,a.slot);a.state='toHome';
+      }else idle(a,.6);
+      return;
+    }
     if(a.state==='remoteGather'){
       if(distance(a.home,viewer)<70){idle(a,.5);return}
       if(a.home.stockRaw>=totalCapacity){idle(a,.5);return}
@@ -666,7 +673,14 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
     }
     if(a.state==='dropHarvest'){
       a.timer+=dt;if(a.timer<.55)return;
-      a.home.stockRaw=limited(a.home.stockRaw+a.carry);a.carry=0;idle(a,.4);
+      // Concurrent loggers can fill the hut before a colleague returns.
+      // Retain any remaining cargo rather than destroying or selling it.
+      const room=Math.max(0,totalCapacity-a.home.stockRaw);
+      const unloaded=Math.min(room,a.carry);
+      a.home.stockRaw+=unloaded;
+      a.carry-=unloaded;
+      if(a.carry>0){a.timer=0;return}
+      idle(a,.4);
       return;
     }
     if(a.state==='toPickup'){
@@ -695,13 +709,11 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
         a.goal=stockAccess(a.receiver,a.processed,a.slot);
         a.state='toDelivery';return;
       }
-      // Sellers only withdraw from the inventory delivered to their OWN house.
-      // A full harvesting hut can independently dispatch workers to sell raw goods.
-      const n=a.role==='seller'
-        ?pickupWarehouse(a.home,a.carryType,a.processed,capacity)
-        :Math.min(capacity,Math.max(0,source.stockRaw||0));
+      // Only sellers withdraw from their own shop warehouse and visit the
+      // market. Harvesters leave harvested wood in their logging hut.
+      if(a.role!=='seller'){idle(a,.8);return}
+      const n=pickupWarehouse(a.home,a.carryType,a.processed,capacity);
       if(n<=0){idle(a,.8);return}
-      if(a.role==='worker')source.stockRaw-=n;
       a.carry=n;a.goal={x:sale.x,z:sale.z+sale.d*.32};
       a.state='toMarket';return;
     }
@@ -719,10 +731,12 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       a.state='returnHome';a.goal=homePort(a.home,a.slot);return;
     }
     if(a.state==='toMarket'){
+      if(a.role!=='seller'){idle(a,.6);return}
       if(!walk(a,a.goal,dt,2.9))return;
       a.state='selling';a.timer=.35;return;
     }
     if(a.state==='selling'){
+      if(a.role!=='seller'){idle(a,.6);return}
       a.timer-=dt;if(a.timer>0)return;
       const amount=Math.round(a.carry*values[a.carryType]*(a.processed?3:1)*(hooks.priceMultiplier?.(a.carryType)||1));
       if(amount>0){st.gold+=amount;lastStats.sold+=amount;
