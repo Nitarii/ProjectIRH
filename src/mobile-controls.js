@@ -1,6 +1,6 @@
 // Pointer-first virtual controls. Events are routed through the same action
 // bindings as hardware keyboards so remapping, AZERTY and game logic stay in sync.
-export function createMobileControls({root,canvas,onAction,onLook,onZoom,isActive}){
+export function createMobileControls({root,canvas,onAction,onLook,onZoom,isActive,isLookActive=isActive}){
   const touchCapable=matchMedia('(pointer: coarse)').matches||
     (navigator.maxTouchPoints>0&&innerWidth<1100);
   if(!touchCapable)return {enabled:false,dispose(){}};
@@ -64,7 +64,7 @@ export function createMobileControls({root,canvas,onAction,onLook,onZoom,isActiv
   const lookPointers=new Map();
   let pinchDistance=null;
   canvas.addEventListener('pointerdown',e=>{
-    if(e.pointerType==='mouse'||!isActive())return;
+    if(e.pointerType==='mouse'||!isLookActive())return;
     e.preventDefault();
     lookPointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
     canvas.setPointerCapture(e.pointerId);
@@ -72,7 +72,7 @@ export function createMobileControls({root,canvas,onAction,onLook,onZoom,isActiv
   });
   canvas.addEventListener('pointermove',e=>{
     const previous=lookPointers.get(e.pointerId);
-    if(!previous||!isActive())return;
+    if(!previous||!isLookActive())return;
     e.preventDefault();
     const dx=e.clientX-previous.x,dy=e.clientY-previous.y;
     previous.x=e.clientX;previous.y=e.clientY;
