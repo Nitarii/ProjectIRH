@@ -558,8 +558,7 @@ function movePlayer(dx,dz){const x=player.position.x,z=player.position.z;
 // Separate-axis checks permit natural sliding without passing through solid objects.
 if(!blocked(x+dx,z))player.position.x=x+dx;
 if(!blocked(player.position.x,z+dz))player.position.z=z+dz;
-if(Math.hypot(player.position.x-x,player.position.z-z)>.025)
-  roads.recordUse('player',player.position.x,player.position.z,st.gameMinutes);
+
 }
 const stopHarvest=()=>{harvesting=null;harvestProgress=0};
 const harvestInterval=type=>([1.00,1.10,1.08,.94,.86][type])*TOOL_SPEED[Math.max(0,Math.min(5,st.tools[type]+1))]/expertiseHarvestSpeed(st,type)/(autoMode?autoSpeedMultiplier(st.autoLevel):1);
@@ -1100,15 +1099,13 @@ onResourceDepleted(node){
 },
 blocked:sceneryBlocked,
 roads,
-onMove(id,x,z,role){trails.recordMovement(id,x,z);
-  if(role!=='road')roads.recordUse(id,x,z,st.gameMinutes)}
+onMove(id,x,z){trails.recordMovement(id,x,z)}
 });
 roads.setProbes({
   blocked:(x,z,r)=>industry.blocked(x,z,r),
-  traffic:(x,z)=>trails.traffic(x,z),
   invalidate:(x,z)=>trails.invalidate(x,z)
 });
-function addBuilding(b){const result=industry.register(b);roads.invalidatePlan();return result}
+function addBuilding(b){return industry.register(b)}
 st.buildings.forEach(addBuilding);
 const wildlife=createWildlife(T,scene,{
   biomeAt:biome,seed:st.seed,
