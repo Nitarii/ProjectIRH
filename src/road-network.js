@@ -46,11 +46,15 @@ export function createRoadNetwork(state,{cell=3,maxTiles=5600}={}){
         if(old){delete tiles[k];tileCount--;releaseFor(k);changed++}
         continue;
       }
-      if(current===target&&(!currentGoal||currentGoal==='build'&&target===Number(old?.target))){
-        if(currentGoal){delete old.goal;delete old.target;old.p=0;releaseFor(k);changed++}
+      if(current===target){
+        // Painting an already-complete surface cancels any conflicting work
+        // order (notably a pending demolition), rather than rebuilding it.
+        if(currentGoal){
+          delete old.goal;delete old.target;old.p=0;
+          releaseFor(k);changed++;
+        }
         continue;
       }
-      if(current===target&&!currentGoal)continue;
       if(currentGoal===(mode==='build'?'build':'demolish')&&
          (mode!=='build'||Number(old?.target)===requested))continue;
       if(!old)tileCount++;
