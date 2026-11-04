@@ -1,17 +1,5 @@
-export const EQUIPMENT=[
-  ['Hatchet','Logging axe','Heavy felling axe','Bow saw','Chainsaw'],
-  ['Stone hammer','Iron pickaxe','Steel pickaxe','Pneumatic breaker','Hydraulic rock breaker'],
-  ['Mining pick','Steel mining pick','Hand drill','Power drill','Industrial drill'],
-  ['Hand shovel','Steel shovel','Excavation spade','Power auger','Industrial earth auger'],
-  ['Harvest sickle','Harvest knife','Field scythe','Motorized scythe','Powered reaper']
-];
-export const EQUIPMENT_FR=[
-  ['Hachette','Hache de bûcheron','Hache d’abattage','Scie à archet','Tronçonneuse'],
-  ['Marteau de pierre','Pioche de fer','Pioche d’acier','Brise-roche pneumatique','Brise-roche hydraulique'],
-  ['Pic de mine','Pic de mine en acier','Foret manuel','Perceuse motorisée','Foreuse industrielle'],
-  ['Pelle à main','Pelle en acier','Bêche de terrassement','Tarière motorisée','Tarière industrielle'],
-  ['Faucille','Couteau de moisson','Faux agricole','Débroussailleuse','Moissonneuse portative']
-];
+export const EQUIPMENT=[['Hatchet','Logging axe','Heavy felling axe','Bow saw','Chainsaw']];
+export const EQUIPMENT_FR=[['Hachette','Hache de bûcheron','Hache d’abattage','Scie à archet','Tronçonneuse']];
 export const TOOL_BASE_COSTS=[250,950,3200,9000,24000];
 export const AUTO_UPGRADE_COSTS=[20000,50000,100000,250000];
 export const AUTO_MULTIPLIERS=[.8,.9,1,1.1,1.2];
@@ -21,8 +9,8 @@ export const TOOL_YIELD=[1,1,1,2,3,4];
 export const ECONOMY={
   bag:2000,bag24:9500,bicycle:6200,hire:1800,
   transport:4800,seller:5500,road:6200,
-  factory:[5400,6700,8300,6600,6100],
-  worker:[6300,7200,8800,7500,6800],
+  factory:[5400],
+  worker:[6300],
   stamina:[1500,3800,8900,19000],
   talent:4800,
   workerCarry:[1600,4200,10500,23000,51000]
