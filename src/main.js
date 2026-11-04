@@ -241,7 +241,8 @@ const world=new Map(),resources=[],CH=32;
 const resourceLife=createResourceLifecycle(st);
 const roads=createRoadNetwork(st);
 const roadSurfaces=createRoadSurfaces(T,scene,roads,player,{
-  viewDistance:()=>settings.viewDistance,quality:()=>settings.quality
+  viewDistance:()=>settings.viewDistance,quality:()=>settings.quality,
+  origin:()=>inConstruction()?constructionFocus:player.position
 });
 const trails=createTrails(T,st,world,{roadLevel:(x,z)=>roads.levelAt(x,z)});
 let R=Math.max(2,Math.min(8,Math.ceil(settings.viewDistance/CH)));const hash=(x,z,s=0)=>{let n=Math.sin(x*127.1+z*311.7+s*51.6+((st.seed||7331)-7331)*.7919)*43758.5453;return n-Math.floor(n)},blend=t=>t*t*(3-2*t);function noise(x,z,k,s){let a=Math.floor(x/k),b=Math.floor(z/k),u=blend(x/k-a),v=blend(z/k-b);return T.MathUtils.lerp(T.MathUtils.lerp(hash(a,b,s),hash(a+1,b,s),u),T.MathUtils.lerp(hash(a,b+1,s),hash(a+1,b+1,s),u),v)}
@@ -367,7 +368,8 @@ batchResourceNodes(T,c);
 const generationQueue=[],queuedGeneration=new Set(),unloadQueue=[];
 let streamingCenter='';
 function stream(){
-const cx=Math.floor(player.position.x/CH),cz=Math.floor(player.position.z/CH);
+const position=inConstruction()?constructionFocus:player.position;
+const cx=Math.floor(position.x/CH),cz=Math.floor(position.z/CH);
 const center=cx+','+cz;
 if(streamingCenter===center)return;
 streamingCenter=center;
@@ -484,6 +486,7 @@ const constructionFocus=new T.Vector3(),constructionRay=new T.Raycaster();
 const constructionPlane=new T.Plane(new T.Vector3(0,1,0),0);
 const constructionHit=new T.Vector3();
 let constructionDistance=24,constructionPointer=null,constructionDrag=null,constructionOrbit=null;
+let cameraBeforeConstruction=null;
 const inConstruction=()=>!!placing||roadEditing;
 let harvesting=null,harvestProgress=0,stepPhase=0,autoMode=false;
 function* nearbyResourceNodes(){
@@ -809,6 +812,7 @@ function placementPoint(){
 function enterConstruction(label,roadsMode=false){
   stopHarvest();autoPilot.setEnabled(false);
   if(bikeRiding){bikeRiding=false;bicycle.group.visible=false}
+  cameraBeforeConstruction={heading,pitch,dist};
   constructionFocus.copy(player.position);
   constructionDistance=24;pitch=.82;
   constructionPointer=null;constructionDrag=null;constructionOrbit=null;
@@ -831,6 +835,12 @@ function leaveConstruction(){
   $('placementHud').classList.add('hidden');
   $('roadControls').classList.add('hidden');
   constructionPointer=null;
+  if(cameraBeforeConstruction){
+    heading=cameraBeforeConstruction.heading;
+    pitch=cameraBeforeConstruction.pitch;
+    dist=cameraBeforeConstruction.dist;
+    cameraBeforeConstruction=null;
+  }
   mouseFree=false;document.body.classList.remove('mouse-free');
   resumeCameraControl();
 }
@@ -1597,6 +1607,13 @@ addEventListener('keydown',e=>{
     }
   }
   if(panel)return;
+  if(inConstruction()){
+    if(e.code===settings.bindings.interact){
+      if(roadEditing){paintRoad(placementPoint());save()}
+      else harvest();
+    }
+    return;
+  }
   if(e.code===settings.bindings.map){e.preventDefault();openWorldMap();return}
   if(e.code===settings.bindings.auto){if(bikeRiding){bikeRiding=false;bicycle.group.visible=false}autoPilot.toggle();return}
   if(e.code===settings.bindings.jump&&player.position.y<.01){
