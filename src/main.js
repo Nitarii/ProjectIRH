@@ -2146,7 +2146,8 @@ const nowIndustry=performance.now();
 const workDt=paused?0:Math.min(.22,Math.max(0,(nowIndustry-lastIndustryTime)/1000));
 lastIndustryTime=nowIndustry;
 if(!paused)try{
-  const stats=industry.update(workDt,player.position.x,player.position.z,cam);
+  const workerView=inConstruction()?constructionFocus:player.position;
+   const stats=industry.update(workDt,workerView.x,workerView.z,cam);
   monitor.employees=stats.employees;monitor.visibleEmployees=stats.visible;
   monitor.delivered=stats.delivered;monitor.soldByWorkers=stats.sold;
   monitor.abstractWorkers=stats.abstract;monitor.workerAvoidance=stats.separations;
