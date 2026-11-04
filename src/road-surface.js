@@ -4,7 +4,7 @@
 // of the camera, and respects the existing road network's 3m cells.
 const stage=t=>Math.max(0,Math.min(2,Number(t?.l??t)||0));
 export function createRoadSurfaces(T,scene,roads,player,{
-  viewDistance=()=>128,quality=()=> 'balanced',cell=3
+  viewDistance=()=>128,quality=()=> 'balanced',origin=()=>player.position,cell=3
 }={}){
   const MAX=1550;
   const plane=new T.PlaneGeometry(1,1);plane.rotateX(-Math.PI/2);
@@ -68,7 +68,7 @@ export function createRoadSurfaces(T,scene,roads,player,{
     mesh.setMatrixAt(index,dummy.matrix);
   }
   function refresh(){
-    const origin=player.position,radius=Math.min(205,Math.max(48,viewDistance()*.89));
+    const center=origin(),radius=Math.min(205,Math.max(48,viewDistance()*.89));
     const r2=radius*radius,tiles=roads?.data||{},found=[];
     const detailed=quality()!=='low';
     for(const [k,item] of Object.entries(tiles)){
@@ -76,7 +76,7 @@ export function createRoadSurfaces(T,scene,roads,player,{
       const [ix,iz]=k.split(',').map(Number);
       if(!Number.isFinite(ix+iz))continue;
       const x=(ix+.5)*cell,z=(iz+.5)*cell;
-      const d2=(x-origin.x)**2+(z-origin.z)**2;
+      const d2=(x-center.x)**2+(z-center.z)**2;
       if(d2>r2)continue;
       found.push({ix,iz,x,z,d2,level,goal:item?.goal});
     }
@@ -119,7 +119,7 @@ export function createRoadSurfaces(T,scene,roads,player,{
   }
   function update(dt){
     clock+=Math.max(0,dt);
-    const pos=player.position,r=roads?.revision??0,range=viewDistance();
+    const pos=origin(),r=roads?.revision??0,range=viewDistance();
     if(clock<.65&&r===previousRevision&&
        (pos.x-previousX)**2+(pos.z-previousZ)**2<64&&range===previousRange)return;
     clock=0;previousX=pos.x;previousZ=pos.z;
