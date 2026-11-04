@@ -850,7 +850,7 @@ export function createIndustry(T, scene, st, resources, biome, sale, values, hoo
       forward.x=cameraDirection.x/length;forward.z=cameraDirection.z/length;
       cullOrigin.x=camera.position.x;cullOrigin.z=camera.position.z;
     }else camera=null;
-    if(planningClock>=.33){reconcile();hooks.roads?.rebuild(buildings,sale);planningClock=0}
+    if(planningClock>=.33){reconcile();planningClock=0}
 
     let shown=0,transporting=0,carrying=0;abstractCount=0;
     // Each facility has at most five staff. A tiny local occupancy list
