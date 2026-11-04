@@ -53,8 +53,11 @@ const settings=loadSettings();await detectKeyboardLayout();let awaitingBinding=n
 if(vault.state&&vault.state.forestFocusVersion!==1){
   const retired=st.buildings.filter(b=>['worker','factory'].includes(b.kind)&&b.type!==0);
   st.gold+=retired.reduce((n,b)=>n+buildingCost(b.kind,b.type)+
-    Math.max(0,Number(b.workers)||0)*ECONOMY.hire,0);
+    Math.max(0,Number(b.workers)||0)*ECONOMY.hire+
+    ((Number(b.stockRaw)||0)+(Number(b.inputRaw)||0)+
+    (Number(b.stockProcessed)||0)*3)*values[0],0);
   st.buildings=st.buildings.filter(b=>!retired.includes(b));
+  for(const building of st.buildings)building.type=0;
   for(const field of ['inv','products']){
     const arr=Array.isArray(st[field])?st[field]:[0];
     arr[0]=(Number(arr[0])||0)+arr.slice(1).reduce((sum,n)=>sum+(Number(n)||0),0);
