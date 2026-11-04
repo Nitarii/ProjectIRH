@@ -120,6 +120,9 @@ export function createRoadSurfaces(T,scene,roads,player,{
   function update(dt){
     clock+=Math.max(0,dt);
     const pos=origin(),r=roads?.revision??0,range=viewDistance();
+    // Limit GPU instance uploads to ~10 Hz while the user continuously paints
+    // blueprints. Simulation work and world drawing remain uncoupled.
+    if(previousRevision>=0&&r!==previousRevision&&clock<.09)return;
     if(clock<.65&&r===previousRevision&&
        (pos.x-previousX)**2+(pos.z-previousZ)**2<64&&range===previousRange)return;
     clock=0;previousX=pos.x;previousZ=pos.z;
