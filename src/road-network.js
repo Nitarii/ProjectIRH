@@ -34,16 +34,16 @@ export function createRoadNetwork(state,{cell=3,maxTiles=5600}={}){
     // Bound strokes to avoid a malicious/mobile jump allocating a huge array.
     const steps=Math.min(4096,Math.max(1,Math.ceil(distance/(cell*.35))));
     const requested=surface==='path'?1:2;
-    let changed=0;
+    let changed=0,tileCount=Object.keys(tiles).length;
     for(let i=0;i<=steps;i++){
       const p={x:from.x+(to.x-from.x)*i/steps,z:from.z+(to.z-from.z)*i/steps};
       const k=key(p.x,p.z),at=point(k),old=tiles[k];
-      if(mode==='build'&&!old&&Object.keys(tiles).length>=maxTiles)break;
+      if(mode==='build'&&!old&&tileCount>=maxTiles)break;
       if(mode==='build'&&blocked(at.x,at.z,.44))continue;
       const current=level(k),currentGoal=goal(k),target=mode==='build'?requested:0;
       if(mode==='demolish'&&current===0){
         // Erasing a blueprint doesn't require a road worker.
-        if(old){delete tiles[k];releaseFor(k);changed++}
+        if(old){delete tiles[k];tileCount--;releaseFor(k);changed++}
         continue;
       }
       if(current===target&&(!currentGoal||currentGoal==='build'&&target===Number(old?.target))){
@@ -53,6 +53,7 @@ export function createRoadNetwork(state,{cell=3,maxTiles=5600}={}){
       if(current===target&&!currentGoal)continue;
       if(currentGoal===(mode==='build'?'build':'demolish')&&
          (mode!=='build'||Number(old?.target)===requested))continue;
+      if(!old)tileCount++;
       tiles[k]={l:current,p:0,goal:mode==='build'?'build':'demolish',
         target:mode==='build'?requested:0};
       releaseFor(k);changed++;
