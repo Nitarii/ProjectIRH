@@ -1653,6 +1653,16 @@ $('hud').querySelector('.keyline').addEventListener('click',e=>{
   if(action==='map'){openWorldMap();return}
   if(['market','build','talents','settings'].includes(action))openPanel(action);
 });
+$('placementHud').addEventListener('click',event=>{
+  const button=event.target.closest('[data-construction-zoom]');
+  if(!button||!inConstruction())return;
+  if(button.dataset.constructionZoom==='in')
+    constructionDistance=T.MathUtils.clamp(constructionDistance-5,7,85);
+  if(button.dataset.constructionZoom==='out')
+    constructionDistance=T.MathUtils.clamp(constructionDistance+5,7,85);
+  if(button.dataset.constructionZoom==='reset')
+    constructionFocus.copy(player.position);
+});
 // Construction takes input from the ground underneath the mouse or finger.
 // Player movement is disabled; the mobile joystick pans the construction camera.
 $('roadControls').addEventListener('click',event=>{
