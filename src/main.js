@@ -7,7 +7,6 @@ import {createNightLighting} from './night-lighting.js?v=20261103night3';
 import {createIndustry} from './industry.js?v=20261103visual3';
 import {inventoryIcon} from './item-icons.js?v=20261103k';
 import {createResourceGraphics} from './resource-visuals.js?v=20261103ac';
-import {createFieldBuilder} from './wheat-fields.js?v=20261104n';
 import {makeStructure} from './structures.js?v=20261107path2';
 import {EQUIPMENT,EQUIPMENT_FR,TOOL_SPEED,TOOL_YIELD,ECONOMY,toolCost,buildingCost,workerCarryCost,MAX_EXPERTISE,expertiseCost,expertiseMultiplier,expertiseHarvestSpeed,AUTO_UPGRADE_COSTS,autoSpeedMultiplier} from './balance.js?v=20261106d';
 import {loadSettings,storeSettings,keyLabel,isPressed,applyQuality,ACTIONS,detectKeyboardLayout} from './settings.js?v=20261105d';
@@ -22,7 +21,6 @@ import {batchResourceNodes,setDistantResource} from './resource-batches.js?v=202
 import {createResourceLifecycle} from './resource-life.js?v=20261106nature2';
 import {createHarvestEffects} from './harvest-fx.js?v=20261103s6';
 import {createAutoPilot} from './auto-pilot.js?v=20261103night3';
-import {openingBiome,startingBiomes} from './spawn-biomes.js?v=20261103p8';
 import {openSaveVault} from './save-vault.js?v=20261103p7';
 import {normalizeAvatar,attachAvatarDesigner} from './avatar-style.js?v=20261105b';
 import {avatarBuilderMarkup} from './avatar-ui.js?v=20261103p7';
@@ -41,7 +39,7 @@ renderer.shadowMap.enabled=true;$('game').append(renderer.domElement);
 const hemisphere=new T.HemisphereLight(0xffffff,0x657449,2.4);scene.add(hemisphere);const sun=new T.DirectionalLight(0xffe7bc,2.3);sun.position.set(70,95,40);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.bias=-.0004;sun.shadow.normalBias=.024;sun.shadow.radius=2;sun.shadow.camera.left=-60;sun.shadow.camera.right=60;sun.shadow.camera.top=60;sun.shadow.camera.bottom=-60;scene.add(sun);
 const M=c=>new T.MeshLambertMaterial({color:c}),m={grass:M(0x658b55),forest:M(0x3a784e),mountain:M(0x858b83),mine:M(0x94775c),desert:M(0xd7bd7d),field:M(0xb2b75e),tree:M(0x845b35),leaf:M(0x388653),rock:M(0x888e90),ore:M(0x709fad),wheat:M(0xebbb53),skin:M(0xe8b997),shirt:M(0x275c70),wood:M(0xac7852),roof:M(0x965e46),gold:M(0xffd068)};
 function cube(w,h,d,mat,x=0,y=0,z=0){let q=new T.Mesh(new T.BoxGeometry(w,h,d),mat);q.position.set(x,y,z);q.castShadow=true;q.receiveShadow=true;return q}function orb(r,mat,x=0,y=0,z=0){let q=new T.Mesh(new T.IcosahedronGeometry(r,1),mat);q.position.set(x,y,z);q.castShadow=true;return q}function cy(r,h,mat,x=0,y=0,z=0){let q=new T.Mesh(new T.CylinderGeometry(r,r,h,8),mat);q.position.set(x,y,z);q.castShadow=true;return q}
-const types=['FORÊT','MONTAGNE','EXCAVATION','DÉSERT','CHAMPS'],raw=['Bois','Pierre','Minerai','Sable','Blé'],processed=['Planches','Pierre taillée','Lingots','Verre','Farine'],tools=EQUIPMENT_FR,worksites=['Cabane de bûcheron','Carrière','Mine','Camp de terrassiers','Ferme'],factories=['Scierie','Atelier de taille','Fonderie','Verrerie','Moulin'],values=[12,12,12,12,12],colors=['#488756','#87938b','#b88f6b','#e3c67c','#c8b64e'];
+const types=['FORÊT'],raw=['Bois','Pierre','Minerai','Sable','Blé'],processed=['Planches','Pierre taillée','Lingots','Verre','Farine'],tools=EQUIPMENT_FR,worksites=['Cabane de bûcheron','Carrière','Mine','Camp de terrassiers','Ferme'],factories=['Scierie','Atelier de taille','Fonderie','Verrerie','Moulin'],values=[12,12,12,12,12],colors=['#488756','#87938b','#b88f6b','#e3c67c','#c8b64e'];
 const vault=await openSaveVault();
 let defaultState={gold:100,bag:8,bicycle:false,inv:[0,0,0,0,0],products:[0,0,0,0,0],tools:[-1,-1,-1,-1,-1],talents:[0,0,0,0,0],buildings:[],stock:[],bicycle:false,staminaLevel:0,gameMinutes:0,x:0,z:9,seed:Math.floor(Math.random()*2000000000)+10000,worldVersion:3,forestFocusVersion:1,exhausted:{},explored:[],autoLevel:0,roads:{},avatar:null};let st={...defaultState};
 const settings=loadSettings();await detectKeyboardLayout();let awaitingBinding=null;let observedGold=st.gold,goldHideAt=0;try{
@@ -253,7 +251,6 @@ function biome(x,z){
 }
 const resourceGraphics=createResourceGraphics(T);
 const harvestFx=createHarvestEffects(T,scene);
-const buildWheatField=createFieldBuilder(T,biome,hash,(x,z)=>st.buildings.some(b=>pointInOrientedRect(x,z,facilityFootprint(b),.38)));
 function node(type,x,z,key){
 const variant=Math.floor(hash(Math.floor(x*3),Math.floor(z*3),66)*4);
 const g=resourceGraphics.createNode(type,variant,x+z*3);
