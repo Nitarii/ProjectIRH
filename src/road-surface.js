@@ -53,6 +53,9 @@ export function createRoadSurfaces(T,scene,roads,player,{
   }
   const shoulders=batch(shoulder),paths=batch(dirt),pavement=batch(stone);
   const borders=batch(border,MAX*2),centers=batch(center);
+  const blueprintMaterial=new T.MeshBasicMaterial({color:0x59d2e4,transparent:true,opacity:.42,depthWrite:false,side:T.DoubleSide});
+  const demolitionMaterial=new T.MeshBasicMaterial({color:0xed8e67,transparent:true,opacity:.49,depthWrite:false,side:T.DoubleSide});
+  const blueprints=batch(blueprintMaterial),demolitions=batch(demolitionMaterial);
   const dummy=new T.Object3D();
   let clock=0,previousX=Infinity,previousZ=Infinity,
       previousRevision=-1,previousRange=-1,visible=0;
@@ -69,18 +72,21 @@ export function createRoadSurfaces(T,scene,roads,player,{
     const r2=radius*radius,tiles=roads?.data||{},found=[];
     const detailed=quality()!=='low';
     for(const [k,item] of Object.entries(tiles)){
-      const level=stage(item);if(!level)continue;
+      const level=stage(item);if(!level&&!item?.goal)continue;
       const [ix,iz]=k.split(',').map(Number);
       if(!Number.isFinite(ix+iz))continue;
       const x=(ix+.5)*cell,z=(iz+.5)*cell;
       const d2=(x-origin.x)**2+(z-origin.z)**2;
       if(d2>r2)continue;
-      found.push({ix,iz,x,z,d2,level});
+      found.push({ix,iz,x,z,d2,level,goal:item?.goal});
     }
     found.sort((a,b)=>a.d2-b.d2);
-    let nc=0,np=0,nd=0,nb=0,ns=0;
+    let nc=0,np=0,nd=0,nb=0,ns=0,ng=0,nr=0;
     for(const item of found.slice(0,MAX)){
-      const {ix,iz,x,z,level}=item;
+      const {ix,iz,x,z,level,goal}=item;
+      if(goal==='build'&&ng<MAX)pose(blueprints,ng++,x,z,cell*.89,cell*.89,.044);
+      if(goal==='demolish'&&nr<MAX)pose(demolitions,nr++,x,z,cell*.89,cell*.89,.046);
+      if(!level)continue;
       pose(shoulders,nc++,x,z,cell+1.0,cell+1.0,.014);
       if(level===1){
         pose(paths,nd++,x,z,cell+.35,cell+.35,.020);
@@ -107,8 +113,8 @@ export function createRoadSurfaces(T,scene,roads,player,{
       }
     }
     shoulders.count=nc;paths.count=nd;pavement.count=np;
-    borders.count=nb;centers.count=ns;visible=nc;
-    for(const mesh of [shoulders,paths,pavement,borders,centers])
+    borders.count=nb;centers.count=ns;blueprints.count=ng;demolitions.count=nr;visible=nc;
+    for(const mesh of [shoulders,paths,pavement,borders,centers,blueprints,demolitions])
       if(mesh.count)mesh.instanceMatrix.needsUpdate=true;
   }
   function update(dt){
@@ -121,8 +127,8 @@ export function createRoadSurfaces(T,scene,roads,player,{
     refresh();
   }
   function dispose(){
-    for(const mesh of [shoulders,paths,pavement,borders,centers])scene.remove(mesh);
-    plane.dispose();for(const mat of [stone,dirt,shoulder,border,center])mat.dispose();
+    for(const mesh of [shoulders,paths,pavement,borders,centers,blueprints,demolitions])scene.remove(mesh);
+    plane.dispose();for(const mat of [stone,dirt,shoulder,border,center,blueprintMaterial,demolitionMaterial])mat.dispose();
   }
-  return {update,dispose,get visibleTiles(){return visible},get drawBatches(){return 5}};
+  return {update,dispose,get visibleTiles(){return visible},get drawBatches(){return 7}};
 }
