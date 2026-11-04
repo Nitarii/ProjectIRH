@@ -1627,6 +1627,65 @@ $('hud').querySelector('.keyline').addEventListener('click',e=>{
   if(action==='map'){openWorldMap();return}
   if(['market','build','talents','settings'].includes(action))openPanel(action);
 });
+// Construction takes input from the ground underneath the mouse or finger.
+// Player movement is disabled; the mobile joystick pans the construction camera.
+$('roadControls').addEventListener('click',event=>{
+  const button=event.target.closest('button[data-road-mode]');
+  if(!button||!roadEditing)return;
+  event.preventDefault();
+  if(button.dataset.roadMode==='finish'){save();leaveConstruction();return}
+  roadMode=button.dataset.roadMode;
+  roadSurface=button.dataset.roadSurface||roadSurface;
+  refreshRoadControls();
+});
+renderer.domElement.addEventListener('pointerdown',event=>{
+  if(!inConstruction()||panel||event.button>2)return;
+  const point=constructionGround(event.clientX,event.clientY);
+  if(event.button===2){
+    event.preventDefault();
+    constructionOrbit={pointer:event.pointerId,x:event.clientX,y:event.clientY};
+    renderer.domElement.setPointerCapture(event.pointerId);
+    return;
+  }
+  if(event.button!==0)return;
+  event.preventDefault();
+  constructionPointer={x:event.clientX,y:event.clientY};
+  if(roadEditing){
+    constructionDrag={pointer:event.pointerId,last:point,changed:false};
+    if(point&&paintRoad(point))constructionDrag.changed=true;
+    renderer.domElement.setPointerCapture(event.pointerId);
+  }else if(placing&&point){
+    placementFrame();
+    harvest();
+  }
+});
+renderer.domElement.addEventListener('pointermove',event=>{
+  if(!inConstruction())return;
+  if(constructionOrbit?.pointer===event.pointerId){
+    const dx=event.clientX-constructionOrbit.x,dy=event.clientY-constructionOrbit.y;
+    heading-=dx*.004*settings.mouseSensitivity;
+    pitch=T.MathUtils.clamp(pitch+dy*.003*settings.mouseSensitivity,.35,1.35);
+    constructionOrbit.x=event.clientX;constructionOrbit.y=event.clientY;
+    return;
+  }
+  constructionPointer={x:event.clientX,y:event.clientY};
+  if(constructionDrag?.pointer===event.pointerId){
+    const point=constructionGround(event.clientX,event.clientY);
+    if(point){
+      if(paintRoad(constructionDrag.last||point,point))constructionDrag.changed=true;
+      constructionDrag.last=point;
+    }
+  }
+});
+for(const kind of ['pointerup','pointercancel','lostpointercapture']){
+  renderer.domElement.addEventListener(kind,event=>{
+    if(constructionOrbit?.pointer===event.pointerId)constructionOrbit=null;
+    if(constructionDrag?.pointer===event.pointerId){
+      if(constructionDrag.changed)save();
+      constructionDrag=null;
+    }
+  });
+}
 addEventListener('keyup',e=>keys[e.code]=false);
 addEventListener('blur',()=>{keys={}});
 addEventListener('mousemove',e=>{
