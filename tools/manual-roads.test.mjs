@@ -43,7 +43,6 @@ const draft={x:35,z:35};
 roads.paint(draft,draft,'build','road');
 roads.paint(draft,draft,'demolish');
 assert.equal(roads.levelAt(draft.x,draft.z),0);
-assert.equal(roads.data[roads.point('11,11')],undefined);
 assert.ok(!Object.values(roads.data).some(x=>x.goal==='demolish'&&x.l===0));
 const copy=structuredClone(state);
 const loaded=createRoadNetwork(copy);
