@@ -7,7 +7,7 @@
 <meta name="copyright" content="Copyright 2026 Nitarii. All rights reserved.">
 <meta name="description" content="Nitari's Industrial Madness, an original procedural game by Nitarii.">
 <title>N.I.M — Nitari's Industrial Madness</title>
-<link rel="icon" href="./assets/nim-logo.svg" type="image/svg+xml"><link rel="stylesheet" href="./assets/ui.css?v=20261103visual2">
+<link rel="icon" href="./assets/nim-logo.svg" type="image/svg+xml"><link rel="stylesheet" href="./assets/ui.css?v=20261104forest1">
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js"}}</script>
 </head>
 <body>
@@ -27,7 +27,14 @@
   <div id="placementHud" class="placement-hud hidden" aria-live="polite">
     <div class="placement-head"><span class="placement-symbol">⌑</span><div><strong>CONSTRUCTION</strong><span id="placementName"></span></div></div>
     <div id="placementStatus" class="placement-status">PLACE DISPONIBLE</div>
-    <div class="placement-actions"><span><kbd>F</kbd> PLACER</span><span id="rotationHint"><kbd>Q / E</kbd> TOURNER</span><span><kbd>ÉCHAP</kbd> ANNULER</span></div>
+    <div id="roadControls" class="road-controls hidden" aria-label="Plans de voirie">
+      <button type="button" data-road-mode="build" data-road-surface="path">CHEMIN</button>
+      <button type="button" data-road-mode="build" data-road-surface="road">ROUTE</button>
+      <button type="button" data-road-mode="demolish">DÉCONSTRUIRE</button>
+      <button type="button" data-road-mode="finish">TERMINER</button>
+    </div>
+    <div class="placement-actions"><span id="placementConfirmHint"><kbd>CLIC / F</kbd> PLACER</span><span id="rotationHint"><kbd>Q / E</kbd> TOURNER</span><span><kbd>ÉCHAP</kbd> QUITTER</span></div>
+    <small class="construction-hint">ZQSD/WASD : déplacer la caméra · clic droit : orienter · molette : zoom · clic/glisser : tracer</small>
   </div>
   <div class="bottom"><nav class="keyline" aria-label="Actions rapides">
 <button type="button" data-hud-action="interact"><kbd id="interactShortcut">F</kbd> INTERAGIR</button>
@@ -53,6 +60,6 @@
   <div id="creatorBody" class="creator-body"></div>
 </div>
 <div id="reticle" class="hidden"></div>
-<script type="module" src="./src/main.js?v=20261103visual3"></script>
+<script type="module" src="./src/main.js?v=20261104forest1"></script>
 </body>
 </html>
