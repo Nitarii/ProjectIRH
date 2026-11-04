@@ -178,3 +178,37 @@ for(let i=0;i<320;i++){loggingAge+=.20;reclaim.update(.20,23,35)}
 assert.equal(brokenLogs,1,'logger must cut an unattended log exactly once');
 assert.ok(reclaimedState.buildings[0].stockRaw>0,'chopped trunk must become stock of raw wood');
 console.log('Minute-old abandoned log recovery and correct reprocessing verified');
+
+
+// Full logging huts must NEVER dispatch their loggers directly to the market.
+// Transport employees alone bring the wood to a seller's own warehouse.
+const fullLoggingState={gold:275,buildings:[
+  {id:'full-logging-hut',kind:'worker',type:0,x:10,z:29,workers:1,stockRaw:100},
+  {id:'empty-selling-house',kind:'seller',type:0,x:25,z:18,workers:1,
+    warehouseRaw:[0,0,0,0,0],warehouseProcessed:[0,0,0,0,0]}
+]};
+const nearbyTree={type:0,x:5,z:35,hp:40,max:40,dead:false,mesh:{visible:true}};
+const fullCrew=createIndustry(T,scene2,fullLoggingState,[nearbyTree],()=>0,
+  {x:10,z:1,w:10,d:9},[12,15,22,10,14]);
+fullCrew.sync();
+for(let i=0;i<1100;i++){
+  fullCrew.update(.2,10,29);
+  const logger=fullCrew.snapshot().find(a=>a.role==='worker');
+  assert.ok(!['toPickup','pickupStock','toMarket','selling'].includes(logger.state),
+    'logging workers must never pick up stock for direct selling');
+}
+assert.equal(fullLoggingState.gold,275,'a full logging hut must not generate direct sales');
+assert.equal(fullCrew.readStats().sold,0,'an empty seller must not sell untransported wood');
+assert.equal(fullLoggingState.buildings[0].stockRaw,100,'full hut stock must remain stored');
+assert.equal(nearbyTree.hp,40,'loggers must wait when their storage is full');
+
+// Once a hauler creates storage room, logging must resume automatically.
+fullLoggingState.buildings[0].stockRaw=90;
+let resumed=false;
+for(let i=0;i<3000;i++){
+  fullCrew.update(.2,10,29);
+  if(nearbyTree.hp<40){resumed=true;break}
+}
+assert.ok(resumed,'logging must resume when the hut has room again');
+assert.equal(fullLoggingState.gold,275,'resuming harvest must not trigger sales');
+console.log('Full logging hut no-sale and automatic harvest resumption verified');
