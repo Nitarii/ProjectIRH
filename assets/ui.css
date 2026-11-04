@@ -382,7 +382,7 @@ border:1px solid #7cc9ac85;border-radius:13px;padding:15px 18px;box-shadow:0 14p
  #hud .bottom{right:calc(var(--inventory-panel-width,182px) + 12px)}
  #hud .mission{width:min(225px,39vw)}
  #hud .auto-state{bottom:calc(var(--inventory-panel-height,140px) + 20px);
-  left:calc((100vw - var(--inventory-panel-width,182px) - 16px)/2)}
+  left:calc((100vw - var(--inventory-panel-width,182px) - 84px)/2)}
  #hud .stamina{left:calc((100vw - var(--inventory-panel-width,182px) - 16px)/2)!important;
   bottom:clamp(14px,3vh,40px)!important;width:min(235px,calc(100vw - var(--inventory-panel-width,182px) - 30px))!important}
 }
