@@ -10,9 +10,7 @@ Procedural 3D industrial economy and resource game.
 
 **https://nitarii.github.io/ProjectIRH/**
 
-Explore procedurally generated resource biomes, collect raw materials,
-develop processing chains and logistics, hire employees, and expand a
-frontier business through upgrades.
+Explore one continuous procedural forest. Harvest wood, process it in sawmills, run logging/transport/sales facilities, and expand your economy. Plan each path or paved road manually; road crews build and demolish the precise tiles you draw.
 
 ## Controls
 
@@ -31,8 +29,10 @@ also be customized in Settings.
 - Explored world map: M / , on AZERTY (drag to pan, wheel to zoom)
 - Open facility storage: A/Q deposits, E withdraws, F closes
 - Bicycle mount/dismount: V (after buying a bicycle)
-- Rotate a construction preview: A/Q / E (physical Q / E) or mouse wheel
-- Pause: Escape or Tab
+- Building construction: free flyover camera (movement keys / Shift to accelerate), right-drag to look, mouse wheel to zoom, Q/E to rotate, click or F to place, Escape to cancel
+- Road plans: Construction → Draw paths and roads; drag to draw a path or paved road, select Demolish to erase built segments, Finish to return to the avatar
+- Road depot: recruit up to **two** road workers; their construction and demolition proceed gradually, never automatically planned
+- Settings: Escape or Tab (Escape cancels construction mode and restores character control)
 
 ## Local personal save
 
@@ -58,15 +58,15 @@ does not grant permission to reuse the original game materials.
 
 ## Auto progression
 
-Auto mode starts at −20% harvest and movement speed. Upgrade in Progression for 20,000, 50,000, 100,000 and 250,000 gold respectively to reach −10%, 0%, +10% and +20%. Each biome's tool tiers, matching worksite types, factory types and expertise ranks have equal prices.
+Auto mode starts at −20% harvest and movement speed. Upgrade in Progression for 20,000, 50,000, 100,000 and 250,000 gold respectively to reach −10%, 0%, +10% and +20%. Only the forestry tool tiers, logging hut, sawmill and forestry expertise are now available.
 
 ## World map and clearing
 
-The map shows only explored terrain and persists discovery in the encrypted local save. Construction clears interfering resource nodes and nearby decoration within a small safety margin; generated chunks respect existing buildings. World save and browser data remain in the existing IRH format for compatibility.
+The map shows only explored terrain and persists discovery in the encrypted local save. Construction clears interfering resource nodes and nearby decoration within a small safety margin; generated chunks respect existing buildings. A one-time upgrade migrates old worlds: old auto-generated roads are discarded, non-forest production buildings are retired with currency compensation, and surviving forestry/transport/sale assets remain. Back up your recovery code before major version changes.
 
 ## Mobile controls (portrait & landscape)
 
-The on-screen virtual joystick handles movement. Drag on the world to rotate the camera, pinch to zoom, and use the action buttons for interaction/harvesting, jumping, sprinting, automatic mode, bicycle and dropping logs. The top mobile navigation opens the market, construction, progression, explored world map and settings. Building placement exposes rotate-left, rotate-right and cancel controls. The map supports touch panning and zoom buttons.
+The virtual joystick moves the avatar normally, or pans the free construction camera during building/road editing. Touch the terrain to place a building, or drag on the ground to draw road tiles; use the construction toolbar for path, paved road, demolition, zoom and finish. In normal gameplay, drag to rotate the camera and pinch to zoom. The bicycle control appears only after buying the bicycle. The map supports touch panning and zoom buttons.
 
 ## Desktop mouse and HUD
 
