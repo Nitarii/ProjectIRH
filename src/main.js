@@ -52,7 +52,7 @@ const settings=loadSettings();await detectKeyboardLayout();let awaitingBinding=n
  if(vault.state&&vault.state.worldVersion===undefined)st.worldVersion=1;
  }catch(error){console.warn('Save could not be loaded',error)}
 // Preserve player progress when retiring the four non-forest industries.
-if(st.forestFocusVersion!==1){
+if(vault.state&&vault.state.forestFocusVersion!==1){
   const retired=st.buildings.filter(b=>['worker','factory'].includes(b.kind)&&b.type!==0);
   st.gold+=retired.reduce((n,b)=>n+buildingCost(b.kind,b.type)+
     Math.max(0,Number(b.workers)||0)*ECONOMY.hire,0);
@@ -482,6 +482,12 @@ const immersion=createScreenImmersion({button:$('fullscreenButton'),
   isMobile:()=>!!touchControls?.enabled||navigator.maxTouchPoints>0});
 let heading=0,pitch=.38,dist=10,active=0,keys={},current=null,placing=null,carried=null,carriedSource=null,elapsed=0,workerClock=0;
 let buildingPreview=null,previewMaterials=[],lastPlacementValid=null;
+let roadEditing=false,roadMode='build',roadSurface='road';
+const constructionFocus=new T.Vector3(),constructionRay=new T.Raycaster();
+const constructionPlane=new T.Plane(new T.Vector3(0,1,0),0);
+const constructionHit=new T.Vector3();
+let constructionDistance=24,constructionPointer=null,constructionDrag=null,constructionOrbit=null;
+const inConstruction=()=>!!placing||roadEditing;
 let harvesting=null,harvestProgress=0,stepPhase=0,autoMode=false;
 function* nearbyResourceNodes(){
   const cx=Math.floor(player.position.x/CH),cz=Math.floor(player.position.z/CH);
@@ -788,11 +794,71 @@ function strikeHarvest(){
   save();
 }
 
+function constructionGround(clientX,clientY){
+  const rect=renderer.domElement.getBoundingClientRect();
+  if(!rect.width||!rect.height)return null;
+  const ndc=new T.Vector2((clientX-rect.left)/rect.width*2-1,
+    1-(clientY-rect.top)/rect.height*2);
+  constructionRay.setFromCamera(ndc,cam);
+  const hit=constructionRay.ray.intersectPlane(constructionPlane,constructionHit);
+  if(!hit||!Number.isFinite(hit.x+hit.z))return null;
+  return {x:Math.round(hit.x),z:Math.round(hit.z)};
+}
 function placementPoint(){
-  return {
-    x:Math.round(player.position.x+Math.sin(player.rotation.y)*6),
-    z:Math.round(player.position.z+Math.cos(player.rotation.y)*6)
-  };
+  const screen=constructionPointer||{x:innerWidth/2,y:innerHeight/2};
+  return constructionGround(screen.x,screen.y)||{
+    x:Math.round(constructionFocus.x),z:Math.round(constructionFocus.z)};
+}
+function enterConstruction(label,roadsMode=false){
+  stopHarvest();autoPilot.setEnabled(false);
+  if(bikeRiding){bikeRiding=false;bicycle.group.visible=false}
+  constructionFocus.copy(player.position);
+  constructionDistance=24;pitch=.82;
+  constructionPointer=null;constructionDrag=null;constructionOrbit=null;
+  roadEditing=roadsMode;
+  document.body.classList.add('construction-mode','touch-placement');
+  document.exitPointerLock?.();
+  cameraRecoveryRequested=false;mouseFree=true;
+  document.body.classList.add('mouse-free');
+  panel=null;renderPanel();
+  $('placementHud').classList.remove('hidden');
+  $('placementName').textContent=label;
+  $('roadControls').classList.toggle('hidden',!roadsMode);
+  $('rotationHint').classList.toggle('hidden',roadsMode);
+  $('placementConfirmHint').classList.toggle('hidden',roadsMode);
+  refreshRoadControls();
+}
+function leaveConstruction(){
+  roadEditing=false;constructionDrag=null;constructionOrbit=null;
+  document.body.classList.remove('construction-mode','touch-placement');
+  $('placementHud').classList.add('hidden');
+  $('roadControls').classList.add('hidden');
+  constructionPointer=null;
+  mouseFree=false;document.body.classList.remove('mouse-free');
+  resumeCameraControl();
+}
+function refreshRoadControls(){
+  for(const button of $('roadControls').querySelectorAll('button')){
+    button.classList.toggle('active',button.dataset.roadMode===roadMode&&
+      (roadMode==='demolish'||button.dataset.roadSurface===roadSurface));
+  }
+  if(roadEditing){
+    $('placementStatus').textContent=roadMode==='demolish'
+      ?'GLISSEZ POUR DÉCONSTRUIRE DES SEGMENTS'
+      :'TRACEZ DES '+(roadSurface==='path'?'CHEMINS':'ROUTES')+' AVEC LE CURSEUR';
+  }
+}
+function beginRoadDrawing(){
+  if(placing)cancelPlacement();
+  roadMode='build';roadSurface='road';
+  enterConstruction('VOIRIE · DESSIN MANUEL',true);
+  pop('Dessinez au sol · les employés construiront progressivement');
+}
+function paintRoad(a,b=a){
+  if(!roadEditing||!a||!b)return 0;
+  const changed=roads.paint(a,b,roadMode,roadSurface);
+  if(changed)roadSurfaces.update(.7);
+  return changed;
 }
 function placementAllowed(x,z){
   if(!placing)return false;
@@ -855,10 +921,11 @@ function buildPlacementPreview(){
 }
 function beginPlacement(kind,type,cost){
   if(placing)cancelPlacement();
-  const biomeType=['worker','factory'].includes(kind)?type:Math.max(0,biome(player.position.x,player.position.z));
+  const biomeType=0;
   placing={kind,type:biomeType,cost,rotation:0};
-  document.body.classList.add('touch-placement');
-  panel=null;renderPanel();resumeCameraControl();
+  enterConstruction(kind==='worker'?'CABANE DE BÛCHERON':
+    kind==='factory'?'SCIERIE':kind==='road'?'ATELIER DE VOIRIE':
+    kind==='transport'?'DÉPÔT DE TRANSPORT':'COMPTOIR VENDEUR');
   $('placementName').textContent=tr(kind==='worker'?worksites[type]:kind==='factory'?factories[type]:
     kind==='transport'?'Dépôt de transport':kind==='road'?'Atelier de voirie':'Comptoir vendeur',settings.language);
   $('placementHud').classList.remove('hidden');
@@ -876,14 +943,13 @@ function cancelPlacement(refund=true){
   if(!placing)return;
   if(refund){st.gold+=placing.cost||0;save();pop('Construction annulée · or remboursé')}
   placing=null;
-  document.body.classList.remove('touch-placement');
-  $('placementHud').classList.add('hidden');
   clearPlacementPreview();
+  leaveConstruction();
 }
 function placementFrame(){
   if(!placing||!buildingPreview)return;
   const point=placementPoint();
-  const type=['worker','factory'].includes(placing.kind)?placing.type:Math.max(0,biome(point.x,point.z));
+  const type=0;
   if(type!==placing.type){
     placing.type=type;
     buildPlacementPreview();
@@ -1102,6 +1168,7 @@ const add=(title,sub,cost,action,off=false,biomeId=-1)=>`<article class="shop-ca
 <button data-action="${action}" ${off?'disabled':''}>${cost}</button></article>`;
 const section=(title,kicker,content)=>`<section class="catalog-section"><div class="catalog-heading"><h3>${title}</h3><span>${kicker}</span></div><div class="catalog-grid">${content}</div></section>`;
 function resumeCameraControl(){
+  if(inConstruction())return;
   // Closing any desktop overlay defaults to camera control, never free cursor.
   // Pointer Lock may require a real key/click activation; a later left click
   // still retries in browsers that deny immediate reacquisition (e.g. Escape).
@@ -1119,6 +1186,7 @@ function resumeCameraControl(){
   }catch{cameraRecoveryRequested=false}
 }
 function openPanel(k){
+  if(inConstruction())return;
   if(panel===k){close();return}
   sound.effect('ui');panel=k;cameraRecoveryRequested=false;
   touchControls?.clear?.();renderPanel();
@@ -1164,6 +1232,7 @@ out+=section('Équipement','CONSERVATION & MOBILITÉ',utility||'<p class="catalo
 
 }
 if(panel==='build'){
+out+=section('Plans de voirie','CONSTRUCTION MANUELLE',add('Dessiner des chemins et routes','Tracer ou effacer des plans · 2 cantonniers maximum','MODE CONSTRUCTION','roadDraw'));
 out+=section('Logistique','TRANSPORT & COMMERCE',add('Dépôt de transport','Récolte → usine → entrepôt vendeur',buildingCost('transport')+' OR','transport:0')+add('Comptoir vendeur','Vend uniquement son propre stock',buildingCost('seller')+' OR','seller:0')+add('Atelier de voirie','Chantiers de chemins et routes, jusqu’à +50 % de vitesse',buildingCost('road')+' OR','road:0'));for(let i=0;i<1;i++){
 out+=section(types[i]+' · '+raw[i].toUpperCase(),'CHAÎNE DE PRODUCTION',add(worksites[i],'Collecte automatique · stockage',buildingCost('worker',i)+' OR','worker:'+i,false,i)+add(factories[i],raw[i]+' → '+processed[i],buildingCost('factory',i)+' OR','factory:'+i,false,i));
 }
@@ -1182,7 +1251,7 @@ if(panel==='employees'){
       :b.kind==='factory'?(fr?'Entrée':'Input')+': '+b.inputRaw+' · '+(fr?'Produits':'Products')+': '+b.stockProcessed
       :b.kind==='seller'?(fr?'En attente de vente':'Awaiting sale')+': '+
          ((b.warehouseRaw||[]).reduce((n,v)=>n+v,0)+(b.warehouseProcessed||[]).reduce((n,v)=>n+v,0))
-      :b.kind==='road'?(fr?'Chemins actifs':'Active paths')+': '+roads.completed+'/'+roads.plannedCount
+      :b.kind==='road'?(fr?'Routes construites':'Built segments')+': '+roads.built+' · '+(fr?'Chantiers':'Queued jobs')+': '+roads.plannedCount
       :(fr?'Livraisons entre bâtiments':'Inter-building deliveries');
     const recruiting=add(fr?'Recrutement':'Recruitment',
       (fr?'Embaucher un ':'Hire a ')+employee+' · '+staff+' / '+limit,
@@ -1324,6 +1393,7 @@ if(a==='stockDeposit'||a==='stockWithdraw'){
   return performStockTransfer(a==='stockDeposit'?'deposit':'withdraw');
 }
 if(a==='sell')return sell();
+if(a==='roadDraw'){beginRoadDrawing();return}
 if(a==='autoUpgrade'){
   const level=Math.max(0,Math.min(4,st.autoLevel||0));
   if(level>=4)return;
@@ -1501,7 +1571,8 @@ addEventListener('keydown',e=>{
   if(e.repeat)return;
   if(e.code==='Escape'||e.code==='Tab'){
     e.preventDefault();
-    if(placing){cancelPlacement();if(e.code==='Tab')openPanel('settings');}
+    if(placing){cancelPlacement();}
+    else if(roadEditing){leaveConstruction();}
     else if(panel)close();
     else openPanel('settings');
     return;
@@ -1536,7 +1607,10 @@ addEventListener('keydown',e=>{
     e.preventDefault();jumpVelocity=8.3;sound.effect('step');
   }
   if(e.code===settings.bindings.sprint)autoPilot.setEnabled(false);
-  if(e.code===settings.bindings.interact)interact();
+  if(e.code===settings.bindings.interact){
+     if(roadEditing){paintRoad(placementPoint());save()}
+     else interact();
+   }
   if(e.code===settings.bindings.drop&&carried){sound.effect('ui');drop()}
   if(e.code===settings.bindings.build)openPanel('build');
   if(e.code===settings.bindings.talents)openPanel('talents');
@@ -1566,7 +1640,10 @@ addEventListener('mousemove',e=>{
 });addEventListener('wheel',e=>{
   if(panel||exploration.visible||!$('welcome').classList.contains('hidden'))return;
   e.preventDefault();
-  if(placing){rotatePlacement(Math.sign(e.deltaY));return}
+  if(inConstruction()){
+    constructionDistance=T.MathUtils.clamp(constructionDistance+Math.sign(e.deltaY)*2,7,85);
+    return;
+  }
   dist=T.MathUtils.clamp(dist+Math.sign(e.deltaY),5,18);
 },{passive:false});
 function resizeGame(){
@@ -1580,14 +1657,14 @@ renderer.domElement.addEventListener('contextmenu',e=>e.preventDefault());
 // Any ordinary left click on gameplay (not an open menu or active control)
 // restores pointer lock, even if the user previously enabled the free cursor.
 document.addEventListener('pointerdown',e=>{
-  if(e.button!==0||e.pointerType==='touch'||touchControls?.enabled||panel||
+  if(e.button!==0||e.pointerType==='touch'||touchControls?.enabled||inConstruction()||panel||
       exploration.visible||!$('welcome').classList.contains('hidden')||
       !$('creator').classList.contains('hidden'))return;
   if(e.target.closest?.('button,a,input,select,textarea,[role="dialog"],.panel,.world-map,.creator,.welcome,.mobile-controls'))return;
   resumeCameraControl();
 },{capture:true});
 renderer.domElement.addEventListener('mousedown',e=>{
-  if(e.button!==2||touchControls?.enabled||panel||exploration.visible||
+  if(e.button!==2||touchControls?.enabled||inConstruction()||panel||exploration.visible||
     !$('welcome').classList.contains('hidden'))return;
   e.preventDefault();cameraRecoveryRequested=false;mouseFree=!mouseFree;
   if(mouseFree)document.exitPointerLock?.();
@@ -1600,7 +1677,7 @@ document.addEventListener('pointerlockchange',()=>{
   if(document.pointerLockElement===renderer.domElement){
     cameraRecoveryRequested=false;
     mouseFree=false;document.body.classList.remove('mouse-free');
-  }else if(!cameraRecoveryRequested&&!panel&&!exploration.visible&&
+  }else if(!cameraRecoveryRequested&&!inConstruction()&&!panel&&!exploration.visible&&
      $('welcome').classList.contains('hidden')&&!touchControls?.enabled){
     // Only an actual gameplay unlock (Esc / explicit right click) enables
     // free cursor. A delayed menu-release event must not undo menu closing.
@@ -1619,11 +1696,15 @@ touchControls=createMobileControls({
     dispatchEvent(new KeyboardEvent(pressed?'keydown':'keyup',
       {code,bubbles:true,cancelable:true}));
   },
+  isLookActive:()=>!inConstruction()&&!panel&&!exploration.visible,
   onLook:(dx,dy)=>{
     heading-=dx*.0045*settings.mouseSensitivity;
     pitch=T.MathUtils.clamp(pitch+dy*.0034*settings.mouseSensitivity,-.1,1.15);
   },
-  onZoom:delta=>{if(!placing)dist=T.MathUtils.clamp(dist+delta,5,18)}
+  onZoom:delta=>{
+    if(inConstruction())constructionDistance=T.MathUtils.clamp(constructionDistance+delta*3,7,85);
+    else dist=T.MathUtils.clamp(dist+delta,5,18)
+  }
 });
 let creatorPreview=null;
 function finishWelcome(){
@@ -1867,6 +1948,7 @@ monitor.lowPerformance=fps<25;
 applyLocale();
 applyHudSettings();
 const cameraTarget=new T.Vector3(),cameraOffset=new T.Vector3();
+const wantsConstructionSprint=()=>isPressed(keys,settings,'sprint');
 function frame(){
 requestAnimationFrame(frame);
 const frameDelta=Math.min(clock.getDelta(),.05);
@@ -1890,7 +1972,13 @@ placementFrame();
 if(!paused)collectSaleZone();
 const side=Number(isPressed(keys,settings,'right'))-Number(isPressed(keys,settings,'left'));
 const front=Number(isPressed(keys,settings,'forward'))-Number(isPressed(keys,settings,'backward'));
-const moving=!paused&&!panel&&(side!==0||front!==0);
+const moving=!paused&&!panel&&!inConstruction()&&(side!==0||front!==0);
+if(inConstruction()&&!paused&&(side||front)){
+  const factor=dt*(wantsConstructionSprint()?35:17)/Math.max(1,Math.hypot(side,front));
+  const dx=Math.cos(heading)*side-Math.sin(heading)*front;
+  const dz=-Math.sin(heading)*side-Math.cos(heading)*front;
+  constructionFocus.x+=dx*factor;constructionFocus.z+=dz*factor;
+}
 const previousMotionX=player.position.x,previousMotionZ=player.position.z;
 const wantsSprint=isPressed(keys,settings,'sprint');
 if(stamina<.01)sprintLocked=true;
@@ -1920,7 +2008,7 @@ const targetAngle=Math.atan2(vx,vz);
 const difference=Math.atan2(Math.sin(targetAngle-player.rotation.y),Math.cos(targetAngle-player.rotation.y));
 player.rotation.y+=difference*Math.min(1,dt*16);
 }
-const autoWalking=!paused&&autoPilot.update(dt);
+const autoWalking=!paused&&!inConstruction()&&autoPilot.update(dt);
 if(autoWalking){
   footstepTimer+=dt;
   if(footstepTimer>.42){footstepTimer=0;sound.effect('step')}
@@ -1949,9 +2037,12 @@ try{atmosphere.update(dt,elapsed,resources)}
 catch(err){atmosphereActive=false;console.warn('Environment effects stopped',err)}
 }
 if(carried){carried.position.set(player.position.x,2.2,player.position.z);carried.rotation.z=Math.PI/2}
-cameraTarget.set(player.position.x,1.5+player.position.y,player.position.z);
+cameraTarget.set(inConstruction()?constructionFocus.x:player.position.x,
+  inConstruction()?0:1.5+player.position.y,
+  inConstruction()?constructionFocus.z:player.position.z);
 cameraOffset.set(Math.sin(heading)*Math.cos(pitch),Math.sin(pitch),Math.cos(heading)*Math.cos(pitch));
-cam.position.copy(cameraTarget).addScaledVector(cameraOffset,dist);
+cam.position.copy(cameraTarget).addScaledVector(cameraOffset,
+  inConstruction()?constructionDistance:dist);
 cam.lookAt(cameraTarget);
 skyWeather.update(dt,elapsed,st.gameMinutes);
 nightLighting.update(dt,skyWeather.dayFactor);
