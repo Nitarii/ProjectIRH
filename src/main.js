@@ -387,7 +387,8 @@ if(Math.abs(x-cx)>R||Math.abs(z-cz)>R)unloadQueue.push(key)
 }
 }
 function pumpWorld(){
-const cx=Math.floor(player.position.x/CH),cz=Math.floor(player.position.z/CH);
+const p=inConstruction()?constructionFocus:player.position;
+const cx=Math.floor(p.x/CH),cz=Math.floor(p.z/CH);
 if(generationQueue.length){
 const next=generationQueue.shift();queuedGeneration.delete(next.key);
 if(Math.abs(next.x-cx)<=R&&Math.abs(next.z-cz)<=R&&!world.has(next.key))chunk(next.x,next.z);
@@ -431,16 +432,17 @@ world.delete(key)
 let decorationShadowClock=0,decorationShadowX=Infinity,decorationShadowZ=Infinity;
 function refreshDecorationShadows(dt){
   decorationShadowClock+=Math.max(0,dt);
-  const dx=player.position.x-decorationShadowX,dz=player.position.z-decorationShadowZ;
+  const focal=inConstruction()?constructionFocus:player.position;
+  const dx=focal.x-decorationShadowX,dz=focal.z-decorationShadowZ;
   if(decorationShadowClock<1.15&&dx*dx+dz*dz<160)return;
-  decorationShadowClock=0;decorationShadowX=player.position.x;
-  decorationShadowZ=player.position.z;
+  decorationShadowClock=0;decorationShadowX=focal.x;
+  decorationShadowZ=focal.z;
   const quality=settings.quality;
   for(const [key,c] of world){
     const [cx,cz]=key.split(',').map(Number);
     const x=cx*CH+CH/2,z=cz*CH+CH/2;
-    const near=Math.abs(x-player.position.x)<78&&
-      Math.abs(z-player.position.z)<78;
+    const near=Math.abs(x-focal.x)<78&&
+      Math.abs(z-focal.z)<78;
     for(const batch of c.root.userData.decorationBatches||[]){
       const casts=quality!=='low'&&near&&
         (quality==='high'||batch.kind!==4);
@@ -451,7 +453,8 @@ function refreshDecorationShadows(dt){
 const resourceFrustum=new T.Frustum(),resourceProjection=new T.Matrix4(),
   resourceBoundingSphere=new T.Sphere(new T.Vector3(),5.6);
 function updateResourceVisibility(){
-  const px=player.position.x,pz=player.position.z;
+  const focal=inConstruction()?constructionFocus:player.position;
+  const px=focal.x,pz=focal.z;
   const range=settings.viewDistance+5.5,maximum=range*range;
   cam.updateMatrixWorld();
   resourceProjection.multiplyMatrices(cam.projectionMatrix,cam.matrixWorldInverse);
@@ -864,7 +867,7 @@ function beginRoadDrawing(){
 function paintRoad(a,b=a){
   if(!roadEditing||!a||!b)return 0;
   const changed=roads.paint(a,b,roadMode,roadSurface);
-  if(changed)roadSurfaces.update(.7);
+  // The frame loop refreshes blueprints at the next revision.
   return changed;
 }
 function placementAllowed(x,z){
