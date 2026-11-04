@@ -744,3 +744,8 @@ body.construction-mode .touch-pad{z-index:8}
  background:#244c40;color:#eaf9ec;border:1px solid #a7d1b588;cursor:pointer}
 .construction-zoom button:active{background:#a9d99d;color:#102d20}
 .placement-head{padding-right:100px}
+
+/* Compact landscape: prioritize game view and minimap over the mission teaser. */
+@media(max-width:800px) and (max-height:520px){
+  #hud .mission{display:none!important}
+}
