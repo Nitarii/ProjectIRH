@@ -738,3 +738,9 @@ body.construction-mode .touch-pad{z-index:8}
  body.construction-mode .construction-hint{font-size:10px}
  body.construction-mode .road-controls button{min-height:38px;font-size:11px}
 }
+
+.construction-zoom{position:absolute;top:10px;right:10px;display:flex;gap:4px}
+.construction-zoom button{font:800 19px sans-serif;min-width:31px;min-height:31px;border-radius:7px;
+ background:#244c40;color:#eaf9ec;border:1px solid #a7d1b588;cursor:pointer}
+.construction-zoom button:active{background:#a9d99d;color:#102d20}
+.placement-head{padding-right:100px}
