@@ -60,7 +60,16 @@ if(vault.state&&vault.state.forestFocusVersion!==1){
     arr[0]=(Number(arr[0])||0)+arr.slice(1).reduce((sum,n)=>sum+(Number(n)||0),0);
     st[field]=[arr[0],0,0,0,0];
   }
-  st.stock=[];
+  // Legacy carried logs are resource indices: convert them all to wood.
+  st.stock=(Array.isArray(st.stock)?st.stock:[]).map(()=>0);
+  for(const building of st.buildings){
+    if(building.kind!=='seller')continue;
+    for(const key of ['warehouseRaw','warehouseProcessed']){
+      const stack=Array.isArray(building[key])?building[key]:[0];
+      stack[0]=(Number(stack[0])||0)+stack.slice(1).reduce((n,x)=>n+(Number(x)||0),0);
+      building[key]=[stack[0],0,0,0,0];
+    }
+  }
   st.tools=[st.tools?.[0]??-1,-1,-1,-1,-1];
   st.talents=[st.talents?.[0]||0,0,0,0,0];
   st.roads={}; // Old roads were automatically generated: discard them.
