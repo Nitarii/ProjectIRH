@@ -43,14 +43,31 @@ const M=c=>new T.MeshLambertMaterial({color:c}),m={grass:M(0x658b55),forest:M(0x
 function cube(w,h,d,mat,x=0,y=0,z=0){let q=new T.Mesh(new T.BoxGeometry(w,h,d),mat);q.position.set(x,y,z);q.castShadow=true;q.receiveShadow=true;return q}function orb(r,mat,x=0,y=0,z=0){let q=new T.Mesh(new T.IcosahedronGeometry(r,1),mat);q.position.set(x,y,z);q.castShadow=true;return q}function cy(r,h,mat,x=0,y=0,z=0){let q=new T.Mesh(new T.CylinderGeometry(r,r,h,8),mat);q.position.set(x,y,z);q.castShadow=true;return q}
 const types=['FORÊT','MONTAGNE','EXCAVATION','DÉSERT','CHAMPS'],raw=['Bois','Pierre','Minerai','Sable','Blé'],processed=['Planches','Pierre taillée','Lingots','Verre','Farine'],tools=EQUIPMENT_FR,worksites=['Cabane de bûcheron','Carrière','Mine','Camp de terrassiers','Ferme'],factories=['Scierie','Atelier de taille','Fonderie','Verrerie','Moulin'],values=[12,12,12,12,12],colors=['#488756','#87938b','#b88f6b','#e3c67c','#c8b64e'];
 const vault=await openSaveVault();
-let defaultState={gold:100,bag:8,bicycle:false,inv:[0,0,0,0,0],products:[0,0,0,0,0],tools:[-1,-1,-1,-1,-1],talents:[0,0,0,0,0],buildings:[],stock:[],bicycle:false,staminaLevel:0,gameMinutes:0,x:0,z:9,seed:Math.floor(Math.random()*2000000000)+10000,worldVersion:2,exhausted:{},explored:[],autoLevel:0,roads:{},avatar:null};let st={...defaultState};
+let defaultState={gold:100,bag:8,bicycle:false,inv:[0,0,0,0,0],products:[0,0,0,0,0],tools:[-1,-1,-1,-1,-1],talents:[0,0,0,0,0],buildings:[],stock:[],bicycle:false,staminaLevel:0,gameMinutes:0,x:0,z:9,seed:Math.floor(Math.random()*2000000000)+10000,worldVersion:3,forestFocusVersion:1,exhausted:{},explored:[],autoLevel:0,roads:{},avatar:null};let st={...defaultState};
 const settings=loadSettings();await detectKeyboardLayout();let awaitingBinding=null;let observedGold=st.gold,goldHideAt=0;try{
  const a=vault.state||{};
  for(const k in defaultState)if(a[k]!==undefined)st[k]=a[k];
  // Existing maps retain their original nearby forest; only newly generated
  // worlds use the seeded three-biome starting crossroads.
  if(vault.state&&vault.state.worldVersion===undefined)st.worldVersion=1;
-}catch(error){console.warn('Save could not be loaded',error)}
+ }catch(error){console.warn('Save could not be loaded',error)}
+// Preserve player progress when retiring the four non-forest industries.
+if(st.forestFocusVersion!==1){
+  const retired=st.buildings.filter(b=>['worker','factory'].includes(b.kind)&&b.type!==0);
+  st.gold+=retired.reduce((n,b)=>n+buildingCost(b.kind,b.type)+
+    Math.max(0,Number(b.workers)||0)*ECONOMY.hire,0);
+  st.buildings=st.buildings.filter(b=>!retired.includes(b));
+  for(const field of ['inv','products']){
+    const arr=Array.isArray(st[field])?st[field]:[0];
+    arr[0]=(Number(arr[0])||0)+arr.slice(1).reduce((sum,n)=>sum+(Number(n)||0),0);
+    st[field]=[arr[0],0,0,0,0];
+  }
+  st.stock=[];
+  st.tools=[st.tools?.[0]??-1,-1,-1,-1,-1];
+  st.talents=[st.talents?.[0]||0,0,0,0,0];
+  st.roads={}; // Old roads were automatically generated: discard them.
+  st.worldVersion=3;st.forestFocusVersion=1;
+}
 observedGold=st.gold;
 const save=()=>{st.x=player.position.x;st.z=player.position.z;
 const cleanBuildings=st.buildings.map(b=>({
@@ -99,7 +116,7 @@ const avatarDesigner=attachAvatarDesigner(T,avatar,{
 let avatarDraft=normalizeAvatar(st.avatar||{});
 avatarDesigner.apply(avatarDraft);
 const toolModels=[];
-for(let type=0;type<5;type++){
+for(let type=0;type<1;type++){
   const variants=[];
   for(let tier=0;tier<5;tier++){
     const g=new T.Group(),metal=tier>=3?m.ore:m.rock;
@@ -231,23 +248,8 @@ const roadSurfaces=createRoadSurfaces(T,scene,roads,player,{
 const trails=createTrails(T,st,world,{roadLevel:(x,z)=>roads.levelAt(x,z)});
 let R=Math.max(2,Math.min(8,Math.ceil(settings.viewDistance/CH)));const hash=(x,z,s=0)=>{let n=Math.sin(x*127.1+z*311.7+s*51.6+((st.seed||7331)-7331)*.7919)*43758.5453;return n-Math.floor(n)},blend=t=>t*t*(3-2*t);function noise(x,z,k,s){let a=Math.floor(x/k),b=Math.floor(z/k),u=blend(x/k-a),v=blend(z/k-b);return T.MathUtils.lerp(T.MathUtils.lerp(hash(a,b,s),hash(a+1,b,s),u),T.MathUtils.lerp(hash(a,b+1,s),hash(a+1,b+1,s),u),v)}
 function biome(x,z){
-if(st.worldVersion===1){
-  if(Math.hypot(x,z)<22)return -1;
-  if(Math.hypot(x-34,z)<76)return 0;
-}else{
-  const starting=openingBiome(x,z,st.seed);
-  if(starting!==null)return starting;
-}
-const size=290,cx=Math.floor(x/size),cz=Math.floor(z/size);
-let nearest=Infinity,selected=0;
-for(let ix=-1;ix<=1;ix++)for(let iz=-1;iz<=1;iz++){
-const gx=cx+ix,gz=cz+iz;
-const centerX=(gx+.5+(hash(gx,gz,27)-.5)*.6)*size;
-const centerZ=(gz+.5+(hash(gx,gz,28)-.5)*.6)*size;
-const d=(x-centerX)**2+(z-centerZ)**2;
-if(d<nearest){nearest=d;selected=Math.floor(hash(gx,gz,35)*5)}
-}
-return selected;
+  // A camp clearing surrounded by one continuous, infinite forest.
+  return Math.hypot(x,z)<22?-1:0;
 }
 const resourceGraphics=createResourceGraphics(T);
 const harvestFx=createHarvestEffects(T,scene);
@@ -332,7 +334,7 @@ const x0=cx*CH,z0=cz*CH;
 const groundGeometry=new T.PlaneGeometry(CH,CH,16,16);
 groundGeometry.rotateX(-Math.PI/2);
 const vertexColors=[];
-const basePalette=['#527751','#477c55','#858b84','#826e59','#dec28b','#adb66a'];
+const basePalette=['#527751','#477c55'];
 const baseColor=(x,z)=>{
   const b=biome(x,z);
   const color=new T.Color(basePalette[b<0?0:b+1]);
@@ -350,7 +352,7 @@ const floor=new T.Mesh(groundGeometry,terrainMaterial);
 floor.position.set(x0+CH/2,-.025,z0+CH/2);
 floor.rotation.y=0;floor.receiveShadow=true;
 root.add(floor);
-decorations(cx,cz,root);buildWheatField(cx,cz,root);scene.add(root);
+decorations(cx,cz,root);scene.add(root);
 const c={root,nodes,hasNodes:false};world.set(key,c);trails.initChunk(c,cx,cz)
 }
 function populate(cx,cz,c){
@@ -807,11 +809,6 @@ function clearPlacementObstacles(building){
  const area=facilityFootprint(building),margin=.38;
  for(const [chunkKey,c] of world){
   const [cx,cz]=chunkKey.split(',').map(Number);
-  // Wheat is batched separately from small decorations; rebuild only close chunks.
-  if(Math.hypot(cx*CH+CH/2-area.x,cz*CH+CH/2-area.z)<Math.hypot(area.w,area.d)/2+CH){
-    for(const mesh of c.root.userData.wheatMeshes||[]){c.root.remove(mesh);mesh.dispose()}
-    buildWheatField(cx,cz,c.root);
-  }
   for(const node of c.nodes){
    if(!pointInOrientedRect(node.x,node.z,area,margin+.65))continue;
    node.dead=true;node.hp=0;node.mesh.visible=false;
@@ -1152,12 +1149,12 @@ if(panel==='settings'){
 }
 let out='';
 if(panel==='market'){
-let group='';for(let i=0;i<5;i++){
+let group='';for(let i=0;i<1;i++){
 const tier=st.tools[i]+1;if(tier>=5)continue;
 const cost=toolCost(i,tier);
 group+=add(settings.language==='en'?EQUIPMENT[i][tier]:tools[i][tier],types[i]+' · Palier '+(tier+1)+' / 5',cost+' OR','tool:'+i,false,i);
 }
-out+=section('Outils & récolte','CINQ INDUSTRIES',group||'<p class="catalog-empty">Tous les outils sont au niveau maximum.</p>');
+out+=section('Outils & récolte','INDUSTRIE FORESTIÈRE',group||'<p class="catalog-empty">Tous les outils sont au niveau maximum.</p>');
 let utility='';
 if(st.bag===8)utility+=add('Sac renforcé','8 → 16 emplacements',ECONOMY.bag+' OR','bag');
 if(st.bag===16)utility+=add('Sac de randonnée','16 → 24 emplacements',ECONOMY.bag24+' OR','bag24');
@@ -1167,7 +1164,7 @@ out+=section('Équipement','CONSERVATION & MOBILITÉ',utility||'<p class="catalo
 
 }
 if(panel==='build'){
-out+=section('Logistique','TRANSPORT & COMMERCE',add('Dépôt de transport','Récolte → usine → entrepôt vendeur',buildingCost('transport')+' OR','transport:0')+add('Comptoir vendeur','Vend uniquement son propre stock',buildingCost('seller')+' OR','seller:0')+add('Atelier de voirie','Chantiers de chemins et routes, jusqu’à +50 % de vitesse',buildingCost('road')+' OR','road:0'));for(let i=0;i<5;i++){
+out+=section('Logistique','TRANSPORT & COMMERCE',add('Dépôt de transport','Récolte → usine → entrepôt vendeur',buildingCost('transport')+' OR','transport:0')+add('Comptoir vendeur','Vend uniquement son propre stock',buildingCost('seller')+' OR','seller:0')+add('Atelier de voirie','Chantiers de chemins et routes, jusqu’à +50 % de vitesse',buildingCost('road')+' OR','road:0'));for(let i=0;i<1;i++){
 out+=section(types[i]+' · '+raw[i].toUpperCase(),'CHAÎNE DE PRODUCTION',add(worksites[i],'Collecte automatique · stockage',buildingCost('worker',i)+' OR','worker:'+i,false,i)+add(factories[i],raw[i]+' → '+processed[i],buildingCost('factory',i)+' OR','factory:'+i,false,i));
 }
 
@@ -1267,7 +1264,7 @@ function resetEntireGame(){
     tools:[-1,-1,-1,-1,-1],talents:[0,0,0,0,0],
     buildings:[],stock:[],bicycle:false,staminaLevel:0,
     gameMinutes:0,x:0,z:9,
-    seed:Math.floor(Math.random()*2000000000)+10000,worldVersion:2,
+    seed:Math.floor(Math.random()*2000000000)+10000,worldVersion:3,forestFocusVersion:1,
     avatar:null,exhausted:{},explored:[],autoLevel:0,trails:{},roads:{}
   };
   vault.save(fresh).then(()=>location.reload()).catch(e=>{
