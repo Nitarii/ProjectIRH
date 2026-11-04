@@ -22,28 +22,25 @@ const sites=[
   {kind:'worker',id:'w',x:80,z:35,rotation:0},
   {kind:'seller',id:'s',x:100,z:75,rotation:0}
 ];
-test('road planning',roads.rebuild(sites,{x:23,z:0})&&roads.plannedCount>20);
-const remote={roads:{}},remoteRoads=roadsApi.createRoadNetwork(remote);
-remoteRoads.setProbes({blocked:()=>false,traffic:()=>0,invalidate:()=>{}});
-remoteRoads.rebuild([
- {kind:'road',id:'remoteDepot',x:30,z:25,rotation:0},
- {kind:'worker',id:'remoteWorker',x:645,z:25,rotation:0}],{x:23,z:0});
-test('road planners can connect facilities hundreds of meters apart',
-  remoteRoads.plannedCount>130&&remoteRoads.plannedCount<=5600);
+test('buildings never automatically lay routes',roads.rebuild(sites,{x:23,z:0})===false&&roads.plannedCount===0);
+test('player-painted plans create work',roads.paint({x:30,z:25},{x:65,z:25},'build','path')>6);
 let guard=0;
-while(roads.completed<roads.plannedCount&&guard++<2000){
-  const job=roads.claim('roadworker',{x:80,z:35});
-  assert.ok(job,'must plan reachable road task');
-  assert.equal(roads.work('roadworker',job,11),'done');
+while(roads.plannedCount>0&&guard++<100){
+  const task=roads.claim('roadworker',{x:60,z:25});
+  assert.ok(task,'manual road work must be claimable');
+  assert.equal(roads.work('roadworker',task,32),'done');
 }
-test('all planned paths progressively finished',roads.completed===roads.plannedCount);
-const upgrade=roads.claim('roadworker',{x:80,z:35});
-test('upgrade requires used path',upgrade?.mode==='upgrade');
-assert.equal(roads.work('roadworker',upgrade,19),'done');
-test('built paths give +20%, paved roads +50%',roads.speedAt(upgrade.x,upgrade.z)===1.5&&
-  Object.values(state.roads).some(v=>v.l===1));
-roads.rebuild([sites[0]],{x:23,z:0});
-test('obsolete roads get demolition jobs',roads.claim('roadworker',{x:80,z:35})?.mode==='demolish');
+test('manually scheduled paths progressively finish',roads.plannedCount===0&&roads.built>0);
+const original={x:30,z:25};
+roads.paint(original,original,'build','road');
+const upgraded=roads.claim('roadworker',original);
+assert.equal(roads.work('roadworker',upgraded,46),'done');
+test('paved road bonus applies only after explicit upgrading',roads.speedAt(original.x,original.z)===1.5);
+roads.paint(original,original,'demolish');
+const demolish=roads.claim('roadworker',original);
+assert.equal(demolish?.mode,'demolish');
+assert.equal(roads.work('roadworker',demolish,26),'done');
+test('only manually ordered demolition removes the road',roads.levelAt(original.x,original.z)===0);
 const pavedRoute=nav.createRouter(()=>false,{cell:1.2,maxVisits:2300,
   speedAt:(x,z)=>Math.abs(z-5)<1.8?1.5:1}).route({x:0,z:0},{x:40,z:0});
 test('AI travel-time routing chooses a faster paved detour',
@@ -100,7 +97,8 @@ const sim={gold:0,roads:{},buildings:[
   {kind:'road',type:0,x:57,z:39,workers:1,rotation:0,carryLevel:0},
 ]};
 const simRoads=roadsApi.createRoadNetwork(sim);
-simRoads.setProbes({blocked:()=>false,traffic:()=>16,invalidate:()=>{}});
+simRoads.setProbes({blocked:()=>false,invalidate:()=>{}});
+simRoads.paint({x:55,z:38},{x:61,z:38},'build','path');
 const engine=industryApi.createIndustry(T,new Obj(),sim,[],()=>0,
   {x:23,z:0,w:8,d:9},[12,12,12,12,12],
   {roads:simRoads,blocked:()=>false,priceMultiplier:()=>1});
@@ -131,7 +129,8 @@ const chain={gold:0,roads:{},buildings:[
   {kind:'road',type:0,x:77,z:46,workers:1,rotation:0,carryLevel:0}
 ]};
 const chainRoads=roadsApi.createRoadNetwork(chain);
-chainRoads.setProbes({blocked:()=>false,traffic:()=>16,invalidate:()=>{}});
+chainRoads.setProbes({blocked:()=>false,invalidate:()=>{}});
+chainRoads.paint({x:77,z:47},{x:82,z:47},'build','path');
 const chainEngine=industryApi.createIndustry(T,new Obj(),chain,[],()=>0,
   {x:23,z:0,w:8,d:9},[12,12,12,12,12],
   {roads:chainRoads,blocked:()=>false,priceMultiplier:()=>1});
