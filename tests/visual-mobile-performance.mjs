@@ -12,8 +12,10 @@ check('resource nodes are substantially more durable',main.includes('const hp=[3
 check('road works maximum two workers including loaded saves',
   industry.includes("b.kind==='road'?2:employeeLimit")&&
   industry.includes("workerLimit:b=>b?.kind==='road'?2:employeeLimit"));
-check('road construction and upgrade animations take more time',
-  roadLogic.includes("task.mode==='build'?10.5:task.mode==='upgrade'?18.0:7.5"));
+check('roads are drawn by the player and worked slowly',
+  roadLogic.includes('function paint(from,to,mode=')&&
+  roadLogic.includes("const duration=mode==='demolish'?26:Number(item.target)===1?32:46")&&
+  main.includes('beginRoadDrawing()'));
 check('per-building personnel cards and upgrade compartments',
   main.includes('class="facility-management')&&main.includes('class="facility-upgrade-grid')&&
   css.includes('.facility-management-heading')&&css.includes('.facility-upgrade-grid'));
@@ -24,12 +26,10 @@ check('bike touch button is conditional on purchase',
   markup.includes('class="hidden" data-touch-action="vehicle"'));
 check('fullscreen control present on mobile and desktop',
   markup.includes('id="fullscreenButton"')&&main.includes("createScreenImmersion("));
-check('pickaxes have physical pointed heads',
-  main.includes('sharpened +X pick point')&&main.includes('tip.rotation.z=-Math.PI/2')&&
-  industry.includes('const tip=part(new T.ConeGeometry(.11,.36,5)'));
-check('pickaxe points toward the node during impact',
-  main.includes('heavy?-.23:-Math.PI/2')&&
-  industry.includes('v.tool.rotation.y=type===1?-Math.PI/2:0'));
+check('forest is the only active biome and industry',
+  main.includes("const types=['FORÊT']")&&
+  main.includes("return Math.hypot(x,z)<22?-1:0")&&
+  main.includes('for(let type=0;type<1;type++)'));
 check('decor casts real directional shadows near camera without global caster overload',
   main.includes("quality==='high'||batch.kind!==4")&&
   main.includes('refreshDecorationShadows(dt)'));
@@ -72,7 +72,7 @@ const roadNetwork={revision:1,data:{
 }};
 const visual=makeSurface(T,scene,roadNetwork,player,{viewDistance:()=>128,quality:()=> 'high'});
 visual.update(.1);
-check('road surfaces use five reusable instanced draw batches',scene.children.length===5&&
+check('road surfaces use seven reusable instanced draw batches',scene.children.length===7&&
   scene.children.every(m=>m instanceof InstancedMesh));
 const probe={vertexShader:'#include <common>\\n#include <begin_vertex>',
   fragmentShader:'#include <common>\\n#include <alphatest_fragment>'};
