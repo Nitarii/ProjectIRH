@@ -716,3 +716,25 @@ body.touch-placement .touch-action-pad{grid-template-columns:repeat(3,minmax(0,1
 #fullscreenButton.hidden{display:none!important}
 html:fullscreen #fullscreenButton{background:#264a3eb0}
 html.touch-enabled #fullscreenButton{top:calc(8px + env(safe-area-inset-top,0px))}
+
+/* Dedicated construction flight camera and road-plan drawing tools. */
+body.construction-mode #hud>.mission,body.construction-mode #hud>.bottom,
+body.construction-mode #hud>.inventory-mini,body.construction-mode #hud>.location,
+body.construction-mode #hud>.stamina,body.construction-mode #hud>.rightcol,
+body.construction-mode #hud>.target{display:none!important}
+body.construction-mode #game canvas{cursor:crosshair;touch-action:none}
+body.construction-mode .placement-hud{pointer-events:auto;width:min(460px,94vw);z-index:11}
+.road-controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:12px}
+.road-controls.hidden{display:none}
+.road-controls button{min-height:38px;border-radius:7px;border:1px solid #c7eac588;
+background:#214638;color:#edfced;font:700 12px sans-serif;cursor:pointer}
+.road-controls button.active{background:#bce7ac;color:#123022}
+.construction-hint{display:block;margin-top:11px;line-height:1.5;color:#c4e2d9}
+body.construction-mode .touch-top-nav{display:none}
+body.construction-mode .touch-action-pad button:not(.touch-placing){display:none}
+body.construction-mode .touch-pad{z-index:8}
+@media(max-width:750px){
+ body.construction-mode .placement-hud{top:calc(38px + env(safe-area-inset-top));width:min(360px,87vw);padding:10px}
+ body.construction-mode .construction-hint{font-size:10px}
+ body.construction-mode .road-controls button{min-height:38px;font-size:11px}
+}
